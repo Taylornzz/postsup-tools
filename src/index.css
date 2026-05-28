@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Finishing Suite — design system. All colors HSL. */
+
+@layer base {
+  :root {
+    /* Core surfaces */
+    --background: 240 6% 7%;
+    --foreground: 240 9% 91%;
+
+    --card: 240 5% 10%;
+    --card-foreground: 240 9% 91%;
+
+    --popover: 240 5% 10%;
+    --popover-foreground: 240 9% 91%;
+
+    --primary: 240 9% 91%;
+    --primary-foreground: 240 6% 7%;
+
+    --secondary: 240 5% 12%;
+    --secondary-foreground: 240 9% 91%;
+
+    --muted: 240 4% 14%;
+    --muted-foreground: 240 5% 58%;
+
+    --accent: 240 4% 14%;
+    --accent-foreground: 240 9% 91%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 240 9% 91%;
+
+    --border: 240 5% 18%;
+    --input: 240 5% 14%;
+    --ring: 240 5% 40%;
+
+    --radius: 0.25rem;
+
+    /* Suite-specific tokens */
+    --suite-bg: 240 6% 7%;
+    --suite-canvas: 240 8% 4%;
+    --suite-panel: 240 5% 10%;
+    --suite-panel-elevated: 240 5% 12%;
+    --suite-border: 240 5% 18%;
+    --suite-border-strong: 240 5% 25%;
+    --suite-text: 240 9% 91%;
+    --suite-text-muted: 240 5% 58%;
+    --suite-text-dim: 240 5% 38%;
+
+    /* Guide colors — source vs target */
+    --guide-source: 199 92% 64%;     /* cyan-blue */
+    --guide-target: 33 100% 50%;     /* amber */
+    --guide-mask: 240 10% 2%;
+    --guide-social: 280 70% 65%;     /* violet for social formats */
+
+    --status-ok: 142 70% 45%;
+    --status-warn: 38 92% 55%;
+
+    /* Sidebar (legacy shadcn) */
+    --sidebar-background: 240 5% 10%;
+    --sidebar-foreground: 240 9% 91%;
+    --sidebar-primary: 240 9% 91%;
+    --sidebar-primary-foreground: 240 6% 7%;
+    --sidebar-accent: 240 5% 14%;
+    --sidebar-accent-foreground: 240 9% 91%;
+    --sidebar-border: 240 5% 18%;
+    --sidebar-ring: 199 92% 64%;
+  }
+
+  /* No light mode toggle — this is a finishing-suite dark tool. */
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-feature-settings: 'zero', 'tnum';
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
