@@ -392,9 +392,7 @@ export function FrameViewer({
               {protectionPct > 0 && (
                 <ProtectionOverlay
                   pct={protectionPct}
-                  extPxW={extPxW}
-                  extPxH={extPxH}
-                  color={targetAccent}
+                  color="#f59e0b"
                   onChange={onProtectionChange}
                 />
               )}
@@ -567,132 +565,87 @@ export function SafeAreaOverlay({ color }: { color: string }) {
 }
 
 /** Protection / framing-reservation overlay.
- *  Renders a dashed inset rectangle inside the extraction frame and lets the
- *  user drag any of its 4 edges to live-adjust the protection percentage.
- *  Mirrors Netflix Production Tech Tools' "Protection" guide. */
+ *  Renders a dashed rectangle OUTSIDE the final frame (the larger reserved area
+ *  you keep clean) and lets the user drag any edge to live-adjust the percentage.
+ *  Matches the export chart + FDL: protection = final ÷ (1 − pct/100). */
 export function ProtectionOverlay({
   pct,
-  extPxW,
-  extPxH,
   color,
   onChange,
 }: {
   pct: number;
-  extPxW: number;
-  extPxH: number;
   color: string;
   onChange?: (pct: number) => void;
 }) {
-  // `pct` is the ASC/Netflix TOTAL protection fraction (symmetric): the framing
-  // rect is (1 − pct/100) of the full frame, so each edge insets by half.
-  const insetX = (pct / 200) * extPxW;
-  const insetY = (pct / 200) * extPxH;
+  // Protection is LARGER than the final frame: protection = final / (1 − p),
+  // so it sits OUTSIDE, expanding past each edge by this fraction of the frame.
+  const p = Math.max(0, Math.min(0.9, pct / 100));
+  const outsetPct = ((1 / (1 - p) - 1) / 2) * 100; // % of the frame, per side
   const interactive = !!onChange;
 
-  const dragRef = useRef<{ edge: "t" | "b" | "l" | "r"; rect: DOMRect } | null>(
-    null,
-  );
+  const rootRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<"t" | "b" | "l" | "r" | null>(null);
 
-  const beginDrag = (edge: "t" | "b" | "l" | "r") =>
-    (e: React.PointerEvent) => {
-      if (!onChange) return;
-      e.stopPropagation();
-      const host = (e.currentTarget as HTMLElement).parentElement;
-      if (!host) return;
-      const rect = host.getBoundingClientRect();
-      dragRef.current = { edge, rect };
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    };
-
-  const onMove = (e: React.PointerEvent) => {
-    const d = dragRef.current;
-    if (!d || !onChange) return;
+  const begin = (edge: "t" | "b" | "l" | "r") => (e: React.PointerEvent) => {
+    if (!onChange) return;
     e.stopPropagation();
-    let pctNext = pct;
-    // Per-edge inset distance → TOTAL protection fraction (both sides), so
-    // dragging one edge by `d` of the dimension means pct = 2·d/dim·100.
-    if (d.edge === "t") {
-      const dy = e.clientY - d.rect.top;
-      pctNext = (dy / d.rect.height) * 200;
-    } else if (d.edge === "b") {
-      const dy = d.rect.bottom - e.clientY;
-      pctNext = (dy / d.rect.height) * 200;
-    } else if (d.edge === "l") {
-      const dx = e.clientX - d.rect.left;
-      pctNext = (dx / d.rect.width) * 200;
-    } else {
-      const dx = d.rect.right - e.clientX;
-      pctNext = (dx / d.rect.width) * 200;
-    }
-    onChange(Math.max(0, Math.min(40, Math.round(pctNext * 2) / 2)));
+    dragRef.current = edge;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
-
-  const endDrag = (e: React.PointerEvent) => {
+  const move = (e: React.PointerEvent) => {
+    if (!dragRef.current || !onChange || !rootRef.current) return;
+    e.stopPropagation();
+    const r = rootRef.current.getBoundingClientRect(); // = final frame
+    let o = 0; // how far OUTSIDE the frame the cursor is, as a fraction of the frame
+    if (dragRef.current === "t") o = (r.top - e.clientY) / r.height;
+    else if (dragRef.current === "b") o = (e.clientY - r.bottom) / r.height;
+    else if (dragRef.current === "l") o = (r.left - e.clientX) / r.width;
+    else o = (e.clientX - r.right) / r.width;
+    o = Math.max(0, o);
+    const pp = (2 * o) / (1 + 2 * o); // invert the outset back to a fraction
+    onChange(Math.max(0, Math.min(40, Math.round(pp * 1000) / 10)));
+  };
+  const end = (e: React.PointerEvent) => {
     if (!dragRef.current) return;
     e.stopPropagation();
     dragRef.current = null;
   };
 
-  // Edge hit-strips for dragging. 8px wide, sit on the dashed border.
   const edgeBase =
-    "absolute touch-none" + (interactive ? " cursor-grab active:cursor-grabbing" : " pointer-events-none");
+    "absolute touch-none" +
+    (interactive ? " cursor-grab active:cursor-grabbing pointer-events-auto" : " pointer-events-none");
 
   return (
-    <div className="absolute inset-0 pointer-events-none">
+    <div ref={rootRef} className="absolute inset-0 pointer-events-none">
       <div
         className="absolute"
         style={{
-          left: insetX,
-          right: insetX,
-          top: insetY,
-          bottom: insetY,
+          left: `-${outsetPct}%`,
+          right: `-${outsetPct}%`,
+          top: `-${outsetPct}%`,
+          bottom: `-${outsetPct}%`,
           border: `1.5px dashed ${color}`,
-          opacity: 0.85,
-          boxShadow: `0 0 0 1px ${color}22`,
+          opacity: 0.9,
         }}
       >
         <span
-          className="absolute -top-5 left-0 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/90 backdrop-blur border pointer-events-none"
+          className="absolute -top-5 left-0 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/90 backdrop-blur border pointer-events-none whitespace-nowrap"
           style={{ color, borderColor: `${color}55` }}
         >
-          Protection {pct.toFixed(pct % 1 === 0 ? 0 : 1)}%
+          Protection {pct.toFixed(pct % 1 === 0 ? 0 : 1)}% · outside frame
         </span>
 
         {interactive && (
           <>
-            <div
-              className={edgeBase}
-              style={{ top: -4, left: 0, right: 0, height: 8 }}
-              onPointerDown={beginDrag("t")}
-              onPointerMove={onMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-              title="Drag to adjust protection"
-            />
-            <div
-              className={edgeBase}
-              style={{ bottom: -4, left: 0, right: 0, height: 8 }}
-              onPointerDown={beginDrag("b")}
-              onPointerMove={onMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-            />
-            <div
-              className={edgeBase}
-              style={{ left: -4, top: 0, bottom: 0, width: 8 }}
-              onPointerDown={beginDrag("l")}
-              onPointerMove={onMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-            />
-            <div
-              className={edgeBase}
-              style={{ right: -4, top: 0, bottom: 0, width: 8 }}
-              onPointerDown={beginDrag("r")}
-              onPointerMove={onMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
-            />
+            <div className={edgeBase} style={{ top: -4, left: 0, right: 0, height: 8 }}
+              onPointerDown={begin("t")} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
+              title="Drag to adjust protection" />
+            <div className={edgeBase} style={{ bottom: -4, left: 0, right: 0, height: 8 }}
+              onPointerDown={begin("b")} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
+            <div className={edgeBase} style={{ left: -4, top: 0, bottom: 0, width: 8 }}
+              onPointerDown={begin("l")} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
+            <div className={edgeBase} style={{ right: -4, top: 0, bottom: 0, width: 8 }}
+              onPointerDown={begin("r")} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
           </>
         )}
       </div>

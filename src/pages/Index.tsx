@@ -72,7 +72,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { FileSizeCalculator } from "@/components/FileSizeCalculator";
-import referencePerson from "@/assets/reference-person.jpg";
+import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
