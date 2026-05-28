@@ -74,56 +74,50 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   const font = Math.max(13, Math.round(H * 0.016));
   const lw = Math.max(1.5, H * 0.0016);
 
-  // --- Background -----------------------------------------------------------
-  const g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, "#1b1b1f");
-  g.addColorStop(1, "#0d0d10");
-  ctx.fillStyle = g;
+  // --- Clean framing-chart background (our palette, no guide image) ----------
+  void referenceImage; // the export chart is intentionally clean — image stays in the live viewer
+  ctx.fillStyle = "#0b0c0e"; // dark border zone
   ctx.fillRect(0, 0, W, H);
+  // Neutral working-area panel inside the protection rect, so framelines, focus
+  // stars and the subject's framing read clearly (our take on the ASC grey field).
+  const panel = ctx.createLinearGradient(0, prot.y, 0, prot.y + prot.h);
+  panel.addColorStop(0, "#2b2f36");
+  panel.addColorStop(1, "#21242a");
+  ctx.fillStyle = panel;
+  ctx.fillRect(prot.x, prot.y, prot.w, prot.h);
 
-  if (referenceImage && referenceImage.naturalWidth > 0) {
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    // Desqueezed: draw the reference at its TRUE aspect (cover), never stretched
-    // to the squeezed sensor frame — so an anamorphic chart still reads upright.
-    const ia = referenceImage.naturalWidth / referenceImage.naturalHeight;
-    const ca = W / H;
-    let dw: number, dh: number;
-    if (ia > ca) { dh = H; dw = H * ia; } else { dw = W; dh = W / ia; }
-    ctx.drawImage(referenceImage, (W - dw) / 2, (H - dh) / 2, dw, dh);
-    ctx.restore();
-  }
-
-  // Fine grid
-  ctx.strokeStyle = "rgba(255,255,255,0.05)";
+  // Fine grid, confined to the working area.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(prot.x, prot.y, prot.w, prot.h);
+  ctx.clip();
+  ctx.strokeStyle = "rgba(255,255,255,0.045)";
   ctx.lineWidth = 1;
-  const step = Math.max(40, Math.round(W / 24));
+  const step = Math.max(40, Math.round(W / 28));
   ctx.beginPath();
-  for (let x = step; x < W; x += step) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, H);
-  }
-  for (let y = step; y < H; y += step) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(W, y);
-  }
+  for (let x = prot.x; x < prot.x + prot.w; x += step) { ctx.moveTo(x, prot.y); ctx.lineTo(x, prot.y + prot.h); }
+  for (let y = prot.y; y < prot.y + prot.h; y += step) { ctx.moveTo(prot.x, y); ctx.lineTo(prot.x + prot.w, y); }
   ctx.stroke();
+  ctx.restore();
 
-  // Diagonal alignment lines (corner to corner)
-  ctx.strokeStyle = "rgba(255,255,255,0.08)";
-  ctx.lineWidth = lw * 0.6;
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(W, H);
-  ctx.moveTo(W, 0);
-  ctx.lineTo(0, H);
-  ctx.stroke();
-
-  // --- Sensor border + corner ticks ----------------------------------------
+  // Sensor border + corner ticks (slate).
   ctx.strokeStyle = SENSOR_LINE;
   ctx.lineWidth = lw;
   ctx.strokeRect(lw / 2, lw / 2, W - lw, H - lw);
-  drawCornerTicks(ctx, 0, 0, W, H, Math.min(W, H) * 0.04, SENSOR_LINE, lw);
+  drawCornerTicks(ctx, 0, 0, W, H, Math.min(W, H) * 0.045, SENSOR_LINE, lw);
+
+  // Inward registration triangles just inside each sensor edge.
+  drawEdgeTriangles(ctx, W, H, Math.min(W, H) * 0.016, "#cbd5e1");
+
+  // Four Siemens-star focus targets near the working-area corners.
+  const starR = Math.min(prot.w, prot.h) * 0.07;
+  const si = starR * 1.5;
+  ([
+    [prot.x + si, prot.y + si],
+    [prot.x + prot.w - si, prot.y + si],
+    [prot.x + si, prot.y + prot.h - si],
+    [prot.x + prot.w - si, prot.y + prot.h - si],
+  ] as const).forEach(([sx, sy]) => drawSiemensStar(ctx, sx, sy, starR));
 
   // --- Protection band = the area BETWEEN the final frame and the protection
   //     boundary. Tinted amber so it reads as reserved headroom, not picture. --
@@ -198,6 +192,20 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   ctx.beginPath();
   ctx.arc(cx, cy, ring, 0, Math.PI * 2);
   ctx.stroke();
+
+  // --- Brand mark (centre — our identity in place of resolution text) -------
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const brandY = frame.y + frame.h * 0.28;
+  ctx.fillStyle = TEXT;
+  ctx.font = `700 ${font * 2.6}px ui-monospace, Menlo, Consolas, monospace`;
+  ctx.fillText("LUMINA", cx, brandY);
+  ctx.fillStyle = FRAME_LINE;
+  ctx.font = `${font * 1.05}px ui-monospace, Menlo, Consolas, monospace`;
+  ctx.fillText("F R A M E   M A T R I X", cx, brandY + font * 2.1);
+  ctx.restore();
+  ctx.textAlign = "left";
 
   // --- Labels ---------------------------------------------------------------
   ctx.textBaseline = "top";
@@ -331,6 +339,57 @@ function edgeCenterTicks(
   ctx.moveTo(mx, r.y + r.h); ctx.lineTo(mx, r.y + r.h - len); // bottom
   ctx.moveTo(r.x, my); ctx.lineTo(r.x + len, my); // left
   ctx.moveTo(r.x + r.w, my); ctx.lineTo(r.x + r.w - len, my); // right
+  ctx.stroke();
+}
+
+/** Inward-pointing registration triangles just inside each sensor edge. */
+function drawEdgeTriangles(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  size: number,
+  color: string,
+) {
+  ctx.fillStyle = color;
+  const m = size * 1.6;
+  const tri = (x: number, y: number, dir: "u" | "d" | "l" | "r") => {
+    ctx.beginPath();
+    if (dir === "d") { ctx.moveTo(x - size, y); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size * 1.4); }
+    if (dir === "u") { ctx.moveTo(x - size, y); ctx.lineTo(x + size, y); ctx.lineTo(x, y - size * 1.4); }
+    if (dir === "r") { ctx.moveTo(x, y - size); ctx.lineTo(x, y + size); ctx.lineTo(x + size * 1.4, y); }
+    if (dir === "l") { ctx.moveTo(x, y - size); ctx.lineTo(x, y + size); ctx.lineTo(x - size * 1.4, y); }
+    ctx.closePath();
+    ctx.fill();
+  };
+  for (const f of [0.25, 0.5, 0.75]) {
+    tri(W * f, m, "d");
+    tri(W * f, H - m, "u");
+    tri(m, H * f, "r");
+    tri(W - m, H * f, "l");
+  }
+}
+
+/** Siemens-star focus target (alternating wedges) with a slate ring. */
+function drawSiemensStar(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  segments = 24,
+) {
+  const stepA = (Math.PI * 2) / segments;
+  for (let i = 0; i < segments; i++) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, i * stepA, (i + 1) * stepA);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? "#e5e7eb" : "#0b0c0e";
+    ctx.fill();
+  }
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = Math.max(1, r * 0.03);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
 }
 

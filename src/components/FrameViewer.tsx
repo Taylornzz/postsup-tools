@@ -23,6 +23,8 @@ interface FrameViewerProps {
   protectionPct?: number;
   onProtectionChange?: (pct: number) => void;
   extractionScale?: number;
+  /** When provided, the frame's corner handles resize the extraction (scale). */
+  onExtractionScaleChange?: (s: number) => void;
   /** Optional delivery-intent aspect ratio (W/H) drawn inside the extraction
    *  frame so DPs can pre-visualise a final crop (2.00, 2.39, 0.5625…) on
    *  top of the source view. null/undefined = no overlay. */
@@ -46,6 +48,7 @@ export function FrameViewer({
   protectionPct = 0,
   onProtectionChange,
   extractionScale = 1,
+  onExtractionScaleChange,
   deliveryCropAR = null,
   deliveryCropLabel,
   referenceImage,
@@ -168,6 +171,40 @@ export function FrameViewer({
   );
   const onPointerUp = useCallback(() => {
     dragging.current = null;
+  }, []);
+
+  // Corner-handle resize → drives extractionScale (size, not just position).
+  const resizing = useRef<{ cx: number; cy: number; startDist: number; startScale: number } | null>(null);
+  const onResizeDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!onExtractionScaleChange) return;
+      e.stopPropagation();
+      const host = (e.currentTarget as HTMLElement).parentElement;
+      if (!host) return;
+      const r = host.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const d = Math.hypot(e.clientX - cx, e.clientY - cy) || 1;
+      resizing.current = { cx, cy, startDist: d, startScale: esClamped };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [onExtractionScaleChange, esClamped],
+  );
+  const onResizeMove = useCallback(
+    (e: React.PointerEvent) => {
+      const s = resizing.current;
+      if (!s || !onExtractionScaleChange) return;
+      e.stopPropagation();
+      const d = Math.hypot(e.clientX - s.cx, e.clientY - s.cy);
+      const next = s.startScale * (d / s.startDist);
+      onExtractionScaleChange(Math.max(0.25, Math.min(2, Math.round(next * 100) / 100)));
+    },
+    [onExtractionScaleChange],
+  );
+  const onResizeUp = useCallback((e: React.PointerEvent) => {
+    if (!resizing.current) return;
+    e.stopPropagation();
+    resizing.current = null;
   }, []);
 
   const sourceAccent = "hsl(var(--guide-source))";
@@ -316,6 +353,29 @@ export function FrameViewer({
                 <Corner key={corner} pos={corner} color={targetAccent} />
               ))}
 
+              {/* Corner resize handles — drag to scale the extraction window. */}
+              {onExtractionScaleChange &&
+                (["tl", "tr", "bl", "br"] as const).map((corner) => {
+                  const posMap: Record<string, string> = {
+                    tl: "top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize",
+                    tr: "top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize",
+                    bl: "bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize",
+                    br: "bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize",
+                  };
+                  return (
+                    <div
+                      key={`h-${corner}`}
+                      className={cn("absolute size-3.5 rounded-[2px] touch-none pointer-events-auto", posMap[corner])}
+                      style={{ background: targetAccent, boxShadow: "0 0 0 1.5px hsl(var(--suite-bg))" }}
+                      onPointerDown={onResizeDown}
+                      onPointerMove={onResizeMove}
+                      onPointerUp={onResizeUp}
+                      onPointerCancel={onResizeUp}
+                      title="Drag to resize the extraction"
+                    />
+                  );
+                })}
+
               {showThirds && (
                 <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.5 }}>
                   <div className="absolute left-0 right-0 top-1/3 h-px" style={{ background: targetAccent }} />
@@ -363,7 +423,7 @@ export function FrameViewer({
                   className="absolute bottom-1 left-1 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/80 backdrop-blur border pointer-events-none"
                   style={{ color: targetAccent, borderColor: `${targetAccent}40` }}
                 >
-                  Drag to reframe
+                  Drag to reframe · corners resize
                 </div>
               )}
             </div>

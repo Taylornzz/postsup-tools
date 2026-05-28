@@ -76,8 +76,9 @@ import referencePerson from "@/assets/reference-person.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.8";
+const VERSION = "v1.9";
 const CHANGELOG = [
+  "v1.9 — Storage button moved beside Capture & Framing; reframe box can now be resized via corner handles (not just repositioned); framing-chart export rebuilt as a clean ASC/Netflix-style chart — neutral working field (no guide image), four Siemens-star focus targets, inward edge registration marks, rounded framing-decision + protection rectangles, centre crosshair with focus ring, and the LUMINA / FRAME MATRIX brand mark — in our cyan/orange palette.",
   "v1.8 — removed the Source/Delivery view switch (framing view is the only mode); fixed the 'Drag to reframe' badge overlapping the protection label; framing-chart export redesigned with an ASC/Netflix camera-chart feel — rounded framelines, corner brackets + edge-centre registration ticks on the final frame, and a centre crosshair with focus ring (cyan final frame / orange protection flavour kept).",
   "v1.7 — unified project state across both stages: the camera, codec and frame rate chosen in Capture & Framing now flow into the Storage tab (and back), so the two stages can no longer disagree. Codec is no longer force-reset to the camera's native set, keeping the Storage tab's cross-camera codec comparison intact.",
   "v1.6 — restructured to two stages: 'Capture & Framing' (camera + framing intent + reframe/protection) and 'Storage'; removed the standalone Delivery Target menu (its target aspect is now 'Framing For', the framing intent that drives the chart) and folded HDR/audio into a collapsed 'Delivery spec' block; dropped the duplicated Recording panel from the framing view (Storage tab owns it). Framing chart now reads the ASC way — the bright inner rectangle is the FINAL FRAME (framing decision) and the tinted band around it is PROTECTION (reserved headroom); reference/temp background is drawn desqueezed.",
@@ -667,15 +668,14 @@ const Index = () => {
           </h1>
           <VersionBadge />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
+          <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden md:inline text-[10px] font-mono tracking-widest uppercase text-suite-text-muted">
             {appTab === "frame" ? "Camera · Framing · Protection" : "Codec · Bitrate · Footprint"}
           </span>
-          <div className="h-4 w-px bg-suite-border" aria-hidden />
-          <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
         </div>
       </header>
 
@@ -1287,6 +1287,7 @@ const Index = () => {
               protectionPct={protectionPct}
               onProtectionChange={(p) => setProtectionPct(Math.max(0, Math.min(40, p)))}
               extractionScale={extractionScale}
+              onExtractionScaleChange={setExtractionScale}
               deliveryCropAR={deliveryCrop.ar}
               deliveryCropLabel={deliveryCrop.ar != null ? deliveryCrop.label.split(" ")[0] : undefined}
               referenceImage={refImage}
