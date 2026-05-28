@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.1";
+const VERSION = "v1.9.2";
 const CHANGELOG = [
+  "v1.9.2 — added a 'Studio plate background' toggle for the chart export: PNG/TIFF can now be composited over the reference studio image (desqueezed, with a contrast scrim) instead of the clean ASC field. FDL is geometry-only and unaffected.",
   "v1.9.1 — logic pass for DOP / DIT / Post Supervisor use: protection now drawn OUTSIDE the final frame in the live viewer (was inset); secondary delivery crop (e.g. 2:1) is exported onto the framing chart + FDL as a real guide, not just a preview; Sony X-OCN bitrates recalibrated to Sony's published figures; storage unified into the Storage tab (offload + proxies restored there, spec sheet no longer reports frozen defaults); 'deliver 2:1 / protect 16:9' now models the two as different aspects; per-mode fps ceilings warn when exceeded; reference background optimised to a 4K JPEG.",
   "v1.9 — Storage button moved beside Capture & Framing; reframe box can now be resized via corner handles (not just repositioned); framing-chart export rebuilt as a clean ASC/Netflix-style chart — neutral working field (no guide image), four Siemens-star focus targets, inward edge registration marks, rounded framing-decision + protection rectangles, centre crosshair with focus ring, and the LUMINA / FRAME MATRIX brand mark — in our cyan/orange palette.",
   "v1.8 — removed the Source/Delivery view switch (framing view is the only mode); fixed the 'Drag to reframe' badge overlapping the protection label; framing-chart export redesigned with an ASC/Netflix camera-chart feel — rounded framelines, corner brackets + edge-centre registration ticks on the final frame, and a centre crosshair with focus ring (cyan final frame / orange protection flavour kept).",
@@ -191,6 +192,9 @@ const Index = () => {
     y: 0,
   });
   const [refImage, setRefImage] = useState<string | null>(BUILTIN_GUIDE);
+  // Composite the studio plate behind the exported chart (PNG/TIFF) instead of
+  // the clean ASC-style field. FDL is geometry-only and ignores this.
+  const [exportWithImage, setExportWithImage] = useState(false);
   const [usingBuiltin, setUsingBuiltin] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -590,9 +594,9 @@ const Index = () => {
           return;
         }
 
-        // Load the reference image (if any) so it can sit behind the guides.
+        // Load the studio plate only when the user opts to composite it behind the chart.
         let refEl: HTMLImageElement | null = null;
-        if (refImage) {
+        if (exportWithImage && refImage) {
           refEl = await new Promise<HTMLImageElement | null>((resolve) => {
             const img = new Image();
             img.onload = () => resolve(img);
@@ -632,7 +636,7 @@ const Index = () => {
         toast.error("Framing-chart export failed");
       }
     },
-    [source, target, protectionPct, showThirds, showSafeArea, refImage],
+    [source, target, protectionPct, showThirds, showSafeArea, refImage, exportWithImage, deliveryCrop.ar, deliveryCrop.label],
   );
 
   // Source aspect labels (for clarity-fix wording)
@@ -1232,6 +1236,19 @@ const Index = () => {
               <span className="text-[9px] tracking-[0.2em] text-suite-text-dim uppercase">
                 Framing Chart · {formatNumber(source.width)}×{formatNumber(source.height)}
               </span>
+              <button
+                type="button"
+                onClick={() => setExportWithImage((v) => !v)}
+                className="flex items-center justify-between gap-2 px-2 py-1.5 text-[10px] tracking-[0.14em] uppercase border border-suite-border hover:border-suite-border-strong transition-colors rounded-sm"
+                title="PNG/TIFF only: composite the studio reference plate behind the chart instead of the clean field. FDL is unaffected."
+              >
+                <span className="flex items-center gap-1.5 text-suite-text-muted">
+                  <Eye className="size-3" strokeWidth={1.5} /> Studio plate background
+                </span>
+                <span className={cn("font-mono", exportWithImage ? "text-status-ok" : "text-suite-text-dim")}>
+                  {exportWithImage ? "ON" : "OFF"}
+                </span>
+              </button>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => exportFramingChart("png")}

@@ -81,31 +81,42 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   const font = Math.max(13, Math.round(H * 0.016));
   const lw = Math.max(1.5, H * 0.0016);
 
-  // --- Clean framing-chart background (our palette, no guide image) ----------
-  void referenceImage; // the export chart is intentionally clean — image stays in the live viewer
-  ctx.fillStyle = "#0b0c0e"; // dark border zone
+  // --- Background -----------------------------------------------------------
+  ctx.fillStyle = "#0b0c0e"; // dark base / border zone
   ctx.fillRect(0, 0, W, H);
-  // Neutral working-area panel inside the protection rect, so framelines, focus
-  // stars and the subject's framing read clearly (our take on the ASC grey field).
-  const panel = ctx.createLinearGradient(0, prot.y, 0, prot.y + prot.h);
-  panel.addColorStop(0, "#2b2f36");
-  panel.addColorStop(1, "#21242a");
-  ctx.fillStyle = panel;
-  ctx.fillRect(prot.x, prot.y, prot.w, prot.h);
 
-  // Fine grid, confined to the working area.
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(prot.x, prot.y, prot.w, prot.h);
-  ctx.clip();
-  ctx.strokeStyle = "rgba(255,255,255,0.045)";
-  ctx.lineWidth = 1;
-  const step = Math.max(40, Math.round(W / 28));
-  ctx.beginPath();
-  for (let x = prot.x; x < prot.x + prot.w; x += step) { ctx.moveTo(x, prot.y); ctx.lineTo(x, prot.y + prot.h); }
-  for (let y = prot.y; y < prot.y + prot.h; y += step) { ctx.moveTo(prot.x, y); ctx.lineTo(prot.x + prot.w, y); }
-  ctx.stroke();
-  ctx.restore();
+  const useImage = !!(referenceImage && referenceImage.naturalWidth > 0);
+  if (useImage) {
+    // Image mode: composite over the studio plate (desqueezed, cover), then a
+    // dark scrim so the framelines/labels stay legible.
+    const ia = referenceImage!.naturalWidth / referenceImage!.naturalHeight;
+    const ca = W / H;
+    let dw: number, dh: number;
+    if (ia > ca) { dh = H; dw = H * ia; } else { dw = W; dh = W / ia; }
+    ctx.drawImage(referenceImage!, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.fillStyle = "rgba(8,9,11,0.34)";
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    // Clean mode: neutral working-area panel + fine grid (our ASC grey field).
+    const panel = ctx.createLinearGradient(0, prot.y, 0, prot.y + prot.h);
+    panel.addColorStop(0, "#2b2f36");
+    panel.addColorStop(1, "#21242a");
+    ctx.fillStyle = panel;
+    ctx.fillRect(prot.x, prot.y, prot.w, prot.h);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(prot.x, prot.y, prot.w, prot.h);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(255,255,255,0.045)";
+    ctx.lineWidth = 1;
+    const step = Math.max(40, Math.round(W / 28));
+    ctx.beginPath();
+    for (let x = prot.x; x < prot.x + prot.w; x += step) { ctx.moveTo(x, prot.y); ctx.lineTo(x, prot.y + prot.h); }
+    for (let y = prot.y; y < prot.y + prot.h; y += step) { ctx.moveTo(prot.x, y); ctx.lineTo(prot.x + prot.w, y); }
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Sensor border + corner ticks (slate).
   ctx.strokeStyle = SENSOR_LINE;
