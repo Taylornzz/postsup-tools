@@ -94,6 +94,31 @@ describe("buildFdl — anamorphic squeeze", () => {
   });
 });
 
+describe("buildFdl — letterbox deliverable (deliver 2:1, protect 16:9)", () => {
+  // Final frame = 2:1 active picture; protection = the full 16:9 container,
+  // which is TALLER than the 2:1 frame (different aspect ratios).
+  const fdl = buildFdl({
+    source: src({ width: 4448, height: 3096, squeeze: 1 }),
+    target: tgt({ name: "2:1 in 16:9", width: 16, height: 9, activeWidth: 2, activeHeight: 1 }),
+    protection: 0,
+  });
+  const d = decision(fdl);
+
+  it("frames the 2:1 active area as the final frame", () => {
+    expect(d.dimensions).toEqual({ width: 4448, height: 2224 }); // 4448/2224 = 2.0
+  });
+  it("protects the taller 16:9 container", () => {
+    expect(d.protection_dimensions).toEqual({ width: 4448, height: 2502 }); // 4448/2502 = 1.778
+  });
+  it("makes protection enclose the final frame on the tall axis", () => {
+    expect(d.protection_dimensions.height).toBeGreaterThan(d.dimensions.height);
+    expect(d.protection_dimensions.width).toBe(d.dimensions.width);
+  });
+  it("records the 2:1 framing intent", () => {
+    expect(fdl.framing_intents[0].aspect_ratio).toEqual({ width: 2, height: 1 });
+  });
+});
+
 describe("fdlToJson", () => {
   it("serializes to valid, parseable JSON", () => {
     const fdl = buildFdl({ source: src({}), target: tgt({}) });

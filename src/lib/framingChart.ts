@@ -111,23 +111,34 @@ export function buildFdl({
   const H = source.height;
   const sq = source.squeeze || 1;
 
-  // Deliverable (displayed) aspect, then convert to recorded-pixel aspect by /squeeze.
-  const deliverW = target.activeWidth ?? target.width;
-  const deliverH = target.activeHeight ?? target.height;
-  const displayAR = deliverW / deliverH;
-  const recordedAR = displayAR / sq;
+  // The FINAL FRAME is the delivered (active) picture aspect; PROTECTION is the
+  // full container aspect. For a letterbox deliverable like "2:1 in 16:9" the
+  // active area is 2:1 but the container is 16:9, so protection is taller than
+  // the final frame (different aspects). For a plain 16:9 target the two match.
+  // All converted to recorded-pixel aspect via /squeeze.
+  const activeW = target.activeWidth ?? target.width;
+  const activeH = target.activeHeight ?? target.height;
+  const activeAR = activeW / activeH / sq;
+  const containerAR = target.width / target.height / sq;
 
-  const prot = fitRect(recordedAR, W, H);
-  const protW = Math.round(prot.width);
-  const protH = Math.round(prot.height);
+  const activeFit = fitRect(activeAR, W, H);
+  const containerFit = fitRect(containerAR, W, H);
+
+  // Protection encloses the active extraction (container aspect, never smaller).
+  const protW = Math.round(Math.max(containerFit.width, activeFit.width));
+  const protH = Math.round(Math.max(containerFit.height, activeFit.height));
   const protX = Math.round((W - protW) / 2);
   const protY = Math.round((H - protH) / 2);
 
+  // Final frame = active extraction, inset by the protection % for reframe headroom.
   const p = Math.max(0, Math.min(0.9, protection));
-  const frmW = Math.round(protW * (1 - p));
-  const frmH = Math.round(protH * (1 - p));
+  const frmW = Math.round(activeFit.width * (1 - p));
+  const frmH = Math.round(activeFit.height * (1 - p));
   const frmX = Math.round((W - frmW) / 2);
   const frmY = Math.round((H - frmH) / 2);
+
+  const deliverW = activeW;
+  const deliverH = activeH;
 
   const ratio = reduceRatio(deliverW, deliverH);
   const intentId = "1";
