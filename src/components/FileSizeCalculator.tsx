@@ -18,10 +18,28 @@ import { cn } from "@/lib/utils";
 
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60, 100, 120];
 
-export function FileSizeCalculator() {
-  const [sourceId, setSourceId] = useState(SOURCE_FORMATS[0].id);
-  const [codecId, setCodecId] = useState(CODECS[0].id);
-  const [fps, setFps] = useState(24);
+export interface FileSizeCalculatorProps {
+  /** Shared project state (from the Capture & Framing tab). When provided the
+   *  control is "controlled" and edits flow back via the matching setter, so
+   *  the camera/codec/fps stay in sync across both tabs. Omitted = standalone. */
+  sourceId?: string;
+  onSourceChange?: (id: string) => void;
+  codecId?: string;
+  onCodecChange?: (id: string) => void;
+  fps?: number;
+  onFpsChange?: (n: number) => void;
+}
+
+export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
+  const [localSourceId, setLocalSourceId] = useState(SOURCE_FORMATS[0].id);
+  const [localCodecId, setLocalCodecId] = useState(CODECS[0].id);
+  const [localFps, setLocalFps] = useState(24);
+  const sourceId = props.sourceId ?? localSourceId;
+  const setSourceId = props.onSourceChange ?? setLocalSourceId;
+  const codecId = props.codecId ?? localCodecId;
+  const setCodecId = props.onCodecChange ?? setLocalCodecId;
+  const fps = props.fps ?? localFps;
+  const setFps = props.onFpsChange ?? setLocalFps;
   const [durationSec, setDurationSec] = useState(60);
   const [cameras, setCameras] = useState(1);
   const [shootDays, setShootDays] = useState(1);

@@ -76,8 +76,9 @@ import referencePerson from "@/assets/reference-person.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.6";
+const VERSION = "v1.7";
 const CHANGELOG = [
+  "v1.7 — unified project state across both stages: the camera, codec and frame rate chosen in Capture & Framing now flow into the Storage tab (and back), so the two stages can no longer disagree. Codec is no longer force-reset to the camera's native set, keeping the Storage tab's cross-camera codec comparison intact.",
   "v1.6 — restructured to two stages: 'Capture & Framing' (camera + framing intent + reframe/protection) and 'Storage'; removed the standalone Delivery Target menu (its target aspect is now 'Framing For', the framing intent that drives the chart) and folded HDR/audio into a collapsed 'Delivery spec' block; dropped the duplicated Recording panel from the framing view (Storage tab owns it). Framing chart now reads the ASC way — the bright inner rectangle is the FINAL FRAME (framing decision) and the tinted band around it is PROTECTION (reserved headroom); reference/temp background is drawn desqueezed.",
   "v1.5 — downloadable framing chart: full-resolution PNG, LZW-compressed TIFF, and ASC Framing Decision List (.fdl, Netflix/ASC v2.0 standard) exports; Netflix camera-approval shown as the Netflix logo on each approved camera (muted for limited-use) instead of text tags; Protection guide now uses the ASC/Netflix total convention (symmetric inset) so the on-screen overlay matches the exported chart and FDL; added a math/geometry test suite (bitrate, extraction, offload, FDL geometry vs. the canonical ASC sample, TIFF encoder).",
   "v1.4 — color space + transfer per camera; HDR variant selector (Dolby Vision / HDR10 / HDR10+ / HLG / SDR); audio + LUFS targets per delivery; lens image-circle overlay (red flag if uncovered); card runtime + offload-budget calculator; aspect panel split into Sensor · Image when desqueezed; renamed mislabelled modes (ALEXA 35 3.3K 6:5 ana, RED VV 17:9, URSA 6:5 ana, Canon C400/R5C); fixed VV anamorphic sensor-area-used math; replaced impossible Panavision DXL2 6K ana and VENICE 2 8.2K ana with real modes; recalibrated bitrate model — RAW rates ×8 (was 8× understated), Apple ProRes table, added ARRIRAW HDE.",
@@ -284,13 +285,8 @@ const Index = () => {
     return availableCodecs[0]?.id ?? CODECS[0].id;
   });
 
-  // If selected codec isn't valid for this camera, fall back to first native
-  useEffect(() => {
-    if (!availableCodecs.some((c) => c.id === codecId)) {
-      setCodecId(availableCodecs[0]?.id ?? CODECS[0].id);
-    }
-  }, [availableCodecs, codecId]);
-
+  // Codec is now chosen in the Storage tab (shared state) and may be compared
+  // across cameras, so we no longer force it back to the camera's native set.
   const codec: Codec = CODECS.find((c) => c.id === codecId) ?? availableCodecs[0] ?? CODECS[0];
 
   const mbps = useMemo(
@@ -688,7 +684,14 @@ const Index = () => {
 
       {appTab === "storage" ? (
         <main className="flex-1 flex min-h-0">
-          <FileSizeCalculator />
+          <FileSizeCalculator
+            sourceId={sourceId}
+            onSourceChange={setSourceId}
+            codecId={codecId}
+            onCodecChange={setCodecId}
+            fps={fps}
+            onFpsChange={setFps}
+          />
         </main>
       ) : (
       <main className="flex-1 flex min-h-0">
