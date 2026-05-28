@@ -580,7 +580,7 @@ const Index = () => {
         const base = `${slug(source.camera)}_${slug(source.mode)}_${slug(target.name)}_framingchart`;
 
         if (format === "fdl") {
-          const fdl = buildFdl({ source, target, protection, creator });
+          const fdl = buildFdl({ source, target, protection, creator, secondaryCropAR: deliveryCrop.ar });
           downloadBlob(
             new Blob([fdlToJson(fdl)], { type: "application/json" }),
             `${base}.fdl`,
@@ -608,6 +608,8 @@ const Index = () => {
           showSafeArea,
           creator,
           referenceImage: refEl,
+          secondaryCropAR: deliveryCrop.ar,
+          secondaryCropLabel: deliveryCrop.ar != null ? deliveryCrop.label.split(" ")[0] : undefined,
         });
 
         if (format === "png") {
@@ -1117,17 +1119,17 @@ const Index = () => {
                 <span>2× punch in</span>
               </div>
             </div>
-            {/* Secondary crop preview — a *different* aspect drawn inside the
-                primary final frame (e.g. a 9:16 social pull from a 16:9 master).
-                The primary delivery is set by "Framing For" above; this is only a
-                preview overlay and is NOT written to the chart / FDL. */}
+            {/* Secondary delivery crop — a *different* aspect (e.g. a 2:1 or 2.39
+                extract, or a 9:16 social pull) the operator also composes to. It
+                is drawn inside the primary final frame and IS written onto the
+                framing chart + FDL as a second framing intent. */}
             <div className="flex flex-col gap-2 px-1 pt-2">
               <div className="flex items-center justify-between gap-2">
                 <span
                   className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted"
-                  title="Preview a SECONDARY crop (e.g. a 9:16 social pull or 2.39 scope extract) inside the primary final frame set by 'Framing For'. Preview only — it is not part of the framing chart or FDL. To make an aspect the deliverable, set it in 'Framing For' instead."
+                  title="A SECONDARY delivery crop (e.g. 2:1, 2.39 scope, 9:16 social) that the camera operator also frames to. Drawn inside the primary final frame and exported onto the framing chart + FDL as a second framing intent. The primary deliverable is still set by 'Framing For'."
                 >
-                  Secondary Crop · preview
+                  Secondary Crop · on chart
                 </span>
                 {deliveryCropId !== "none" && (
                   <button

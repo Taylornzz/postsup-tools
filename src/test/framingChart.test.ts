@@ -119,6 +119,37 @@ describe("buildFdl — letterbox deliverable (deliver 2:1, protect 16:9)", () =>
   });
 });
 
+describe("buildFdl — secondary delivery crop", () => {
+  // Primary 16:9 with a 2:1 secondary crop → a second framing intent/decision,
+  // the 2:1 fit inside the 16:9 final frame.
+  const fdl = buildFdl({
+    source: src({ width: 4608, height: 3164, squeeze: 1 }),
+    target: tgt({ name: "UHD 4K", width: 3840, height: 2160 }),
+    protection: 0,
+    secondaryCropAR: 2.0,
+  });
+
+  it("adds a second framing intent for the crop", () => {
+    expect(fdl.framing_intents).toHaveLength(2);
+    expect(fdl.framing_intents[1].aspect_ratio).toEqual({ width: 2, height: 1 });
+    expect(fdl.default_framing_intent).toBe("1"); // primary stays default
+  });
+  it("fits the 2:1 crop inside the 16:9 final frame", () => {
+    const decs = fdl.contexts[0].canvases[0].framing_decisions;
+    expect(decs).toHaveLength(2);
+    const crop = decs[1];
+    const primary = decs[0];
+    // 2:1 is wider than 16:9 → same width, shorter height, centered
+    expect(crop.dimensions.width).toBe(primary.dimensions.width);
+    expect(crop.dimensions.height).toBeLessThan(primary.dimensions.height);
+    expect(crop.dimensions.width / crop.dimensions.height).toBeCloseTo(2.0, 1);
+  });
+  it("omits the second intent when no crop is set", () => {
+    const plain = buildFdl({ source: src({}), target: tgt({}) });
+    expect(plain.framing_intents).toHaveLength(1);
+  });
+});
+
 describe("fdlToJson", () => {
   it("serializes to valid, parseable JSON", () => {
     const fdl = buildFdl({ source: src({}), target: tgt({}) });

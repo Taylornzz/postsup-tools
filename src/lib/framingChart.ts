@@ -62,6 +62,9 @@ export type FramingChartParams = {
    *  full target-aspect rectangle, inset symmetrically. e.g. 0.10 = 10% total. */
   protection?: number;
   creator?: string;
+  /** Optional secondary delivery crop AR (e.g. 2.0 for 2:1) carried as a second
+   *  framing intent/decision, fit inside the primary final frame. */
+  secondaryCropAR?: number | null;
 };
 
 const GCD = (a: number, b: number): number => (b === 0 ? a : GCD(b, a % b));
@@ -106,6 +109,7 @@ export function buildFdl({
   target,
   protection = 0,
   creator = "Lumina Frame Matrix",
+  secondaryCropAR = null,
 }: FramingChartParams): Fdl {
   const W = source.width;
   const H = source.height;
@@ -144,19 +148,56 @@ export function buildFdl({
   const intentId = "1";
   const canvasId = "1";
 
+  const framingIntents: FdlFramingIntent[] = [
+    { label: target.name, id: intentId, aspect_ratio: ratio, protection: p },
+  ];
+  const framingDecisions: FdlFramingDecision[] = [
+    {
+      label: target.name,
+      id: `${canvasId}-${intentId}`,
+      framing_intent_id: intentId,
+      dimensions: { width: frmW, height: frmH },
+      anchor_point: { x: frmX, y: frmY },
+      protection_dimensions: { width: protW, height: protH },
+      protection_anchor_point: { x: protX, y: protY },
+    },
+  ];
+
+  // Secondary delivery crop (e.g. 2:1) — a second intent fit inside the final frame.
+  if (secondaryCropAR && secondaryCropAR > 0) {
+    const recCropAR = secondaryCropAR / sq;
+    const frameAR = frmW / frmH;
+    let cw = frmW;
+    let ch = frmW / recCropAR;
+    if (recCropAR < frameAR) { ch = frmH; cw = frmH * recCropAR; }
+    cw = Math.round(cw);
+    ch = Math.round(ch);
+    const cx = Math.round((W - cw) / 2);
+    const cy = Math.round((H - ch) / 2);
+    const cropLabel = `Secondary ${secondaryCropAR.toFixed(2)}:1`;
+    framingIntents.push({
+      label: cropLabel,
+      id: "2",
+      aspect_ratio: reduceRatio(Math.round(secondaryCropAR * 1000), 1000),
+      protection: 0,
+    });
+    framingDecisions.push({
+      label: cropLabel,
+      id: `${canvasId}-2`,
+      framing_intent_id: "2",
+      dimensions: { width: cw, height: ch },
+      anchor_point: { x: cx, y: cy },
+      protection_dimensions: { width: cw, height: ch },
+      protection_anchor_point: { x: cx, y: cy },
+    });
+  }
+
   return {
     uuid: makeUuid(),
     version: { major: 2, minor: 0 },
     fdl_creator: creator,
     default_framing_intent: intentId,
-    framing_intents: [
-      {
-        label: target.name,
-        id: intentId,
-        aspect_ratio: ratio,
-        protection: p,
-      },
-    ],
+    framing_intents: framingIntents,
     contexts: [
       {
         label: source.camera,
@@ -168,17 +209,7 @@ export function buildFdl({
             source_canvas_id: canvasId,
             dimensions: { width: W, height: H },
             anamorphic_squeeze: sq,
-            framing_decisions: [
-              {
-                label: target.name,
-                id: `${canvasId}-${intentId}`,
-                framing_intent_id: intentId,
-                dimensions: { width: frmW, height: frmH },
-                anchor_point: { x: frmX, y: frmY },
-                protection_dimensions: { width: protW, height: protH },
-                protection_anchor_point: { x: protX, y: protY },
-              },
-            ],
+            framing_decisions: framingDecisions,
           },
         ],
       },

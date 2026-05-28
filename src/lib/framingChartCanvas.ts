@@ -15,6 +15,10 @@ export type ChartOptions = {
   creator?: string;
   /** Pre-loaded reference image drawn behind the guides (optional). */
   referenceImage?: HTMLImageElement | null;
+  /** Optional secondary delivery crop (e.g. 2.0 for 2:1) drawn as an extra
+   *  frameline INSIDE the final frame — a guide the operator also composes to. */
+  secondaryCropAR?: number | null;
+  secondaryCropLabel?: string;
   /** Cap the longest canvas edge to bound memory (default 8192). */
   maxEdge?: number;
 };
@@ -22,6 +26,7 @@ export type ChartOptions = {
 const SENSOR_LINE = "#6b7280";
 const FRAME_LINE = "#22d3ee"; // final frame — cyan
 const PROTECT_LINE = "#f59e0b"; // protection — orange (band + boundary + label)
+const CROP_LINE = "#c084fc"; // secondary delivery crop — violet
 const SAFE_LINE = "#94a3b8"; // safe action/title — neutral slate (distinct from protection)
 const TEXT = "#f5f5f7";
 const TEXT_DIM = "#cbd5e1";
@@ -35,6 +40,8 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     showSafeArea = false,
     creator = "Lumina Frame Matrix",
     referenceImage = null,
+    secondaryCropAR = null,
+    secondaryCropLabel,
     maxEdge = 8192,
   } = opts;
 
@@ -150,6 +157,31 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   const brk = Math.min(frame.w, frame.h) * 0.05;
   drawCornerTicks(ctx, frame.x, frame.y, frame.w, frame.h, brk, FRAME_LINE, lw * 1.8);
   edgeCenterTicks(ctx, frame, Math.min(frame.w, frame.h) * 0.025, FRAME_LINE, lw * 1.8);
+
+  // --- Secondary delivery crop (e.g. 2:1) — an extra guide the operator also
+  //     composes to, fit inside the final frame (violet). --------------------
+  if (secondaryCropAR && secondaryCropAR > 0) {
+    const frameAR = frame.w / frame.h;
+    let cw = frame.w;
+    let ch = frame.w / secondaryCropAR;
+    if (secondaryCropAR < frameAR) { ch = frame.h; cw = frame.h * secondaryCropAR; }
+    const cxp = frame.x + (frame.w - cw) / 2;
+    const cyp = frame.y + (frame.h - ch) / 2;
+    ctx.strokeStyle = CROP_LINE;
+    ctx.lineWidth = lw * 1.3;
+    ctx.setLineDash([font * 0.55, font * 0.4]);
+    roundRectPath(ctx, cxp, cyp, cw, ch, Math.min(cw, ch) * 0.02);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    label(
+      ctx,
+      `CROP · ${secondaryCropLabel ?? `${secondaryCropAR.toFixed(2)}:1`}`,
+      cxp + font * 0.4,
+      cyp + font * 0.4,
+      font * 0.85,
+      CROP_LINE,
+    );
+  }
 
   // Thirds inside the framing rect
   if (showThirds) {
