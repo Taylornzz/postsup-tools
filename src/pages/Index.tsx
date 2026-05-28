@@ -76,8 +76,9 @@ import referencePerson from "@/assets/reference-person.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.7";
+const VERSION = "v1.8";
 const CHANGELOG = [
+  "v1.8 — removed the Source/Delivery view switch (framing view is the only mode); fixed the 'Drag to reframe' badge overlapping the protection label; framing-chart export redesigned with an ASC/Netflix camera-chart feel — rounded framelines, corner brackets + edge-centre registration ticks on the final frame, and a centre crosshair with focus ring (cyan final frame / orange protection flavour kept).",
   "v1.7 — unified project state across both stages: the camera, codec and frame rate chosen in Capture & Framing now flow into the Storage tab (and back), so the two stages can no longer disagree. Codec is no longer force-reset to the camera's native set, keeping the Storage tab's cross-camera codec comparison intact.",
   "v1.6 — restructured to two stages: 'Capture & Framing' (camera + framing intent + reframe/protection) and 'Storage'; removed the standalone Delivery Target menu (its target aspect is now 'Framing For', the framing intent that drives the chart) and folded HDR/audio into a collapsed 'Delivery spec' block; dropped the duplicated Recording panel from the framing view (Storage tab owns it). Framing chart now reads the ASC way — the bright inner rectangle is the FINAL FRAME (framing decision) and the tinted band around it is PROTECTION (reserved headroom); reference/temp background is drawn desqueezed.",
   "v1.5 — downloadable framing chart: full-resolution PNG, LZW-compressed TIFF, and ASC Framing Decision List (.fdl, Netflix/ASC v2.0 standard) exports; Netflix camera-approval shown as the Netflix logo on each approved camera (muted for limited-use) instead of text tags; Protection guide now uses the ASC/Netflix total convention (symmetric inset) so the on-screen overlay matches the exported chart and FDL; added a math/geometry test suite (bitrate, extraction, offload, FDL geometry vs. the canonical ASC sample, TIFF encoder).",
@@ -184,9 +185,8 @@ const Index = () => {
   const [fitMode, setFitMode] = useState<FitMode>(
     (readParam(URL_KEYS.fit) as FitMode) === "fill" ? "fill" : "fit",
   );
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    (readParam(URL_KEYS.view) as ViewMode) === "delivery" ? "delivery" : "source",
-  );
+  // Delivery view removed — the framing/source view is the only mode now.
+  const viewMode: ViewMode = "source";
   const [fps, setFps] = useState<number>(() => readNum(URL_KEYS.fps, 24));
   const [reframeOffset, setReframeOffset] = useState({ x: 0, y: 0 });
   const [sourceTransform, setSourceTransform] = useState<SourceTransform>({
@@ -669,9 +669,6 @@ const Index = () => {
         </div>
         <div className="flex items-center gap-3">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
-          {appTab === "frame" && (
-            <ViewModeSwitch value={viewMode} onChange={setViewMode} />
-          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden md:inline text-[10px] font-mono tracking-widest uppercase text-suite-text-muted">

@@ -136,18 +136,25 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     ctx.fill("evenodd");
     ctx.restore();
 
-    // Protection boundary — orange, dashed, clearly the OUTER limit.
+    // Protection boundary — orange, dashed, rounded, clearly the OUTER limit.
     ctx.strokeStyle = PROTECT_LINE;
     ctx.lineWidth = lw * 1.2;
     ctx.setLineDash([font * 0.7, font * 0.45]);
-    ctx.strokeRect(prot.x, prot.y, prot.w, prot.h);
+    roundRectPath(ctx, prot.x, prot.y, prot.w, prot.h, Math.min(prot.w, prot.h) * 0.02);
+    ctx.stroke();
     ctx.setLineDash([]);
   }
 
-  // --- Framing rectangle = the FINAL FRAME (bright, solid, heaviest line) ----
+  // --- Framing rectangle = the FINAL FRAME (bright cyan, rounded, with ASC-style
+  //     corner brackets + edge-center registration ticks). ---------------------
+  const frameR = Math.min(frame.w, frame.h) * 0.025;
   ctx.strokeStyle = FRAME_LINE;
-  ctx.lineWidth = lw * 1.8;
-  ctx.strokeRect(frame.x, frame.y, frame.w, frame.h);
+  ctx.lineWidth = lw * 1.6;
+  roundRectPath(ctx, frame.x, frame.y, frame.w, frame.h, frameR);
+  ctx.stroke();
+  const brk = Math.min(frame.w, frame.h) * 0.05;
+  drawCornerTicks(ctx, frame.x, frame.y, frame.w, frame.h, brk, FRAME_LINE, lw * 1.8);
+  edgeCenterTicks(ctx, frame, Math.min(frame.w, frame.h) * 0.025, FRAME_LINE, lw * 1.8);
 
   // Thirds inside the framing rect
   if (showThirds) {
@@ -174,17 +181,22 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     ctx.setLineDash([]);
   }
 
-  // --- Center crosshair (full canvas) ---------------------------------------
-  ctx.strokeStyle = "rgba(245,245,247,0.6)";
+  // --- Center crosshair + focus ring (camera-chart feel) --------------------
+  ctx.strokeStyle = "rgba(245,245,247,0.7)";
   ctx.lineWidth = lw;
   const cx = W / 2;
   const cy = H / 2;
   const cross = Math.min(W, H) * 0.03;
+  const ring = cross * 0.62;
   ctx.beginPath();
-  ctx.moveTo(cx - cross, cy);
-  ctx.lineTo(cx + cross, cy);
-  ctx.moveTo(cx, cy - cross);
-  ctx.lineTo(cx, cy + cross);
+  // crosshair with a gap through the ring
+  ctx.moveTo(cx - cross, cy); ctx.lineTo(cx - ring, cy);
+  ctx.moveTo(cx + ring, cy); ctx.lineTo(cx + cross, cy);
+  ctx.moveTo(cx, cy - cross); ctx.lineTo(cx, cy - ring);
+  ctx.moveTo(cx, cy + ring); ctx.lineTo(cx, cy + cross);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, ring, 0, Math.PI * 2);
   ctx.stroke();
 
   // --- Labels ---------------------------------------------------------------
@@ -300,4 +312,43 @@ function drawCornerTicks(
   // BR
   ctx.moveTo(x + w - len, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - len);
   ctx.stroke();
+}
+
+/** Small registration ticks at the centre of each edge of a rect. */
+function edgeCenterTicks(
+  ctx: CanvasRenderingContext2D,
+  r: { x: number; y: number; w: number; h: number },
+  len: number,
+  color: string,
+  lw: number,
+) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  const mx = r.x + r.w / 2;
+  const my = r.y + r.h / 2;
+  ctx.beginPath();
+  ctx.moveTo(mx, r.y); ctx.lineTo(mx, r.y + len); // top
+  ctx.moveTo(mx, r.y + r.h); ctx.lineTo(mx, r.y + r.h - len); // bottom
+  ctx.moveTo(r.x, my); ctx.lineTo(r.x + len, my); // left
+  ctx.moveTo(r.x + r.w, my); ctx.lineTo(r.x + r.w - len, my); // right
+  ctx.stroke();
+}
+
+/** Build a rounded-rectangle path (caller then strokes/fills). */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
 }

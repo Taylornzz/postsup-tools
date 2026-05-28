@@ -360,7 +360,7 @@ export function FrameViewer({
 
               {reframeable && (
                 <div
-                  className="absolute top-1 left-1 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/80 backdrop-blur border pointer-events-none"
+                  className="absolute bottom-1 left-1 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/80 backdrop-blur border pointer-events-none"
                   style={{ color: targetAccent, borderColor: `${targetAccent}40` }}
                 >
                   Drag to reframe
