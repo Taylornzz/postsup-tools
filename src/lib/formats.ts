@@ -40,6 +40,10 @@ export type SourceFormat = {
   usedSensorHeightMm?: number;
   /** True when the camera is rotated 90° for native vertical capture. */
   rotated?: boolean;
+  /** Typical maximum frame rate for this exact readout mode (full-sensor modes
+   *  are sensor-readout limited). Optional — only set where well-documented;
+   *  used for a non-blocking "exceeds typical max" warning. */
+  maxFps?: number;
   colorSpace?: ColorSpace;
   oetf?: Oetf;
   notes?: string;
@@ -104,6 +108,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     width: 4608,
     height: 3164,
     squeeze: 1,
+    maxFps: 75,
     sensorWidthMm: 27.99,
     sensorHeightMm: 19.22,
     colorSpace: "ARRI Wide Gamut 4",
@@ -406,6 +411,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     width: 8640,
     height: 5760,
     squeeze: 1,
+    maxFps: 30,
     sensorWidthMm: 35.90,
     sensorHeightMm: 24.00,
     colorSpace: "S-Gamut3.Cine",
@@ -478,6 +484,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     width: 8640,
     height: 5760,
     squeeze: 1,
+    maxFps: 30,
     sensorWidthMm: 35.90,
     sensorHeightMm: 24.00,
     colorSpace: "S-Gamut3.Cine",
@@ -735,6 +742,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     width: 12288,
     height: 8040,
     squeeze: 1,
+    maxFps: 60,
     sensorWidthMm: 35.64,
     sensorHeightMm: 23.32,
     colorSpace: "Blackmagic Design Wide Gamut",

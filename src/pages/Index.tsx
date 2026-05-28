@@ -1117,14 +1117,17 @@ const Index = () => {
                 <span>2× punch in</span>
               </div>
             </div>
-            {/* Delivery-intent crop overlay — preview a final crop on top of source */}
+            {/* Secondary crop preview — a *different* aspect drawn inside the
+                primary final frame (e.g. a 9:16 social pull from a 16:9 master).
+                The primary delivery is set by "Framing For" above; this is only a
+                preview overlay and is NOT written to the chart / FDL. */}
             <div className="flex flex-col gap-2 px-1 pt-2">
               <div className="flex items-center justify-between gap-2">
                 <span
                   className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted"
-                  title="Overlay a delivery-intent crop (e.g. 2.00:1 Univisium, 2.39:1 Scope, 9:16 Vertical) inside the extraction frame. Visualises what will actually appear on screen vs. the protection area outside it. Source-view only."
+                  title="Preview a SECONDARY crop (e.g. a 9:16 social pull or 2.39 scope extract) inside the primary final frame set by 'Framing For'. Preview only — it is not part of the framing chart or FDL. To make an aspect the deliverable, set it in 'Framing For' instead."
                 >
-                  Delivery Crop
+                  Secondary Crop · preview
                 </span>
                 {deliveryCropId !== "none" && (
                   <button

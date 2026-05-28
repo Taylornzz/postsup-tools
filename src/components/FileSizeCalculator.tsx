@@ -162,6 +162,12 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
         <section className="p-5 border-b border-suite-border flex flex-col gap-4">
           <SectionHeader label="03 · Capture Settings" />
           <FpsControl value={fps} onChange={setFps} />
+          {source.maxFps && fps > source.maxFps && (
+            <div className="-mt-2 text-[10px] leading-relaxed font-mono text-status-warn">
+              ⚠ {fps} fps exceeds the typical max (~{source.maxFps} fps) for {source.mode}. Most cameras
+              drop to a smaller readout for higher speeds.
+            </div>
+          )}
           <DurationControl
             value={durationSec}
             onChange={setDurationSec}
