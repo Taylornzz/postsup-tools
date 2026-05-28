@@ -14,6 +14,7 @@ import {
   SOURCE_FORMATS,
   TARGETS,
   CARDS,
+  CODECS,
   type Codec,
   type SourceFormat,
   type TargetContainer,
@@ -105,6 +106,16 @@ describe("codecMbps", () => {
     const c = codec({ fixedMbps: 240, refRes: { width: 1920, height: 1080, fps: 25 } });
     expect(codecMbps(c, 1920, 1080, 25)).toBeCloseTo(240, 6); // at reference
     expect(codecMbps(c, 3840, 2160, 25)).toBeCloseTo(960, 6); // 4× the pixels
+  });
+  it("computes Sony X-OCN rates that match the published VENICE 2 figures", () => {
+    // 8.6K 3:2 = 8640×5760 @ 24p → XT ≈ 6.7, ST ≈ 4.4, LT ≈ 2.7 Gbps.
+    const at = (id: string) => {
+      const c = CODECS.find((x) => x.id === id)!;
+      return codecMbps(c, 8640, 5760, 24) / 1000; // Gbps
+    };
+    expect(at("sony-x-ocn-xt")).toBeCloseTo(6.7, 1);
+    expect(at("sony-x-ocn-st")).toBeCloseTo(4.4, 1);
+    expect(at("sony-x-ocn-lt")).toBeCloseTo(2.7, 1);
   });
   it("reads a rate table and scales for off-table fps", () => {
     const c = codec({ rateTable: { "1920": { 24: 100, 30: 200 } } });

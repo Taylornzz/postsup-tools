@@ -1202,30 +1202,31 @@ export const CODECS: Codec[] = [
   },
 
   // -------- SONY --------
-  // X-OCN bppx calibrated against published 8.6K 3:2 24p rates (XT ≈ 3.5 Gbps).
+  // X-OCN bppx calibrated to Sony's published VENICE 2 8.6K 3:2 (8640×5760) 24p
+  // rates: XT ≈ 6.7 Gbps, ST ≈ 4.4 Gbps, LT ≈ 2.7 Gbps. (bppx = Gbps·1e9 / (W·H·fps))
   {
     id: "sony-x-ocn-xt",
     vendor: "Sony",
     family: "RAW",
     name: "X-OCN XT (VENICE)",
-    bppx: 7.6,
-    rateLabel: "16-bit linear, near-lossless · ~3.5 Gbps @ 8.6K 3:2 24p",
+    bppx: 5.6,
+    rateLabel: "16-bit linear, near-lossless · ~6.7 Gbps @ 8.6K 3:2 24p · ~3.0 TB/hr",
   },
   {
     id: "sony-x-ocn-st",
     vendor: "Sony",
     family: "RAW",
     name: "X-OCN ST (VENICE)",
-    bppx: 4.4,
-    rateLabel: "16-bit linear, ~6:1 · ~2.0 Gbps @ 8.6K 3:2 24p",
+    bppx: 3.7,
+    rateLabel: "16-bit linear (standard) · ~4.4 Gbps @ 8.6K 3:2 24p · ~2.0 TB/hr",
   },
   {
     id: "sony-x-ocn-lt",
     vendor: "Sony",
     family: "RAW",
     name: "X-OCN LT (VENICE)",
-    bppx: 2.6,
-    rateLabel: "16-bit linear, ~10:1 · ~1.2 Gbps @ 8.6K 3:2 24p",
+    bppx: 2.26,
+    rateLabel: "16-bit linear (light) · ~2.7 Gbps @ 8.6K 3:2 24p · ~1.2 TB/hr",
   },
   {
     id: "sony-xavc-i-4k",
@@ -1813,6 +1814,14 @@ export const CARDS: CardSpec[] = [
 export function cardsForVendor(vendor: string): CardSpec[] {
   return CARDS.filter((c) => !c.vendors || c.vendors.includes(vendor));
 }
+
+/** Sustained offload bandwidths (MB/s) for the DIT ingest budget. */
+export const OFFLOAD_BANDWIDTHS: { id: string; label: string; mbps: number }[] = [
+  { id: "tb3", label: "Thunderbolt 3 / USB4 (≈800 MB/s sustained)", mbps: 800 },
+  { id: "tb4", label: "Thunderbolt 4 (≈900 MB/s sustained)", mbps: 900 },
+  { id: "10gbe", label: "10 GbE (≈1,100 MB/s)", mbps: 1100 },
+  { id: "usb31", label: "USB 3.2 Gen 2 (≈900 MB/s)", mbps: 900 },
+];
 
 /** Minutes of recording on a card of the given GB capacity at the given Mbps. */
 export function cardRuntimeMinutes(cardGB: number, mbps: number): number {

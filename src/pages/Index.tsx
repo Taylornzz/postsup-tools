@@ -6,6 +6,7 @@ import {
   LENSES,
   CARDS,
   PROXY_CODEC_IDS,
+  OFFLOAD_BANDWIDTHS,
   codecMbps,
   computeExtraction,
   formatNumber,
@@ -91,13 +92,6 @@ const CHANGELOG = [
 const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1", "HLG"];
 
 // Common offload bandwidth references (MB/s).
-const OFFLOAD_BANDWIDTHS: { id: string; label: string; mbps: number }[] = [
-  { id: "tb3", label: "Thunderbolt 3 / USB4 (≈800 MB/s sustained)", mbps: 800 },
-  { id: "tb4", label: "Thunderbolt 4 (≈900 MB/s sustained)", mbps: 900 },
-  { id: "10gbe", label: "10 GbE (≈1,100 MB/s)", mbps: 1100 },
-  { id: "usb31", label: "USB 3.2 Gen 2 (≈900 MB/s)", mbps: 900 },
-];
-
 type ViewMode = "source" | "delivery";
 type AppTab = "frame" | "storage";
 
@@ -545,14 +539,7 @@ const Index = () => {
       `  Frame Rate : ${fps} fps`,
       `  Bitrate    : ${mbps >= 1000 ? `${(mbps / 1000).toFixed(2)} Gbps` : `${mbps.toFixed(0)} Mbps`} (${(mbps / 8).toFixed(1)} MB/s)`,
       `  Per Hour   : ${formatSize(perHourGB)}`,
-      `  Per 8h Day : ${formatSize(perDayGB)}`,
-      "",
-      `STORAGE PLAN`,
-      `  Card       : ${card.name} → ${
-        Number.isFinite(cardMin) ? `${cardMin >= 60 ? `${(cardMin / 60).toFixed(1)} h` : `${cardMin.toFixed(0)} min`} per card` : "—"
-      }`,
-      `  Backups    : ${backupCopies}× copies via ${bandwidth.label}`,
-      `  Offload    : ~${offloadHrs.toFixed(1)} h per shoot day`,
+      `  (full storage / offload / proxy plan → Storage tab)`,
       "",
       `DELIVERY`,
       `  Container  : ${target.name}`,

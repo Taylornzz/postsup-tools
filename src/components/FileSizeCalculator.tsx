@@ -10,6 +10,9 @@ import {
   formatNumber,
   CARDS,
   cardsForVendor,
+  OFFLOAD_BANDWIDTHS,
+  offloadHours,
+  PROXY_CODEC_IDS,
 } from "@/lib/formats";
 import { SuiteSelect } from "@/components/SuiteSelect";
 import { Metric } from "@/components/Metric";
@@ -43,6 +46,10 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
   const [durationSec, setDurationSec] = useState(60);
   const [cameras, setCameras] = useState(1);
   const [shootDays, setShootDays] = useState(1);
+  const [bwId, setBwId] = useState(OFFLOAD_BANDWIDTHS[0].id);
+  const [backupCopies, setBackupCopies] = useState(2);
+  const [offloadStations, setOffloadStations] = useState(2);
+  const [proxyCodecId, setProxyCodecId] = useState(PROXY_CODEC_IDS[0].id);
 
   const source = SOURCE_FORMATS.find((s) => s.id === sourceId)!;
   const codec = CODECS.find((c) => c.id === codecId)!;
@@ -71,6 +78,26 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
   const totalGB = perDayGB * shootDays;
   const perMinuteGB = estimateFileSizeGB(mbps, 60);
   const perHourGB = estimateFileSizeGB(mbps, 3600);
+
+  // Offload budget — per shoot day, across backups and parallel stations.
+  const bandwidth = OFFLOAD_BANDWIDTHS.find((b) => b.id === bwId) ?? OFFLOAD_BANDWIDTHS[0];
+  const offloadHrs = useMemo(
+    () => offloadHours(perDayGB, backupCopies, bandwidth.mbps, offloadStations),
+    [perDayGB, backupCopies, bandwidth.mbps, offloadStations],
+  );
+
+  // Proxy footprint — proxy codec at HD/delivery res, scaled to the whole shoot.
+  const proxy = useMemo(() => {
+    const entry = PROXY_CODEC_IDS.find((p) => p.id === proxyCodecId) ?? PROXY_CODEC_IDS[0];
+    const c = CODECS.find((x) => x.id === entry.id);
+    if (!c) return null;
+    const w = entry.resolutionTier === "hd" ? 1920 : 3840;
+    const h = entry.resolutionTier === "hd" ? 1080 : 2160;
+    const pMbps = codecMbps(c, w, h, fps);
+    const totalProxyGB = estimateFileSizeGB(pMbps, durationSec) * cameras * shootDays;
+    return { name: c.name, mbps: pMbps, totalGB: totalProxyGB };
+  }, [proxyCodecId, fps, durationSec, cameras, shootDays]);
+  const proxyRatio = proxy && totalGB > 0 ? proxy.totalGB / totalGB : 0;
 
   const sourceOptions = SOURCE_FORMATS.map((s) => ({
     value: s.id,
@@ -158,6 +185,47 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
             Inventory assumes 3× rotation per day — 1 in camera, 1 offloading (24 hr turnaround), 1 spare.
           </p>
         </section>
+
+        <section className="p-5 border-b border-suite-border flex flex-col gap-4">
+          <SectionHeader label="05 · Offload & Proxies" />
+          <SuiteSelect
+            label="Offload Bandwidth"
+            value={bwId}
+            onChange={setBwId}
+            options={OFFLOAD_BANDWIDTHS.map((b) => ({ value: b.id, label: b.label }))}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted">Backups</span>
+              <div className="flex gap-1">
+                {[1, 2, 3].map((n) => (
+                  <button key={n} type="button" onClick={() => setBackupCopies(n)}
+                    className={cn("px-2 py-1 text-[10px] font-mono tabular rounded-sm border transition-colors",
+                      backupCopies === n ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>{n}×</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted" title="Parallel offload stations — daily offload time divides by this count.">Stations</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4].map((n) => (
+                  <button key={n} type="button" onClick={() => setOffloadStations(n)}
+                    className={cn("px-2 py-1 text-[10px] font-mono tabular rounded-sm border transition-colors",
+                      offloadStations === n ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <SuiteSelect
+            label="Proxy Codec"
+            value={proxyCodecId}
+            onChange={setProxyCodecId}
+            options={PROXY_CODEC_IDS.map(({ id }) => {
+              const c = CODECS.find((x) => x.id === id);
+              return c ? { value: c.id, label: c.name, group: c.family } : null;
+            }).filter(Boolean) as { value: string; label: string; group?: string }[]}
+          />
+        </section>
       </aside>
 
       {/* Main panel */}
@@ -198,6 +266,32 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
             cameras={cameras}
             shootDays={shootDays}
           />
+
+          {/* Offload + proxy budget */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <BigMetric
+              icon={HardDrive}
+              label={`Offload / Day · ${backupCopies}× · ${offloadStations} station${offloadStations !== 1 ? "s" : ""}`}
+              value={Number.isFinite(offloadHrs) ? `${offloadHrs.toFixed(1)} h` : "—"}
+              hint={`${formatSize(perDayGB)}/day × ${backupCopies} via ${bandwidth.mbps} MB/s`}
+              tone={offloadHrs > 8 ? "warn" : "ok"}
+            />
+            {proxy && (
+              <BigMetric
+                icon={Layers}
+                label="Proxies · whole shoot"
+                value={formatSize(proxy.totalGB)}
+                hint={`${proxy.name} · ${(proxyRatio * 100).toFixed(1)}% of camera footage`}
+              />
+            )}
+            <BigMetric
+              icon={Clapperboard}
+              label="Camera + Proxy"
+              value={formatSize(totalGB + (proxy?.totalGB ?? 0))}
+              hint="total managed footprint"
+              tone="warn"
+            />
+          </div>
 
           {/* Comparison table */}
           <section className="border border-suite-border rounded-sm bg-suite-panel">
