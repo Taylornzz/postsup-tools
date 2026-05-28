@@ -107,11 +107,12 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   drawCornerTicks(ctx, 0, 0, W, H, Math.min(W, H) * 0.045, SENSOR_LINE, lw);
 
   // Inward registration triangles just inside each sensor edge.
-  drawEdgeTriangles(ctx, W, H, Math.min(W, H) * 0.016, "#cbd5e1");
+  drawEdgeTriangles(ctx, W, H, Math.min(W, H) * 0.024, "#e5e7eb");
 
-  // Four Siemens-star focus targets near the working-area corners.
+  // Four Siemens-star focus targets, inset from the corners so they clear the
+  // FINAL FRAME label (top-left) and the title block (bottom-left).
   const starR = Math.min(prot.w, prot.h) * 0.07;
-  const si = starR * 1.5;
+  const si = starR * 2.4;
   ([
     [prot.x + si, prot.y + si],
     [prot.x + prot.w - si, prot.y + si],
@@ -180,7 +181,7 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   ctx.lineWidth = lw;
   const cx = W / 2;
   const cy = H / 2;
-  const cross = Math.min(W, H) * 0.03;
+  const cross = Math.min(W, H) * 0.042;
   const ring = cross * 0.62;
   ctx.beginPath();
   // crosshair with a gap through the ring
