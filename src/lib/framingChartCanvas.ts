@@ -124,9 +124,6 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   ctx.strokeRect(lw / 2, lw / 2, W - lw, H - lw);
   drawCornerTicks(ctx, 0, 0, W, H, Math.min(W, H) * 0.045, SENSOR_LINE, lw);
 
-  // Inward registration triangles just inside each sensor edge.
-  drawEdgeTriangles(ctx, W, H, Math.min(W, H) * 0.024, "#e5e7eb");
-
   // Four Siemens-star focus targets, inset from the corners so they clear the
   // FINAL FRAME label (top-left) and the title block (bottom-left).
   const starR = Math.min(prot.w, prot.h) * 0.07;
@@ -167,7 +164,9 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   ctx.stroke();
   const brk = Math.min(frame.w, frame.h) * 0.05;
   drawCornerTicks(ctx, frame.x, frame.y, frame.w, frame.h, brk, FRAME_LINE, lw * 1.8);
-  edgeCenterTicks(ctx, frame, Math.min(frame.w, frame.h) * 0.025, FRAME_LINE, lw * 1.8);
+  // Registration arrows: tips land exactly on the final-frame edges (per the
+  // Netflix reference) — one at each edge centre, pointing inward.
+  drawEdgeArrows(ctx, frame, Math.min(W, H) * 0.022, "#e5e7eb");
 
   // --- Secondary delivery crop (e.g. 2:1) — an extra guide the operator also
   //     composes to, fit inside the final frame (violet). --------------------
@@ -291,24 +290,26 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
       : `PROTECTION none`,
     `${creator}  ·  ${new Date().toISOString().slice(0, 10)}`,
   ];
-  ctx.textBaseline = "bottom";
-  const pad = font;
+  // Centred info box, sitting just below the centre crosshair.
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
   const lineGap = font * 1.45;
-  // Backing panel so the title block stays legible over any footage.
   let maxW = 0;
   lines.forEach((ln, i) => {
     ctx.font = `${i === 0 ? font * 1.05 : font * 0.85}px ui-monospace, Menlo, Consolas, monospace`;
     maxW = Math.max(maxW, ctx.measureText(ln).width);
   });
   const blockH = (lines.length - 1) * lineGap + font * 1.2;
-  ctx.fillStyle = "rgba(8,8,10,0.68)";
-  ctx.fillRect(pad * 0.4, H - pad - blockH - font * 0.4, maxW + pad * 1.2, blockH + font * 0.7);
+  const top = cy + cross + font * 1.4; // clear of the crosshair
+  ctx.fillStyle = "rgba(8,8,10,0.7)";
+  ctx.fillRect(cx - maxW / 2 - font * 0.6, top - font * 0.4, maxW + font * 1.2, blockH + font * 0.7);
   lines.forEach((ln, i) => {
-    const y = H - pad - (lines.length - 1 - i) * lineGap;
+    const y = top + i * lineGap;
     ctx.font = `${i === 0 ? font * 1.05 : font * 0.85}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.fillStyle = i === 0 ? TEXT : TEXT_DIM;
-    ctx.fillText(ln, pad, y);
+    ctx.fillText(ln, cx, y);
   });
+  ctx.textAlign = "left";
 
   return canvas;
 }
@@ -366,51 +367,30 @@ function drawCornerTicks(
   ctx.stroke();
 }
 
-/** Small registration ticks at the centre of each edge of a rect. */
-function edgeCenterTicks(
+/** Inward-pointing registration arrows whose TIPS land exactly on the centre of
+ *  each edge of a rect (the base sits just outside the edge). */
+function drawEdgeArrows(
   ctx: CanvasRenderingContext2D,
   r: { x: number; y: number; w: number; h: number },
-  len: number,
-  color: string,
-  lw: number,
-) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lw;
-  const mx = r.x + r.w / 2;
-  const my = r.y + r.h / 2;
-  ctx.beginPath();
-  ctx.moveTo(mx, r.y); ctx.lineTo(mx, r.y + len); // top
-  ctx.moveTo(mx, r.y + r.h); ctx.lineTo(mx, r.y + r.h - len); // bottom
-  ctx.moveTo(r.x, my); ctx.lineTo(r.x + len, my); // left
-  ctx.moveTo(r.x + r.w, my); ctx.lineTo(r.x + r.w - len, my); // right
-  ctx.stroke();
-}
-
-/** Inward-pointing registration triangles just inside each sensor edge. */
-function drawEdgeTriangles(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
   size: number,
   color: string,
 ) {
   ctx.fillStyle = color;
-  const m = size * 1.6;
-  const tri = (x: number, y: number, dir: "u" | "d" | "l" | "r") => {
-    ctx.beginPath();
-    if (dir === "d") { ctx.moveTo(x - size, y); ctx.lineTo(x + size, y); ctx.lineTo(x, y + size * 1.4); }
-    if (dir === "u") { ctx.moveTo(x - size, y); ctx.lineTo(x + size, y); ctx.lineTo(x, y - size * 1.4); }
-    if (dir === "r") { ctx.moveTo(x, y - size); ctx.lineTo(x, y + size); ctx.lineTo(x + size * 1.4, y); }
-    if (dir === "l") { ctx.moveTo(x, y - size); ctx.lineTo(x, y + size); ctx.lineTo(x - size * 1.4, y); }
-    ctx.closePath();
-    ctx.fill();
-  };
-  for (const f of [0.25, 0.5, 0.75]) {
-    tri(W * f, m, "d");
-    tri(W * f, H - m, "u");
-    tri(m, H * f, "r");
-    tri(W - m, H * f, "l");
-  }
+  const mx = r.x + r.w / 2;
+  const my = r.y + r.h / 2;
+  const d = size * 1.5; // depth of the arrow, outward from the edge
+  // top — tip on the top edge, base above
+  ctx.beginPath();
+  ctx.moveTo(mx, r.y); ctx.lineTo(mx - size, r.y - d); ctx.lineTo(mx + size, r.y - d); ctx.closePath(); ctx.fill();
+  // bottom
+  ctx.beginPath();
+  ctx.moveTo(mx, r.y + r.h); ctx.lineTo(mx - size, r.y + r.h + d); ctx.lineTo(mx + size, r.y + r.h + d); ctx.closePath(); ctx.fill();
+  // left
+  ctx.beginPath();
+  ctx.moveTo(r.x, my); ctx.lineTo(r.x - d, my - size); ctx.lineTo(r.x - d, my + size); ctx.closePath(); ctx.fill();
+  // right
+  ctx.beginPath();
+  ctx.moveTo(r.x + r.w, my); ctx.lineTo(r.x + r.w + d, my - size); ctx.lineTo(r.x + r.w + d, my + size); ctx.closePath(); ctx.fill();
 }
 
 /** Siemens-star focus target (alternating wedges) with a slate ring. */

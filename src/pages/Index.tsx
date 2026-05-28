@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.2";
+const VERSION = "v1.9.3";
 const CHANGELOG = [
+  "v1.9.3 — registration arrows now point to the final-frame edges exactly (tips land on the frameline, per the Netflix reference); the info box moved to centre, below the crosshair; exported chart filenames are date-stamped (YYMMDD_…).",
   "v1.9.2 — added a 'Studio plate background' toggle for the chart export: PNG/TIFF can now be composited over the reference studio image (desqueezed, with a contrast scrim) instead of the clean ASC field. FDL is geometry-only and unaffected.",
   "v1.9.1 — logic pass for DOP / DIT / Post Supervisor use: protection now drawn OUTSIDE the final frame in the live viewer (was inset); secondary delivery crop (e.g. 2:1) is exported onto the framing chart + FDL as a real guide, not just a preview; Sony X-OCN bitrates recalibrated to Sony's published figures; storage unified into the Storage tab (offload + proxies restored there, spec sheet no longer reports frozen defaults); 'deliver 2:1 / protect 16:9' now models the two as different aspects; per-mode fps ceilings warn when exceeded; reference background optimised to a 4K JPEG.",
   "v1.9 — Storage button moved beside Capture & Framing; reframe box can now be resized via corner handles (not just repositioned); framing-chart export rebuilt as a clean ASC/Netflix-style chart — neutral working field (no guide image), four Siemens-star focus targets, inward edge registration marks, rounded framing-decision + protection rectangles, centre crosshair with focus ring, and the LUMINA / FRAME MATRIX brand mark — in our cyan/orange palette.",
@@ -582,7 +583,9 @@ const Index = () => {
       try {
         const protection = Math.max(0, Math.min(0.9, protectionPct / 100));
         const creator = `Lumina Frame Matrix ${VERSION}`;
-        const base = `${slug(source.camera)}_${slug(source.mode)}_${slug(target.name)}_framingchart`;
+        const d = new Date();
+        const yymmdd = `${String(d.getFullYear() % 100).padStart(2, "0")}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+        const base = `${yymmdd}_${slug(source.camera)}_${slug(source.mode)}_${slug(target.name)}_framingchart`;
 
         if (format === "fdl") {
           const fdl = buildFdl({ source, target, protection, creator, secondaryCropAR: deliveryCrop.ar });
