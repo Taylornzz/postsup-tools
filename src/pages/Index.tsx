@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.13";
+const VERSION = "v1.9.14";
 const CHANGELOG = [
+  "v1.9.14 — widened the left inspector panel (320 → 384px) so labels/hints stop wrapping and the column is shorter.",
   "v1.9.13 — replaced the geometric Netflix 'N' with the official Netflix mark in the approved-camera badges.",
   "v1.9.12 — removed the TIFF export option; chart export is now PNG + FDL.",
   "v1.9.11 — 'Center & Fill' now adheres to the protection frame: it fills so the PROTECTION boundary reaches the widest sensor edge (extraction scale = 1 − protection), leaving the final frame inset by the protection %.",
@@ -700,7 +701,7 @@ const Index = () => {
       ) : (
       <main className="flex-1 flex min-h-0">
         {/* Left inspector */}
-        <aside className="w-80 shrink-0 bg-suite-panel border-r border-suite-border flex flex-col overflow-y-auto">
+        <aside className="w-96 shrink-0 bg-suite-panel border-r border-suite-border flex flex-col overflow-y-auto">
           {/* Source */}
           <section className="p-5 border-b border-suite-border flex flex-col gap-4">
             <SectionHeader

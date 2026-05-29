@@ -124,7 +124,7 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
   return (
     <div className="flex-1 min-h-0 flex">
       {/* Left controls */}
-      <aside className="w-80 shrink-0 bg-suite-panel border-r border-suite-border flex flex-col overflow-y-auto">
+      <aside className="w-96 shrink-0 bg-suite-panel border-r border-suite-border flex flex-col overflow-y-auto">
         <section className="p-5 border-b border-suite-border flex flex-col gap-4">
           <SectionHeader label="01 · Source" dotClass="bg-guide-source" />
           <SuiteSelect
