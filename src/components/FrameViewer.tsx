@@ -126,8 +126,11 @@ export function FrameViewer({
   }
 
   const esClamped = Math.max(0.25, Math.min(2, extractionScale));
-  const extPxW = (screenExtW / screenSourceW) * frameW * esClamped;
-  const extPxH = (screenExtH / screenSourceH) * frameH * esClamped;
+  // FILL fills the sensor to its edge — a size-down (<1) must not pull the frame
+  // inward (punch-in >1 is still allowed). FIT honours the size-down for headroom.
+  const esBox = fitMode === "fill" ? Math.max(1, esClamped) : esClamped;
+  const extPxW = (screenExtW / screenSourceW) * frameW * esBox;
+  const extPxH = (screenExtH / screenSourceH) * frameH * esBox;
 
   // Reframe range: how far from center the extraction window can travel
   // (in normalized [-1..1] units of the available room). Use absolute value
