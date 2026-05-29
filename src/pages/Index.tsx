@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.7";
+const VERSION = "v1.9.8";
 const CHANGELOG = [
+  "v1.9.8 — fixed drag-to-reframe (broken in v1.9.6): the Extraction Scale size-down now shrinks the frame in both Fit and Fill again, restoring the reframe headroom you pan within. At Extraction Scale 1.0 the frame still fills the sensor edge.",
   "v1.9.7 — FIT now retains the delivery aspect ratio (regression fix): both Fit and Fill keep the final frame at the target aspect. FILL = the target-aspect frame that fits inside the sensor (crops edges); FIT = the target-aspect frame that encloses the whole sensor (no crop, adds letterbox/pillarbox bars).",
   "v1.9.6 — in FILL mode the final frame now fills the sensor to its edge (an extraction size-down no longer pulls it inward; punch-in still allowed), so with the studio plate on you can see the frame filling the captured image. The plate stays cropped to the chosen camera's sensor aspect.",
   "v1.9.5 — aligned the live viewer's frameline colours with the export chart so the boxes are distinguishable: sensor = slate, final frame = cyan, protection = orange, secondary crop = violet (previously the final frame and protection were both amber/orange, which made Fit/Fill changes hard to read).",

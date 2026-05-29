@@ -125,12 +125,12 @@ export function FrameViewer({
     }
   }
 
+  // Extraction Scale shrinks (<1) the frame inside the sensor to create reframe
+  // headroom, or punches in (>1). At 1.0 the frame fills the sensor edge.
+  // (Applies to both Fit and Fill so drag-to-reframe always has room when <1.)
   const esClamped = Math.max(0.25, Math.min(2, extractionScale));
-  // FILL fills the sensor to its edge — a size-down (<1) must not pull the frame
-  // inward (punch-in >1 is still allowed). FIT honours the size-down for headroom.
-  const esBox = fitMode === "fill" ? Math.max(1, esClamped) : esClamped;
-  const extPxW = (screenExtW / screenSourceW) * frameW * esBox;
-  const extPxH = (screenExtH / screenSourceH) * frameH * esBox;
+  const extPxW = (screenExtW / screenSourceW) * frameW * esClamped;
+  const extPxH = (screenExtH / screenSourceH) * frameH * esClamped;
 
   // Reframe range: how far from center the extraction window can travel
   // (in normalized [-1..1] units of the available room). Use absolute value
