@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.11";
+const VERSION = "v1.9.12";
 const CHANGELOG = [
+  "v1.9.12 — removed the TIFF export option; chart export is now PNG + FDL.",
   "v1.9.11 — 'Center & Fill' now adheres to the protection frame: it fills so the PROTECTION boundary reaches the widest sensor edge (extraction scale = 1 − protection), leaving the final frame inset by the protection %.",
   "v1.9.10 — added a 'Center & Fill' button (under Extraction Scale): recenters the reframe and sets the extraction to 1.0 so the crop fills to the widest sensor edge.",
   "v1.9.9 — removed the Fit/Fill toggle and merged the Reframe/Extract readout into '02 · Framing & Extract'. The extraction is now always the delivery-aspect cover crop of the sensor (framing aspect set by 'Framing For'); crop %, sensor-retained, pixel-scale and extract-px still shown.",
@@ -1249,7 +1250,7 @@ const Index = () => {
                   {exportWithImage ? "ON" : "OFF"}
                 </span>
               </button>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => exportFramingChart("png")}
                   className="flex items-center justify-center gap-1.5 px-2 py-2 text-[10px] tracking-[0.14em] uppercase border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm"
@@ -1257,14 +1258,6 @@ const Index = () => {
                 >
                   <Download className="size-3" strokeWidth={1.5} />
                   PNG
-                </button>
-                <button
-                  onClick={() => exportFramingChart("tiff")}
-                  className="flex items-center justify-center gap-1.5 px-2 py-2 text-[10px] tracking-[0.14em] uppercase border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm"
-                  title="Download a full-resolution framing chart as uncompressed TIFF"
-                >
-                  <Download className="size-3" strokeWidth={1.5} />
-                  TIFF
                 </button>
                 <button
                   onClick={() => exportFramingChart("fdl")}
