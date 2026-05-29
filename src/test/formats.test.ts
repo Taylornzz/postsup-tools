@@ -15,6 +15,7 @@ import {
   TARGETS,
   CARDS,
   CODECS,
+  computeFovDof,
   type Codec,
   type SourceFormat,
   type TargetContainer,
@@ -222,6 +223,40 @@ describe("usedSensorDiagonalMm", () => {
   });
   it("returns null without sensor dimensions", () => {
     expect(usedSensorDiagonalMm(src({}))).toBeNull();
+  });
+});
+
+// --- computeFovDof ----------------------------------------------------------
+describe("computeFovDof", () => {
+  // ALEXA 35 4.6K OG sensor 27.99×19.22 mm, 35mm @ T2.8, 3 m.
+  const r = computeFovDof({
+    sensorWidthMm: 27.99, sensorHeightMm: 19.22, squeeze: 1,
+    focalMm: 35, fNumber: 2.8, distanceM: 3,
+  });
+  it("computes angle of view", () => {
+    expect(r.hAOV).toBeCloseTo(43.6, 0);
+    expect(r.vAOV).toBeCloseTo(30.7, 0);
+  });
+  it("computes subject-plane coverage in metres", () => {
+    expect(r.frameW).toBeCloseTo(2.4, 1);
+    expect(r.frameH).toBeCloseTo(1.65, 1);
+  });
+  it("computes depth of field in metres", () => {
+    expect(r.nearM).toBeCloseTo(2.6, 1);
+    expect(r.farM).toBeCloseTo(3.54, 1);
+    expect(r.dofM).toBeCloseTo(0.94, 1); // not 941 — metres, not mm
+    expect(r.hyperfocalM).toBeCloseTo(19.4, 0);
+  });
+  it("returns infinite far focus at/over the hyperfocal", () => {
+    const far = computeFovDof({ sensorWidthMm: 27.99, sensorHeightMm: 19.22, focalMm: 35, fNumber: 2.8, distanceM: 25 });
+    expect(far.farM).toBe(Infinity);
+    expect(far.dofM).toBe(Infinity);
+  });
+  it("widens horizontal AOV for anamorphic (focal ÷ squeeze)", () => {
+    const sph = computeFovDof({ sensorWidthMm: 24, sensorHeightMm: 20, squeeze: 1, focalMm: 50, fNumber: 2, distanceM: 3 });
+    const ana = computeFovDof({ sensorWidthMm: 24, sensorHeightMm: 20, squeeze: 2, focalMm: 50, fNumber: 2, distanceM: 3 });
+    expect(ana.hAOV).toBeGreaterThan(sph.hAOV);
+    expect(ana.vAOV).toBeCloseTo(sph.vAOV, 5); // vertical unchanged
   });
 });
 

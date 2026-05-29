@@ -73,12 +73,14 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { FileSizeCalculator } from "@/components/FileSizeCalculator";
+import { FovCalculator } from "@/components/FovCalculator";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.18";
+const VERSION = "v1.9.19";
 const CHANGELOG = [
+  "v1.9.19 — new Optics tab: field-of-view (H/V/diagonal + subject-plane coverage), depth of field (near/far/total + hyperfocal, anamorphic-aware), and focal-length equivalence (full-frame / Super 35) for the selected camera. Math is unit-tested.",
   "v1.9.18 — expanded the camera library (ARRI ALEXA Mini, Sony VENICE 1, RED KOMODO, Nikon Z9, Fujifilm GFX100 II, Phantom Flex4K, Canon C700 FF) and the lens library (Master/Ultra Prime, Cooke Panchro/S7, CP.3, Sumire, Thalia, Master/Hawk/Atlas/Panavision anamorphics, etc.); updated Netflix-approval matching for the new bodies.",
   "v1.9.17 — added Saved Setups: save the current camera + framing + storage configuration (stored locally for now), reload it in one click, or delete it. Built on the URL-encoded state, so it's ready to sync to a user account later.",
   "v1.9.16 — fixed the anamorphic PNG export: the chart now renders in desqueezed display space (canvas width = sensor width × squeeze), so the plate, final frame and secondary crop all read at true proportions and match the live viewer. The FDL stays in recorded pixels with the squeeze recorded. Spherical cameras unchanged.",
@@ -111,7 +113,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage";
+type AppTab = "frame" | "storage" | "optics";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -193,9 +195,10 @@ function readSavedSetups(): SavedSetup[] {
 
 const Index = () => {
   // Hydrate from URL once
-  const [appTab, setAppTab] = useState<AppTab>(
-    (readParam(URL_KEYS.tab) as AppTab) === "storage" ? "storage" : "frame",
-  );
+  const [appTab, setAppTab] = useState<AppTab>(() => {
+    const t = readParam(URL_KEYS.tab) as AppTab;
+    return t === "storage" || t === "optics" ? t : "frame";
+  });
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
     return id && SOURCE_FORMATS.some((s) => s.id === id) ? id : SOURCE_FORMATS[0].id;
@@ -723,23 +726,28 @@ const Index = () => {
             <span className="text-suite-text-muted">LUMINA</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
         </div>
         <div className="flex items-center gap-2">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
+          <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
         </div>
         <div className="flex items-center gap-3">
           <span className="hidden md:inline text-[10px] font-mono tracking-widest uppercase text-suite-text-muted">
-            {appTab === "frame" ? "Camera · Framing · Protection" : "Codec · Bitrate · Footprint"}
+            {appTab === "frame" ? "Camera · Framing · Protection" : appTab === "optics" ? "FOV · DoF · Equivalence" : "Codec · Bitrate · Footprint"}
           </span>
         </div>
       </header>
 
-      {appTab === "storage" ? (
+      {appTab === "optics" ? (
+        <main className="flex-1 flex min-h-0">
+          <FovCalculator source={source} />
+        </main>
+      ) : appTab === "storage" ? (
         <main className="flex-1 flex min-h-0">
           <FileSizeCalculator
             sourceId={sourceId}
@@ -1806,6 +1814,25 @@ function StorageTabButton({ active, onClick }: { active: boolean; onClick: () =>
     >
       <HardDrive className="size-3" strokeWidth={1.5} />
       Storage
+    </button>
+  );
+}
+
+function OpticsTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Optics — field of view, depth of field, focal equivalence"
+    >
+      <Aperture className="size-3" strokeWidth={1.5} />
+      Optics
     </button>
   );
 }

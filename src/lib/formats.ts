@@ -1939,6 +1939,50 @@ export const LENSES: LensSpec[] = [
   { id: "hawk65", name: "Hawk65 2x", diameterMm: 60, family: "Anamorphic FF/VV", notes: "65 / large-format 2x anamorphic." },
 ];
 
+// --- Field of view + depth of field ----------------------------------------
+export type FovDof = {
+  hAOV: number; vAOV: number; dAOV: number; // angles of view (degrees)
+  frameW: number; frameH: number;           // subject-plane coverage (metres)
+  cocMm: number;                            // circle of confusion (mm)
+  hyperfocalM: number;
+  nearM: number;
+  farM: number;                             // Infinity when at/over hyperfocal
+  dofM: number;                             // Infinity when far is infinite
+};
+
+/** Thin-lens FOV + DoF. Anamorphic horizontal AOV uses focal ÷ squeeze.
+ *  CoC = used-sensor diagonal ÷ 1500. All distances in metres / mm as labelled. */
+export function computeFovDof(opts: {
+  sensorWidthMm: number;
+  sensorHeightMm: number;
+  squeeze?: number;
+  focalMm: number;
+  fNumber: number;
+  distanceM: number;
+}): FovDof {
+  const { sensorWidthMm: sw, sensorHeightMm: sh, focalMm: f, fNumber, distanceM } = opts;
+  const sq = opts.squeeze || 1;
+  const DEG = 180 / Math.PI;
+  const dist = distanceM * 1000; // mm
+  const hAOV = 2 * Math.atan((sw * sq) / (2 * f)) * DEG;
+  const vAOV = 2 * Math.atan(sh / (2 * f)) * DEG;
+  const dAOV = 2 * Math.atan(Math.hypot(sw * sq, sh) / (2 * f)) * DEG;
+  const frameW = (2 * dist * Math.tan(hAOV / 2 / DEG)) / 1000;
+  const frameH = (2 * dist * Math.tan(vAOV / 2 / DEG)) / 1000;
+  const cocMm = Math.hypot(sw, sh) / 1500;
+  const H = (f * f) / (fNumber * cocMm) + f; // mm
+  const near = (H * dist) / (H + (dist - f));
+  const farDen = H - (dist - f);
+  const far = farDen <= 0 ? Infinity : (H * dist) / farDen;
+  return {
+    hAOV, vAOV, dAOV, frameW, frameH, cocMm,
+    hyperfocalM: H / 1000,
+    nearM: near / 1000,
+    farM: far === Infinity ? Infinity : far / 1000,
+    dofM: far === Infinity ? Infinity : (far - near) / 1000,
+  };
+}
+
 /** Diagonal (mm) of the actually-used sensor area for a source. */
 export function usedSensorDiagonalMm(src: SourceFormat): number | null {
   const w = src.usedSensorWidthMm ?? src.sensorWidthMm;
