@@ -45,8 +45,12 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     maxEdge = 8192,
   } = opts;
 
-  // Recorded sensor resolution, capped for memory safety (preserves aspect).
-  let W = source.width;
+  // Render in DESQUEEZED display space (canvas width = sensor width × squeeze),
+  // so anamorphic charts read upright and the plate, framelines and crop all
+  // match the live viewer. Capped for memory safety. scaleX folds in the
+  // squeeze, so the recorded-pixel FDL geometry maps to display positions.
+  const sq = source.squeeze || 1;
+  let W = source.width * sq;
   let H = source.height;
   const longest = Math.max(W, H);
   if (longest > maxEdge) {
@@ -54,7 +58,7 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     W = Math.round(W * k);
     H = Math.round(H * k);
   }
-  const scaleX = W / source.width;
+  const scaleX = W / source.width; // includes the anamorphic desqueeze
   const scaleY = H / source.height;
 
   const canvas = document.createElement("canvas");

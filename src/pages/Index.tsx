@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.15";
+const VERSION = "v1.9.16";
 const CHANGELOG = [
+  "v1.9.16 — fixed the anamorphic PNG export: the chart now renders in desqueezed display space (canvas width = sensor width × squeeze), so the plate, final frame and secondary crop all read at true proportions and match the live viewer. The FDL stays in recorded pixels with the squeeze recorded. Spherical cameras unchanged.",
   "v1.9.15 — Protection now shows a live '% reserved' readout below the slider (previously static helper text); the value updates with the slider, the number field and canvas drag. Reviewed the other slider/readout pairs — all live.",
   "v1.9.14 — widened the left inspector panel (320 → 384px) so labels/hints stop wrapping and the column is shorter.",
   "v1.9.13 — replaced the geometric Netflix 'N' with the official Netflix mark in the approved-camera badges.",
