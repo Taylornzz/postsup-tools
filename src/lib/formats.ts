@@ -1575,9 +1575,10 @@ export function computeExtraction(
   let extractW: number;
   let extractH: number;
 
+  // Both modes keep the TARGET aspect ratio for the final frame.
   if (mode === "fill") {
-    // COVER — the largest target-aspect crop that fills the delivery. Crops the
-    // sensor (loses edges on one axis); no bars.
+    // COVER — largest target-aspect rect that fits INSIDE the sensor. Crops the
+    // sensor on one axis (loses edges); no bars.
     if (tAsp > s.aspect) {
       extractW = s.width;
       extractH = extractW / tAsp;
@@ -1586,10 +1587,15 @@ export function computeExtraction(
       extractW = extractH * tAsp;
     }
   } else {
-    // CONTAIN — the WHOLE sensor mapped into the delivery (letterbox / pillarbox).
-    // Nothing is cropped; the delivery gains bars on one axis.
-    extractW = s.width;
-    extractH = s.height;
+    // CONTAIN — smallest target-aspect rect that ENCLOSES the whole sensor.
+    // Nothing is cropped; the delivery gains letterbox/pillarbox bars instead.
+    if (tAsp > s.aspect) {
+      extractH = s.height;
+      extractW = extractH * tAsp; // wider than sensor → pillarbox L/R
+    } else {
+      extractW = s.width;
+      extractH = extractW / tAsp; // taller than sensor → letterbox T/B
+    }
   }
 
   const cropPctH = Math.max(0, 1 - extractW / s.width);
@@ -1598,13 +1604,8 @@ export function computeExtraction(
     (Math.min(extractW, s.width) * Math.min(extractH, s.height)) /
     (s.width * s.height);
   const deliverableW = tgt.activeWidth ?? tgt.width;
-  const deliverableH = tgt.activeHeight ?? tgt.height;
-  // Cover: extract is already target-aspect, so width-scale = height-scale.
-  // Contain: whole sensor fits inside the delivery → limited by the tighter axis.
-  const scale =
-    mode === "fill"
-      ? deliverableW / extractW
-      : Math.min(deliverableW / extractW, deliverableH / extractH);
+  // Extract is the target aspect in both modes, so width- and height-scale match.
+  const scale = deliverableW / extractW;
   return {
     extractW,
     extractH,

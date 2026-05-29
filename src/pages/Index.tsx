@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.6";
+const VERSION = "v1.9.7";
 const CHANGELOG = [
+  "v1.9.7 — FIT now retains the delivery aspect ratio (regression fix): both Fit and Fill keep the final frame at the target aspect. FILL = the target-aspect frame that fits inside the sensor (crops edges); FIT = the target-aspect frame that encloses the whole sensor (no crop, adds letterbox/pillarbox bars).",
   "v1.9.6 — in FILL mode the final frame now fills the sensor to its edge (an extraction size-down no longer pulls it inward; punch-in still allowed), so with the studio plate on you can see the frame filling the captured image. The plate stays cropped to the chosen camera's sensor aspect.",
   "v1.9.5 — aligned the live viewer's frameline colours with the export chart so the boxes are distinguishable: sensor = slate, final frame = cyan, protection = orange, secondary crop = violet (previously the final frame and protection were both amber/orange, which made Fit/Fill changes hard to read).",
   "v1.9.4 — fixed the Fit/Fill toggle, which previously did nothing: FILL now covers (crops the sensor to fill the delivery) while FIT contains (keeps the whole sensor, letterbox/pillarbox, nothing cropped). Crop %, sensor-retained, pixel-scale and method readouts now differ between the two.",
@@ -978,8 +979,8 @@ const Index = () => {
                   value={
                     fitMode === "fill"
                       ? ext.cropPctV > ext.cropPctH ? "Cover · T/B crop" : "Cover · L/R crop"
-                      : ext.sourceAspect > ext.targetAspect + 0.001 ? "Letterbox · T/B bars"
-                      : ext.sourceAspect < ext.targetAspect - 0.001 ? "Pillarbox · L/R bars"
+                      : ext.extractW > ext.sourceDisplayedW + 1 ? "Contain · L/R pillarbox"
+                      : ext.extractH > ext.sourceDisplayedH + 1 ? "Contain · T/B letterbox"
                       : "Exact · no bars"
                   }
                   hint={fitMode === "fill" ? "Sensor cropped to fill delivery" : "Whole sensor kept; delivery has bars"}

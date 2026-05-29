@@ -139,16 +139,17 @@ describe("computeExtraction", () => {
     expect(r.sourceAspect).toBeCloseTo(2.0, 6);
     expect(r.targetAspect).toBeCloseTo(1.0, 6);
   });
-  it("FIT (contain): keeps the whole 2.0 source, no crop, letterboxed", () => {
+  it("FIT (contain): retains target aspect, encloses whole source with bars", () => {
     const s = src({ width: 4000, height: 2000, squeeze: 1 }); // aspect 2.0
     const t = tgt({ width: 1000, height: 1000 }); // aspect 1.0
     const r = computeExtraction(s, t, "fit");
-    expect(r.extractW).toBeCloseTo(4000, 6); // whole sensor width
-    expect(r.extractH).toBeCloseTo(2000, 6); // whole sensor height
+    expect(r.extractW).toBeCloseTo(4000, 6); // full width
+    expect(r.extractH).toBeCloseTo(4000, 6); // taller than source → letterbox T/B
+    expect(r.extractW / r.extractH).toBeCloseTo(1.0, 6); // RETAINS the 1:1 target aspect
     expect(r.cropPctH).toBeCloseTo(0, 6); // nothing cropped
     expect(r.cropPctV).toBeCloseTo(0, 6);
     expect(r.usedArea).toBeCloseTo(1, 6); // 100% of sensor retained
-    expect(r.scale).toBeCloseTo(0.25, 6); // contain: min(1000/4000, 1000/2000)
+    expect(r.scale).toBeCloseTo(0.25, 6); // 1000 ÷ 4000
   });
   it("FILL honours an active picture area for delivery scale", () => {
     const s = src({ width: 4000, height: 2000, squeeze: 1 });
