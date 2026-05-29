@@ -40,6 +40,7 @@ import {
   slug,
 } from "@/lib/framingChart";
 import { renderFramingChart } from "@/lib/framingChartCanvas";
+import { buildCameraReportPdf } from "@/lib/cameraReport";
 import { Metric } from "@/components/Metric";
 import { FrameViewer } from "@/components/FrameViewer";
 import {
@@ -79,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.20";
+const VERSION = "v1.9.21";
 const CHANGELOG = [
+  "v1.9.21 — added a downloadable Camera Report (PDF): a printable spec sheet covering source/lens, recording, delivery, extraction, and the full mag/card + offload + proxy storage plan (runtime per card, cards-per-day, on-set inventory, daily footage). Mirrors the on-screen state and the permalink.",
   "v1.9.20 — added a Custom aspect option to 'Framing For': enter any W:H ratio and it drives the framing, chart, FDL and extract math like any preset (persisted in the permalink).",
   "v1.9.19 — new Optics tab: field-of-view (H/V/diagonal + subject-plane coverage), depth of field (near/far/total + hyperfocal, anamorphic-aware), and focal-length equivalence (full-frame / Super 35) for the selected camera. Math is unit-tested.",
   "v1.9.18 — expanded the camera library (ARRI ALEXA Mini, Sony VENICE 1, RED KOMODO, Nikon Z9, Fujifilm GFX100 II, Phantom Flex4K, Canon C700 FF) and the lens library (Master/Ultra Prime, Cooke Panchro/S7, CP.3, Sumire, Thalia, Master/Hawk/Atlas/Panavision anamorphics, etc.); updated Netflix-approval matching for the new bodies.",
@@ -363,6 +365,18 @@ const Index = () => {
     () => offloadHours(perDayGB, backupCopies, bandwidth.mbps, offloadStations),
     [perDayGB, backupCopies, bandwidth.mbps, offloadStations],
   );
+
+  // Proxy footprint per day — proxy codec at HD/delivery res, all cameras.
+  const proxyPlan = useMemo(() => {
+    const entry = PROXY_CODEC_IDS.find((p) => p.id === proxyCodecId) ?? PROXY_CODEC_IDS[0];
+    const c = CODECS.find((x) => x.id === entry.id);
+    if (!c) return null;
+    const w = entry.resolutionTier === "hd" ? 1920 : 3840;
+    const h = entry.resolutionTier === "hd" ? 1080 : 2160;
+    const pMbps = codecMbps(c, w, h, fps);
+    const perDay = estimateFileSizeGB(pMbps, 3600 * recordHoursPerDay) * cameraCount;
+    return { name: c.name, perDayGB: perDay, ratioPct: perDayGB > 0 ? (perDay / perDayGB) * 100 : 0 };
+  }, [proxyCodecId, fps, recordHoursPerDay, cameraCount, perDayGB]);
 
   // Lens coverage + anamorphic/spherical mismatch
   const lens = LENSES.find((l) => l.id === lensId) ?? LENSES[0];
@@ -745,6 +759,86 @@ const Index = () => {
     target.activeWidth ?? target.width,
     target.activeHeight ?? target.height,
   );
+
+  // Camera & Storage report (PDF) — mirrors the on-screen / permalink state.
+  const exportCameraReport = useCallback(() => {
+    try {
+      const dt = new Date();
+      const yy = String(dt.getFullYear() % 100).padStart(2, "0");
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const blob = buildCameraReportPdf({
+        version: VERSION,
+        dateLabel: `${dt.getFullYear()}-${mm}-${dd}`,
+        url: typeof window !== "undefined" ? window.location.href : "",
+        camera: source.camera,
+        mode: source.mode,
+        recordedW: source.width,
+        recordedH: source.height,
+        squeeze: source.squeeze,
+        displayedW: srcDisp.width,
+        displayedH: srcDisp.height,
+        imageAspectLabel: `${srcAspectName} (${srcAspectDec})`,
+        sensorAspectLabel: `${aspectRatioLabel(source.width, source.height)} (${aspectDecimalLabel(source.width, source.height)})`,
+        sensorWidthMm: source.sensorWidthMm,
+        sensorHeightMm: source.sensorHeightMm,
+        usedSensorWidthMm: source.usedSensorWidthMm,
+        usedSensorHeightMm: source.usedSensorHeightMm,
+        colorSpace: source.colorSpace,
+        oetf: source.oetf,
+        megapixels: (source.width * source.height) / 1_000_000,
+        lensName: lens.name,
+        lensDiameterMm: lens.diameterMm,
+        lensCovers,
+        lensIsNone: lens.id === "none",
+        sensorDiagMm,
+        codecName: codec.name,
+        fps,
+        mbps,
+        perHourGB,
+        targetName: target.name,
+        targetW: target.width,
+        targetH: target.height,
+        targetAspectLabel: target.ratioLabel,
+        hdr: hdrInUse,
+        hdrNits: hdrPeakNits(hdrInUse),
+        audio: audioInUse
+          ? `${audioInUse}${target.audio ? ` · ${target.audio.lufs} LUFS · ${target.audio.truePeakDb} dBTP` : ""}`
+          : null,
+        extractPxW: Math.round(ext.extractW / source.squeeze),
+        extractPxH: Math.round(ext.extractH),
+        cropPctH: ext.cropPctH,
+        cropPctV: ext.cropPctV,
+        usedArea: ext.usedArea,
+        scale: ext.scale,
+        recordHoursPerDay,
+        cameraCount,
+        perDayGB,
+        cardName: card.name,
+        cardGB: card.gb,
+        cardKind: card.kind,
+        cardRuntimeMin: cardMin,
+        bandwidthLabel: bandwidth.label,
+        bandwidthMbps: bandwidth.mbps,
+        backupCopies,
+        offloadStations,
+        offloadHrs,
+        proxyName: proxyPlan?.name ?? null,
+        proxyPerDayGB: proxyPlan?.perDayGB ?? null,
+        proxyRatioPct: proxyPlan?.ratioPct ?? null,
+      });
+      downloadBlob(blob, `${yy}${mm}${dd}_${slug(source.camera)}_${slug(source.mode)}_camera-report.pdf`);
+      toast.success("Camera report (PDF) downloaded");
+    } catch (e) {
+      console.error(e);
+      toast.error("Report export failed");
+    }
+  }, [
+    source, srcDisp, srcAspectName, srcAspectDec, lens, lensCovers, sensorDiagMm,
+    codec, fps, mbps, perHourGB, target, hdrInUse, audioInUse, ext,
+    recordHoursPerDay, cameraCount, perDayGB, card, cardMin, bandwidth,
+    backupCopies, offloadStations, offloadHrs, proxyPlan,
+  ]);
 
   return (
     <div className="h-dvh w-full bg-suite-bg text-suite-text flex flex-col overflow-hidden">
@@ -1420,6 +1514,14 @@ const Index = () => {
                   FDL
                 </button>
               </div>
+              <button
+                onClick={exportCameraReport}
+                className="flex items-center justify-center gap-1.5 px-2 py-2 text-[10px] tracking-[0.14em] uppercase border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm"
+                title="Download a printable PDF spec sheet — camera, framing, extraction, plus mag/card runtime, offload & proxy storage plan"
+              >
+                <Download className="size-3" strokeWidth={1.5} />
+                Camera Report (PDF)
+              </button>
             </div>
           </section>
         </aside>
