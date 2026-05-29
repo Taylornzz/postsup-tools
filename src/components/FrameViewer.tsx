@@ -207,11 +207,14 @@ export function FrameViewer({
     resizing.current = null;
   }, []);
 
-  const sourceAccent = "hsl(var(--guide-source))";
+  // Frameline palette aligned with the export chart so the boxes are
+  // distinguishable: sensor = slate, final frame = cyan, protection = orange
+  // (drawn by ProtectionOverlay), secondary crop = violet.
+  const sourceAccent = "#94a3b8"; // slate — sensor / source border
   const isSocial = target.group === "Social";
   const targetAccent = isSocial
-    ? "hsl(var(--guide-social))"
-    : "hsl(var(--guide-target))";
+    ? "hsl(var(--guide-social))" // violet for social formats
+    : "#22d3ee"; // cyan — final frame
 
   // Pixel ratio readout (e.g. "8192 src px → 3840 tgt px")
   const sourcePxAcrossExtraction = Math.round(ext.extractW / source.squeeze);
