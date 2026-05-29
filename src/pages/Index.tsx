@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.3";
+const VERSION = "v1.9.4";
 const CHANGELOG = [
+  "v1.9.4 — fixed the Fit/Fill toggle, which previously did nothing: FILL now covers (crops the sensor to fill the delivery) while FIT contains (keeps the whole sensor, letterbox/pillarbox, nothing cropped). Crop %, sensor-retained, pixel-scale and method readouts now differ between the two.",
   "v1.9.3 — registration arrows now point to the final-frame edges exactly (tips land on the frameline, per the Netflix reference); the info box moved to centre, below the crosshair; exported chart filenames are date-stamped (YYMMDD_…).",
   "v1.9.2 — added a 'Studio plate background' toggle for the chart export: PNG/TIFF can now be composited over the reference studio image (desqueezed, with a contrast scrim) instead of the clean ASC field. FDL is geometry-only and unaffected.",
   "v1.9.1 — logic pass for DOP / DIT / Post Supervisor use: protection now drawn OUTSIDE the final frame in the live viewer (was inset); secondary delivery crop (e.g. 2:1) is exported onto the framing chart + FDL as a real guide, not just a preview; Sony X-OCN bitrates recalibrated to Sony's published figures; storage unified into the Storage tab (offload + proxies restored there, spec sheet no longer reports frozen defaults); 'deliver 2:1 / protect 16:9' now models the two as different aspects; per-mode fps ceilings warn when exceeded; reference background optimised to a 4K JPEG.",
@@ -975,8 +976,11 @@ const Index = () => {
                   value={
                     fitMode === "fill"
                       ? ext.cropPctV > ext.cropPctH ? "Cover · T/B crop" : "Cover · L/R crop"
-                      : ext.cropPctH > ext.cropPctV ? "Pillar" : ext.cropPctV > 0 ? "Letterbox" : "1:1"
+                      : ext.sourceAspect > ext.targetAspect + 0.001 ? "Letterbox · T/B bars"
+                      : ext.sourceAspect < ext.targetAspect - 0.001 ? "Pillarbox · L/R bars"
+                      : "Exact · no bars"
                   }
+                  hint={fitMode === "fill" ? "Sensor cropped to fill delivery" : "Whole sensor kept; delivery has bars"}
                 />
               </div>
             </section>

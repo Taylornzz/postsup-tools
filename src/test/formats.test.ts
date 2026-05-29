@@ -126,10 +126,10 @@ describe("codecMbps", () => {
 
 // --- computeExtraction ------------------------------------------------------
 describe("computeExtraction", () => {
-  it("fit: crops a 2.0 source into a 1:1 target", () => {
+  it("FILL (cover): crops a 2.0 source into a 1:1 target", () => {
     const s = src({ width: 4000, height: 2000, squeeze: 1 }); // aspect 2.0
     const t = tgt({ width: 1000, height: 1000 }); // aspect 1.0
-    const r = computeExtraction(s, t, "fit");
+    const r = computeExtraction(s, t, "fill");
     expect(r.extractW).toBeCloseTo(2000, 6);
     expect(r.extractH).toBeCloseTo(2000, 6);
     expect(r.cropPctH).toBeCloseTo(0.5, 6); // half the width discarded
@@ -139,10 +139,21 @@ describe("computeExtraction", () => {
     expect(r.sourceAspect).toBeCloseTo(2.0, 6);
     expect(r.targetAspect).toBeCloseTo(1.0, 6);
   });
-  it("honours an active picture area for delivery scale", () => {
+  it("FIT (contain): keeps the whole 2.0 source, no crop, letterboxed", () => {
+    const s = src({ width: 4000, height: 2000, squeeze: 1 }); // aspect 2.0
+    const t = tgt({ width: 1000, height: 1000 }); // aspect 1.0
+    const r = computeExtraction(s, t, "fit");
+    expect(r.extractW).toBeCloseTo(4000, 6); // whole sensor width
+    expect(r.extractH).toBeCloseTo(2000, 6); // whole sensor height
+    expect(r.cropPctH).toBeCloseTo(0, 6); // nothing cropped
+    expect(r.cropPctV).toBeCloseTo(0, 6);
+    expect(r.usedArea).toBeCloseTo(1, 6); // 100% of sensor retained
+    expect(r.scale).toBeCloseTo(0.25, 6); // contain: min(1000/4000, 1000/2000)
+  });
+  it("FILL honours an active picture area for delivery scale", () => {
     const s = src({ width: 4000, height: 2000, squeeze: 1 });
     const t = tgt({ width: 1000, height: 1000, activeWidth: 500, activeHeight: 500 });
-    const r = computeExtraction(s, t, "fit");
+    const r = computeExtraction(s, t, "fill");
     expect(r.scale).toBeCloseTo(0.25, 6); // 500 deliverable ÷ 2000 extract
   });
   it("applies anamorphic squeeze to the displayed source aspect", () => {

@@ -1576,6 +1576,8 @@ export function computeExtraction(
   let extractH: number;
 
   if (mode === "fill") {
+    // COVER — the largest target-aspect crop that fills the delivery. Crops the
+    // sensor (loses edges on one axis); no bars.
     if (tAsp > s.aspect) {
       extractW = s.width;
       extractH = extractW / tAsp;
@@ -1584,12 +1586,10 @@ export function computeExtraction(
       extractW = extractH * tAsp;
     }
   } else {
+    // CONTAIN — the WHOLE sensor mapped into the delivery (letterbox / pillarbox).
+    // Nothing is cropped; the delivery gains bars on one axis.
     extractW = s.width;
-    extractH = extractW / tAsp;
-    if (extractH > s.height) {
-      extractH = s.height;
-      extractW = extractH * tAsp;
-    }
+    extractH = s.height;
   }
 
   const cropPctH = Math.max(0, 1 - extractW / s.width);
@@ -1598,7 +1598,13 @@ export function computeExtraction(
     (Math.min(extractW, s.width) * Math.min(extractH, s.height)) /
     (s.width * s.height);
   const deliverableW = tgt.activeWidth ?? tgt.width;
-  const scale = deliverableW / extractW;
+  const deliverableH = tgt.activeHeight ?? tgt.height;
+  // Cover: extract is already target-aspect, so width-scale = height-scale.
+  // Contain: whole sensor fits inside the delivery → limited by the tighter axis.
+  const scale =
+    mode === "fill"
+      ? deliverableW / extractW
+      : Math.min(deliverableW / extractW, deliverableH / extractH);
   return {
     extractW,
     extractH,
