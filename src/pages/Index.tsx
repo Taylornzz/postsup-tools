@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.16";
+const VERSION = "v1.9.17";
 const CHANGELOG = [
+  "v1.9.17 — added Saved Setups: save the current camera + framing + storage configuration (stored locally for now), reload it in one click, or delete it. Built on the URL-encoded state, so it's ready to sync to a user account later.",
   "v1.9.16 — fixed the anamorphic PNG export: the chart now renders in desqueezed display space (canvas width = sensor width × squeeze), so the plate, final frame and secondary crop all read at true proportions and match the live viewer. The FDL stays in recorded pixels with the squeeze recorded. Spherical cameras unchanged.",
   "v1.9.15 — Protection now shows a live '% reserved' readout below the slider (previously static helper text); the value updates with the slider, the number field and canvas drag. Reviewed the other slider/readout pairs — all live.",
   "v1.9.14 — widened the left inspector panel (320 → 384px) so labels/hints stop wrapping and the column is shorter.",
@@ -174,6 +175,21 @@ function readNum(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// Saved setups — stored locally for now; the same shape can later sync to a
+// user account (id/name/query are all that's needed to restore a full config,
+// since the entire app state is URL-encoded).
+type SavedSetup = { id: string; name: string; query: string; ts: number };
+const SETUPS_KEY = "lumina-frame-setups";
+function readSavedSetups(): SavedSetup[] {
+  try {
+    const raw = localStorage.getItem(SETUPS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
 const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(
@@ -209,6 +225,8 @@ const Index = () => {
   // Composite the studio plate behind the exported chart (PNG/TIFF) instead of
   // the clean ASC-style field. FDL is geometry-only and ignores this.
   const [exportWithImage, setExportWithImage] = useState(false);
+  // Saved setups (localStorage; ready to sync to an account later).
+  const [savedSetups, setSavedSetups] = useState<SavedSetup[]>(() => readSavedSetups());
   const [usingBuiltin, setUsingBuiltin] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -509,6 +527,37 @@ const Index = () => {
   const copyPermalink = useCallback(async () => {
     await writeClipboard(window.location.href, "lumina-permalink.txt");
   }, [writeClipboard]);
+
+  // --- Saved setups (local) ---------------------------------------------------
+  const persistSetups = useCallback((next: SavedSetup[]) => {
+    setSavedSetups(next);
+    try {
+      localStorage.setItem(SETUPS_KEY, JSON.stringify(next));
+    } catch {
+      /* storage may be unavailable (private mode) — keep in-memory */
+    }
+  }, []);
+  const saveCurrentSetup = useCallback(() => {
+    const suggested = `${source.camera} · ${target.name}`;
+    const name = window.prompt("Name this setup", suggested);
+    if (!name) return;
+    const setup: SavedSetup = {
+      id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
+      name: name.trim() || suggested,
+      query: window.location.search,
+      ts: Date.now(),
+    };
+    persistSetups([setup, ...savedSetups].slice(0, 50));
+    toast.success("Setup saved");
+  }, [source.camera, target.name, savedSetups, persistSetups]);
+  const loadSetup = useCallback((s: SavedSetup) => {
+    // Whole app state is URL-encoded, so restoring is just navigating to it.
+    window.location.search = s.query;
+  }, []);
+  const deleteSetup = useCallback(
+    (id: string) => persistSetups(savedSetups.filter((s) => s.id !== id)),
+    [savedSetups, persistSetups],
+  );
 
   const copySpecSheet = useCallback(async () => {
     const srcAspectName = aspectRatioLabel(srcDisp.width, srcDisp.height);
@@ -1219,8 +1268,48 @@ const Index = () => {
             </div>
           </section>
 
-          {/* Export / Share */}
+          {/* Saved Setups */}
           <section className="p-5 mt-auto border-t border-suite-border flex flex-col gap-2">
+            <SectionHeader label="Saved Setups" />
+            <button
+              onClick={saveCurrentSetup}
+              className="flex items-center justify-center gap-2 px-3 py-2 text-[10px] tracking-[0.18em] uppercase border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm"
+              title="Save the current camera + framing + storage configuration to this device"
+            >
+              <ShieldCheck className="size-3" strokeWidth={1.5} />
+              Save Current Setup
+            </button>
+            {savedSetups.length === 0 ? (
+              <p className="text-[10px] leading-relaxed text-suite-text-dim font-mono">
+                No saved setups yet — saved locally on this device.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {savedSetups.map((s) => (
+                  <div key={s.id} className="flex items-center gap-1">
+                    <button
+                      onClick={() => loadSetup(s)}
+                      className="flex-1 min-w-0 text-left px-2 py-1.5 text-[10px] font-mono border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm truncate"
+                      title={`Load · saved ${new Date(s.ts).toLocaleString()}`}
+                    >
+                      {s.name}
+                    </button>
+                    <button
+                      onClick={() => deleteSetup(s.id)}
+                      className="px-2 py-1.5 border border-suite-border hover:border-destructive/60 hover:text-destructive transition-colors rounded-sm"
+                      aria-label="Delete setup"
+                      title="Delete"
+                    >
+                      <X className="size-3" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Export / Share */}
+          <section className="p-5 border-t border-suite-border flex flex-col gap-2">
             <SectionHeader label="Export · Share" />
             <button
               onClick={copySpecSheet}
