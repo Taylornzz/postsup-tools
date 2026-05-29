@@ -7,6 +7,7 @@ import {
   CARDS,
   PROXY_CODEC_IDS,
   OFFLOAD_BANDWIDTHS,
+  type TargetContainer,
   codecMbps,
   computeExtraction,
   formatNumber,
@@ -78,8 +79,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.19";
+const VERSION = "v1.9.20";
 const CHANGELOG = [
+  "v1.9.20 — added a Custom aspect option to 'Framing For': enter any W:H ratio and it drives the framing, chart, FDL and extract math like any preset (persisted in the permalink).",
   "v1.9.19 — new Optics tab: field-of-view (H/V/diagonal + subject-plane coverage), depth of field (near/far/total + hyperfocal, anamorphic-aware), and focal-length equivalence (full-frame / Super 35) for the selected camera. Math is unit-tested.",
   "v1.9.18 — expanded the camera library (ARRI ALEXA Mini, Sony VENICE 1, RED KOMODO, Nikon Z9, Fujifilm GFX100 II, Phantom Flex4K, Canon C700 FF) and the lens library (Master/Ultra Prime, Cooke Panchro/S7, CP.3, Sumire, Thalia, Master/Hawk/Atlas/Panavision anamorphics, etc.); updated Netflix-approval matching for the new bodies.",
   "v1.9.17 — added Saved Setups: save the current camera + framing + storage configuration (stored locally for now), reload it in one click, or delete it. Built on the URL-encoded state, so it's ready to sync to a user account later.",
@@ -143,6 +145,8 @@ const URL_KEYS = {
   aud: "aud",
   exs: "exs",
   dcr: "dcr",
+  cw: "cw",
+  ch: "ch",
 } as const;
 
 const DELIVERY_CROPS: { id: string; label: string; ar: number | null }[] = [
@@ -205,8 +209,11 @@ const Index = () => {
   });
   const [targetId, setTargetId] = useState<string>(() => {
     const id = readParam(URL_KEYS.tgt);
-    return id && TARGETS.some((t) => t.id === id) ? id : "uhd-4k";
+    return id === "custom" || (id && TARGETS.some((t) => t.id === id)) ? id : "uhd-4k";
   });
+  // Custom delivery aspect (W:H ratio) — used when targetId === "custom".
+  const [customW, setCustomW] = useState<number>(() => readNum(URL_KEYS.cw, 2.39));
+  const [customH, setCustomH] = useState<number>(() => readNum(URL_KEYS.ch, 1));
   const [showGuides, setShowGuides] = useState(() => readBool(URL_KEYS.guides, true));
   const [showMask, setShowMask] = useState(() => readBool(URL_KEYS.mask, true));
   const [showThirds, setShowThirds] = useState(() => readBool(URL_KEYS.thirds, false));
@@ -303,7 +310,22 @@ const Index = () => {
   const deliveryCrop = DELIVERY_CROPS.find((c) => c.id === deliveryCropId) ?? DELIVERY_CROPS[0];
 
   const source = SOURCE_FORMATS.find((s) => s.id === sourceId)!;
-  const target = TARGETS.find((t) => t.id === targetId)!;
+  // Custom delivery aspect → a synthetic 4K-class target at the chosen ratio.
+  const customAR = customW > 0 && customH > 0 ? customW / customH : 1.7778;
+  const customTarget: TargetContainer = useMemo(() => {
+    const w = customAR >= 1 ? 3840 : Math.round(2160 * customAR);
+    const h = customAR >= 1 ? Math.round(3840 / customAR) : 2160;
+    return {
+      id: "custom",
+      group: "Cinema",
+      name: `Custom ${customAR.toFixed(2)}:1`,
+      width: w,
+      height: h,
+      ratioLabel: `${customAR.toFixed(2)}:1`,
+      hdrVariants: ["SDR"],
+    };
+  }, [customAR]);
+  const target = targetId === "custom" ? customTarget : (TARGETS.find((t) => t.id === targetId) ?? TARGETS[0]);
   const ext = useMemo(
     () => computeExtraction(source, target, fitMode),
     [source, target, fitMode],
@@ -405,6 +427,10 @@ const Index = () => {
     if (audioInUse) params.set(URL_KEYS.aud, audioInUse);
     params.set(URL_KEYS.exs, String(extractionScale));
     if (deliveryCropId !== "none") params.set(URL_KEYS.dcr, deliveryCropId);
+    if (targetId === "custom") {
+      params.set(URL_KEYS.cw, String(customW));
+      params.set(URL_KEYS.ch, String(customH));
+    }
     const next = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", next);
   }, [
@@ -413,6 +439,7 @@ const Index = () => {
     hdrInUse, lensId, cardId, backupCopies, bwId,
     recordHoursPerDay, cameraCount, proxyCodecId, protectionPct,
     offloadStations, audioInUse, extractionScale, deliveryCropId,
+    customW, customH,
   ]);
 
   const resetReframe = () => setReframeOffset({ x: 0, y: 0 });
@@ -462,11 +489,14 @@ const Index = () => {
       icon,
     };
   });
-  const targetOptions = TARGETS.map((t) => ({
-    value: t.id,
-    label: `${t.name} (${t.ratioLabel})`,
-    group: t.group,
-  }));
+  const targetOptions = [
+    ...TARGETS.map((t) => ({
+      value: t.id,
+      label: `${t.name} (${t.ratioLabel})`,
+      group: t.group,
+    })),
+    { value: "custom", label: `Custom aspect (${customAR.toFixed(2)}:1)`, group: "Custom" },
+  ];
   const codecOptions = availableCodecs.map((c) => ({
     value: c.id,
     label: c.name,
@@ -911,6 +941,24 @@ const Index = () => {
               }}
               options={targetOptions}
             />
+            {targetId === "custom" && (
+              <div className="flex items-end gap-2">
+                <label className="flex flex-col gap-1 flex-1">
+                  <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Width</span>
+                  <input type="number" min={0.1} step={0.01} value={customW}
+                    onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n > 0) { setCustomW(n); resetReframe(); } }}
+                    className="w-full bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono tabular focus:outline-none focus:border-guide-target" />
+                </label>
+                <span className="pb-1.5 text-suite-text-dim font-mono">:</span>
+                <label className="flex flex-col gap-1 flex-1">
+                  <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Height</span>
+                  <input type="number" min={0.1} step={0.01} value={customH}
+                    onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n > 0) { setCustomH(n); resetReframe(); } }}
+                    className="w-full bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono tabular focus:outline-none focus:border-guide-target" />
+                </label>
+                <span className="pb-1.5 text-[10px] font-mono text-suite-text tabular">{customAR.toFixed(2)}:1</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3 pt-1">
               <Metric
                 label="Resolution"
