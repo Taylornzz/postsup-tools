@@ -860,11 +860,8 @@ const Index = () => {
           <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
         </div>
-        <div className="flex items-center gap-3">
-          <span className="hidden md:inline text-[10px] font-mono tracking-widest uppercase text-suite-text-muted">
-            {appTab === "frame" ? "Camera · Framing · Protection" : appTab === "optics" ? "FOV · DoF · Equivalence" : "Codec · Bitrate · Footprint"}
-          </span>
-        </div>
+        {/* Reserved for user login / account (future). */}
+        <div className="flex items-center gap-3" />
       </header>
 
       {appTab === "optics" ? (
