@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.10";
+const VERSION = "v1.9.11";
 const CHANGELOG = [
+  "v1.9.11 — 'Center & Fill' now adheres to the protection frame: it fills so the PROTECTION boundary reaches the widest sensor edge (extraction scale = 1 − protection), leaving the final frame inset by the protection %.",
   "v1.9.10 — added a 'Center & Fill' button (under Extraction Scale): recenters the reframe and sets the extraction to 1.0 so the crop fills to the widest sensor edge.",
   "v1.9.9 — removed the Fit/Fill toggle and merged the Reframe/Extract readout into '02 · Framing & Extract'. The extraction is now always the delivery-aspect cover crop of the sensor (framing aspect set by 'Framing For'); crop %, sensor-retained, pixel-scale and extract-px still shown.",
   "v1.9.8 — fixed drag-to-reframe (broken in v1.9.6): the Extraction Scale size-down now shrinks the frame in both Fit and Fill again, restoring the reframe headroom you pan within. At Extraction Scale 1.0 the frame still fills the sensor edge.",
@@ -1110,9 +1111,14 @@ const Index = () => {
               </div>
               <button
                 type="button"
-                onClick={() => { setExtractionScale(1); resetReframe(); }}
+                onClick={() => {
+                  // Fill so the PROTECTION frame reaches the widest sensor edge —
+                  // the final frame sits inset by the protection amount.
+                  setExtractionScale(Math.max(0.25, Math.min(2, 1 - protectionPct / 100)));
+                  resetReframe();
+                }}
                 className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] tracking-[0.18em] uppercase border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm"
-                title="Recenter the frame and fill the crop to the widest sensor edge (extraction scale 1.0, no reframe offset)"
+                title="Recenter and fill so the protection frame reaches the widest sensor edge (final frame inset by the protection %)."
               >
                 <Crop className="size-3" strokeWidth={1.5} />
                 Center &amp; Fill
