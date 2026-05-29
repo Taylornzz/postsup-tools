@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.8";
+const VERSION = "v1.9.9";
 const CHANGELOG = [
+  "v1.9.9 — removed the Fit/Fill toggle and merged the Reframe/Extract readout into '02 · Framing & Extract'. The extraction is now always the delivery-aspect cover crop of the sensor (framing aspect set by 'Framing For'); crop %, sensor-retained, pixel-scale and extract-px still shown.",
   "v1.9.8 — fixed drag-to-reframe (broken in v1.9.6): the Extraction Scale size-down now shrinks the frame in both Fit and Fill again, restoring the reframe headroom you pan within. At Extraction Scale 1.0 the frame still fills the sensor edge.",
   "v1.9.7 — FIT now retains the delivery aspect ratio (regression fix): both Fit and Fill keep the final frame at the target aspect. FILL = the target-aspect frame that fits inside the sensor (crops edges); FIT = the target-aspect frame that encloses the whole sensor (no crop, adds letterbox/pillarbox bars).",
   "v1.9.6 — in FILL mode the final frame now fills the sensor to its edge (an extraction size-down no longer pulls it inward; punch-in still allowed), so with the studio plate on you can see the frame filling the captured image. The plate stays cropped to the chosen camera's sensor aspect.",
@@ -185,9 +186,9 @@ const Index = () => {
   const [showSafeArea, setShowSafeArea] = useState(() => readBool(URL_KEYS.safe, false));
   const [desqueeze, setDesqueeze] = useState(() => readBool(URL_KEYS.desq, true));
   const [pixelTrue, setPixelTrue] = useState(() => readBool(URL_KEYS.pixel, false));
-  const [fitMode, setFitMode] = useState<FitMode>(
-    (readParam(URL_KEYS.fit) as FitMode) === "fill" ? "fill" : "fit",
-  );
+  // Fit/Fill removed — the extraction is always the delivery-aspect cover crop
+  // of the sensor (the framing aspect is chosen in §02 Framing).
+  const fitMode: FitMode = "fill";
   // Delivery view removed — the framing/source view is the only mode now.
   const viewMode: ViewMode = "source";
   const [fps, setFps] = useState<number>(() => readNum(URL_KEYS.fps, 24));
@@ -562,7 +563,7 @@ const Index = () => {
       `  HDR        : ${hdrInUse} · ${hdrPeakNits(hdrInUse)} nits peak`,
       audioLine,
       "",
-      `EXTRACTION (${fitMode === "fill" ? "Fill / Cover" : "Fit / Contain"})`,
+      `EXTRACTION (delivery-aspect cover crop)`,
       `  Extract Px : ${formatNumber(sourcePxAcrossExtraction)} × ${formatNumber(Math.round(ext.extractH))}`,
       `  H Crop     : ${(ext.cropPctH * 100).toFixed(1)}%`,
       `  V Crop     : ${(ext.cropPctV * 100).toFixed(1)}%`,
@@ -833,7 +834,7 @@ const Index = () => {
           {/* Framing — the delivery aspect you're framing for (drives the chart) */}
           <section className="p-5 border-b border-suite-border flex flex-col gap-4">
             <SectionHeader
-              label="02 · Framing"
+              label="02 · Framing & Extract"
               dotClass={target.group === "Social" ? "bg-guide-social" : "bg-guide-target"}
             />
             <SuiteSelect
@@ -935,14 +936,10 @@ const Index = () => {
                 </div>
               </div>
             </details>
-          </section>
 
-          {/* Extraction / Delivery Transform — depends on view mode */}
-          {viewMode === "source" ? (
-            <section className="p-5 border-b border-suite-border flex flex-col gap-4 bg-suite-canvas/50">
-              <SectionHeader label="03 · Reframe / Extract" />
-              <FitModeToggle value={fitMode} onChange={(v) => { setFitMode(v); resetReframe(); }} />
-              <div className="grid grid-cols-2 gap-3">
+            {/* Extract readout — merged into Framing (Fit/Fill removed; the
+                extraction is the delivery-aspect cover crop of the sensor). */}
+            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-suite-border/60">
                 <Metric
                   label="H Crop"
                   value={`${(ext.cropPctH * 100).toFixed(1)}%`}
@@ -978,38 +975,14 @@ const Index = () => {
                 <Metric
                   label="Method"
                   value={
-                    fitMode === "fill"
-                      ? ext.cropPctV > ext.cropPctH ? "Cover · T/B crop" : "Cover · L/R crop"
-                      : ext.extractW > ext.sourceDisplayedW + 1 ? "Contain · L/R pillarbox"
-                      : ext.extractH > ext.sourceDisplayedH + 1 ? "Contain · T/B letterbox"
-                      : "Exact · no bars"
+                    ext.cropPctV > ext.cropPctH ? "Cover · T/B crop"
+                    : ext.cropPctH > ext.cropPctV ? "Cover · L/R crop"
+                    : "Exact fit"
                   }
-                  hint={fitMode === "fill" ? "Sensor cropped to fill delivery" : "Whole sensor kept; delivery has bars"}
+                  hint="Delivery-aspect crop of the sensor"
                 />
               </div>
             </section>
-          ) : (
-            <DeliveryTransformPanel
-              transform={sourceTransform}
-              onChange={setSourceTransform}
-              onReset={resetTransform}
-              onFitWidth={() =>
-                setSourceTransform({
-                  scale: fitWidthScale(source, target, desqueeze),
-                  x: 0,
-                  y: 0,
-                })
-              }
-              onFitHeight={() =>
-                setSourceTransform({
-                  scale: fitHeightScale(source, target, desqueeze),
-                  x: 0,
-                  y: 0,
-                })
-              }
-              onFill={() => setSourceTransform({ scale: 1, x: 0, y: 0 })}
-            />
-          )}
 
           {/* View options */}
           <section className="p-5 flex flex-col gap-3">
