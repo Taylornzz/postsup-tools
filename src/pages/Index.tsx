@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.14";
+const VERSION = "v1.9.15";
 const CHANGELOG = [
+  "v1.9.15 — Protection now shows a live '% reserved' readout below the slider (previously static helper text); the value updates with the slider, the number field and canvas drag. Reviewed the other slider/readout pairs — all live.",
   "v1.9.14 — widened the left inspector panel (320 → 384px) so labels/hints stop wrapping and the column is shorter.",
   "v1.9.13 — replaced the geometric Netflix 'N' with the official Netflix mark in the approved-camera badges.",
   "v1.9.12 — removed the TIFF export option; chart export is now PNG + FDL.",
@@ -1058,7 +1059,9 @@ const Index = () => {
               />
               <div className="flex items-center justify-between text-[9px] tracking-[0.18em] uppercase text-suite-text-dim">
                 <span>0%</span>
-                <span className="text-suite-text-muted">drag the dashed box on canvas</span>
+                <span className="text-suite-text tabular">
+                  {protectionPct.toFixed(protectionPct % 1 === 0 ? 0 : 1)}% reserved
+                </span>
                 <span>20%</span>
               </div>
             </div>
