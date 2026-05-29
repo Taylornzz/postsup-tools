@@ -947,6 +947,128 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     colorSpace: "S-Gamut3.Cine",
     oetf: "S-Log3",
   },
+
+  // ============ Added libraries (v1.9.18) ============
+  // ARRI ALEXA Mini (classic, ALEV III Super 35 — 28.25 × 18.17 mm)
+  {
+    id: "alexa-mini-34-og",
+    camera: "ARRI ALEXA Mini",
+    mode: "3.4K 3:2 Open Gate",
+    width: 3424,
+    height: 2202,
+    squeeze: 1,
+    sensorWidthMm: 28.25,
+    sensorHeightMm: 18.17,
+    maxFps: 48,
+    colorSpace: "ARRI Wide Gamut 3",
+    oetf: "LogC3",
+  },
+  {
+    id: "alexa-mini-28-43-ana",
+    camera: "ARRI ALEXA Mini",
+    mode: "2.8K 4:3 2x Anamorphic",
+    width: 2880,
+    height: 2160,
+    squeeze: 2,
+    sensorWidthMm: 28.25,
+    sensorHeightMm: 18.17,
+    usedSensorWidthMm: 23.76,
+    usedSensorHeightMm: 18.17,
+    maxFps: 50,
+    colorSpace: "ARRI Wide Gamut 3",
+    oetf: "LogC3",
+  },
+  // Sony VENICE (1) — full-frame 6K (36.2 × 24.1 mm)
+  {
+    id: "venice1-6k-og",
+    camera: "Sony VENICE",
+    mode: "6K 3:2 Full-Frame Open Gate",
+    width: 6048,
+    height: 4032,
+    squeeze: 1,
+    sensorWidthMm: 36.2,
+    sensorHeightMm: 24.1,
+    maxFps: 30,
+    colorSpace: "S-Gamut3.Cine",
+    oetf: "S-Log3",
+  },
+  {
+    id: "venice1-4k-17",
+    camera: "Sony VENICE",
+    mode: "4K 17:9 Super35",
+    width: 4096,
+    height: 2160,
+    squeeze: 1,
+    sensorWidthMm: 24.30,
+    sensorHeightMm: 12.80,
+    maxFps: 110,
+    colorSpace: "S-Gamut3.Cine",
+    oetf: "S-Log3",
+  },
+  // RED KOMODO (original) — Super 35 6K (27.03 × 14.26 mm)
+  {
+    id: "komodo-6k-17",
+    camera: "RED KOMODO",
+    mode: "6K 17:9 Super35",
+    width: 6144,
+    height: 3240,
+    squeeze: 1,
+    sensorWidthMm: 27.03,
+    sensorHeightMm: 14.26,
+    maxFps: 40,
+    colorSpace: "REDWideGamutRGB",
+    oetf: "Log3G10",
+  },
+  // Nikon Z9 — full-frame (FX) 8.3K N-RAW (16:9 video area 35.9 × 20.2 mm)
+  {
+    id: "nikon-z9-83k",
+    camera: "Nikon Z9",
+    mode: "8.3K 16:9 N-RAW (FX)",
+    width: 8256,
+    height: 4644,
+    squeeze: 1,
+    sensorWidthMm: 35.9,
+    sensorHeightMm: 20.2,
+    maxFps: 60,
+  },
+  // Fujifilm GFX100 II — medium format (16:9 video area 43.8 × 24.6 mm)
+  {
+    id: "gfx100ii-8k",
+    camera: "Fujifilm GFX100 II",
+    mode: "8K 16:9 (Medium Format)",
+    width: 7680,
+    height: 4320,
+    squeeze: 1,
+    sensorWidthMm: 43.8,
+    sensorHeightMm: 24.6,
+    maxFps: 30,
+  },
+  // Phantom Flex4K — Super 35 high-speed (27.6 × 15.5 mm)
+  {
+    id: "phantom-flex4k",
+    camera: "Phantom Flex4K",
+    mode: "4K 17:9 High-Speed",
+    width: 4096,
+    height: 2304,
+    squeeze: 1,
+    sensorWidthMm: 27.6,
+    sensorHeightMm: 15.5,
+    maxFps: 1000,
+  },
+  // Canon EOS C700 FF — full-frame 5.9K (38.1 × 20.1 mm)
+  {
+    id: "c700ff-59k",
+    camera: "Canon EOS C700 FF",
+    mode: "5.9K Full Frame",
+    width: 5952,
+    height: 3140,
+    squeeze: 1,
+    sensorWidthMm: 38.1,
+    sensorHeightMm: 20.1,
+    maxFps: 60,
+    colorSpace: "Cinema Gamut",
+    oetf: "Canon Log 2",
+  },
 ];
 
 // --- Delivery containers ----------------------------------------------------
@@ -1786,6 +1908,35 @@ export const LENSES: LensSpec[] = [
   { id: "arri-signature", name: "ARRI Signature Prime", diameterMm: 46, family: "Spherical FF/VV", notes: "ARRI's flagship LF/VV image circle." },
   { id: "panavision-primo-artiste", name: "Panavision Primo Artiste", diameterMm: 46, family: "Spherical FF/VV" },
   { id: "cooke-anamorphic-ffplus", name: "Cooke Anamorphic /i FF+", diameterMm: 52, family: "Anamorphic FF/VV", notes: "Designed for full-frame anamorphic." },
+
+  // --- Spherical Super 35 (image circle ~Ø31–34 mm) ---
+  { id: "zeiss-master-prime", name: "Zeiss Master Prime", diameterMm: 33, family: "Spherical S35", notes: "High-speed S35 prime; does not cover full frame." },
+  { id: "zeiss-ultra-prime", name: "Zeiss Ultra Prime", diameterMm: 32, family: "Spherical S35" },
+  { id: "cooke-panchro", name: "Cooke Panchro/i Classic", diameterMm: 34, family: "Spherical S35" },
+  { id: "canon-cne", name: "Canon CN-E Prime", diameterMm: 31, family: "Spherical S35" },
+  { id: "zeiss-cp3", name: "Zeiss CP.3", diameterMm: 43, family: "Spherical FF/VV", notes: "CP.3 covers full frame." },
+
+  // --- Spherical Full Frame / VistaVision (image circle ~Ø43–47 mm) ---
+  { id: "cooke-s7", name: "Cooke S7/i FF", diameterMm: 46.3, family: "Spherical FF/VV" },
+  { id: "tokina-vista", name: "Tokina Vista", diameterMm: 46.7, family: "Spherical FF/VV" },
+  { id: "sigma-cine-ff", name: "Sigma Cine FF High Speed", diameterMm: 43.3, family: "Spherical FF/VV" },
+  { id: "canon-sumire", name: "Canon Sumire Prime", diameterMm: 46.3, family: "Spherical FF/VV" },
+  { id: "leica-summicron-c", name: "Leitz Summicron-C", diameterMm: 36, family: "Spherical S35", notes: "S35 coverage; some focal lengths cover larger." },
+
+  // --- Large Format / 65 (image circle ~Ø58–60 mm) ---
+  { id: "leica-thalia", name: "Leitz Thalia", diameterMm: 60, family: "Spherical Large Format", notes: "Covers ALEXA 65 / large format." },
+  { id: "arri-prime-dna", name: "ARRI Prime DNA", diameterMm: 60, family: "Spherical Large Format", notes: "Large-format / 65 coverage." },
+
+  // --- Anamorphic Super 35 (2x; image circle ~Ø31–34 mm) ---
+  { id: "zeiss-master-ana", name: "ARRI/Zeiss Master Anamorphic", diameterMm: 33, family: "Anamorphic FF/VV", notes: "S35 2x anamorphic coverage." },
+  { id: "hawk-vlite", name: "Hawk V-Lite 2x", diameterMm: 33, family: "Anamorphic FF/VV", notes: "S35 2x anamorphic." },
+  { id: "atlas-orion", name: "Atlas Orion 2x", diameterMm: 33, family: "Anamorphic FF/VV", notes: "S35 2x anamorphic." },
+  { id: "panavision-cseries", name: "Panavision C-Series 2x", diameterMm: 32, family: "Anamorphic FF/VV", notes: "Classic S35 2x anamorphic." },
+
+  // --- Anamorphic Full Frame / 65 ---
+  { id: "panavision-ultravista", name: "Panavision Ultra Vista 1.65x", diameterMm: 46, family: "Anamorphic FF/VV", notes: "Full-frame 1.65x anamorphic." },
+  { id: "atlas-mercury", name: "Atlas Mercury 1.5x", diameterMm: 44, family: "Anamorphic FF/VV", notes: "Full-frame 1.5x anamorphic." },
+  { id: "hawk65", name: "Hawk65 2x", diameterMm: 60, family: "Anamorphic FF/VV", notes: "65 / large-format 2x anamorphic." },
 ];
 
 /** Diagonal (mm) of the actually-used sensor area for a source. */
@@ -1865,11 +2016,12 @@ export function offloadHours(
 // Netflix Originals require ≥90% of runtime captured on an Approved Camera.
 // Source: Netflix Production Technology — Camera Approval List (late 2025).
 const NETFLIX_APPROVED_PATTERNS: RegExp[] = [
-  /alexa 35/i, /alexa lf/i, /alexa mini lf/i, /alexa 65/i, /amira/i,
-  /v-raptor/i, /monstro/i, /komodo-x/i,
+  /alexa 35/i, /alexa lf/i, /alexa mini/i, /alexa 65/i, /amira/i,
+  /v-raptor/i, /monstro/i, /komodo/i,
   /venice/i, /burano/i, /fx9/i, /fx6/i,
-  /c500 mk ii/i, /c500ii/i, /c400/i, /c300 mk iii/i, /c300iii/i, /r5 ?c/i,
-  /ursa cine 12k/i, /panavision/i, /phantom flex 4k/i,
+  /c500 mk ii/i, /c500ii/i, /c400/i, /c300 mk iii/i, /c300iii/i, /r5 ?c/i, /c700/i,
+  /ursa cine 12k/i, /panavision/i, /phantom/i,
+  /z8|z9/i, /gfx100 ii/i, /gfx100ii/i,
 ];
 const NETFLIX_LIMITED_PATTERNS: RegExp[] = [
   /fx3/i, /c70/i, // C70: non-fiction only; FX3: limited use

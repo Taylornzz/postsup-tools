@@ -77,8 +77,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.17";
+const VERSION = "v1.9.18";
 const CHANGELOG = [
+  "v1.9.18 — expanded the camera library (ARRI ALEXA Mini, Sony VENICE 1, RED KOMODO, Nikon Z9, Fujifilm GFX100 II, Phantom Flex4K, Canon C700 FF) and the lens library (Master/Ultra Prime, Cooke Panchro/S7, CP.3, Sumire, Thalia, Master/Hawk/Atlas/Panavision anamorphics, etc.); updated Netflix-approval matching for the new bodies.",
   "v1.9.17 — added Saved Setups: save the current camera + framing + storage configuration (stored locally for now), reload it in one click, or delete it. Built on the URL-encoded state, so it's ready to sync to a user account later.",
   "v1.9.16 — fixed the anamorphic PNG export: the chart now renders in desqueezed display space (canvas width = sensor width × squeeze), so the plate, final frame and secondary crop all read at true proportions and match the live viewer. The FDL stays in recorded pixels with the squeeze recorded. Spherical cameras unchanged.",
   "v1.9.15 — Protection now shows a live '% reserved' readout below the slider (previously static helper text); the value updates with the slider, the number field and canvas drag. Reviewed the other slider/readout pairs — all live.",
