@@ -80,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.25";
+const VERSION = "v1.9.26";
 const CHANGELOG = [
+  "v1.9.26 — renamed the slate 'DP / Author' field to just 'Author' and dropped the 'DP' prefix from the stamps on the PNG chart, FDL, Camera Report and spec sheet.",
   "v1.9.25 — fixed the secondary-crop label on the PNG chart: it was colliding with (and hidden behind) the FINAL FRAME label at the top-left and was hard to read in violet. It's now at the bottom-left of the crop rectangle in a lighter, legible lavender.",
   "v1.9.24 — added an ACES colour-pipeline reference (ACES 2.0 default, 1.3 optional): from the selected camera + delivery it shows the Input Transform (IDT) with an official-vs-third-party badge, the working/interchange spaces (ACEScct / ACEScg / ACES2065-1) and the Output Transform (display · EOTF · peak nits). It's a read-only readout — Frame Matrix doesn't apply transforms — and it's carried into the Camera Report PDF and the copied spec sheet. Data web-verified and adversarially fact-checked (Nikon N-Log / Fuji F-Log2 correctly flagged as having no official ACES IDT).",
   "v1.9.23 — added a Slate block (00 · Slate): enter Project / Production and DP / Author once, and it's stamped onto the PNG framing chart, the FDL (fdl_creator), the Camera Report PDF, the copied spec sheet, the file names, and the permalink. The date is added automatically.",
@@ -639,7 +640,7 @@ const Index = () => {
     const lines = [
       `LUMINA FRAME MATRIX — SPEC SHEET ${VERSION}`,
       projectName.trim() ? `  Project    : ${projectName.trim()}` : "",
-      authorName.trim() ? `  DP / Author: ${authorName.trim()}` : "",
+      authorName.trim() ? `  Author     : ${authorName.trim()}` : "",
       `  Date       : ${new Date().toISOString().slice(0, 10)}`,
       "",
       `SOURCE`,
@@ -707,7 +708,7 @@ const Index = () => {
         const proj = projectName.trim();
         const author = authorName.trim();
         // FDL/text creator string carries project + DP so the metadata travels.
-        const creator = `${proj ? proj + " — " : ""}${author ? "DP " + author + " — " : ""}Lumina Frame Matrix ${VERSION}`;
+        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}Lumina Frame Matrix ${VERSION}`;
         const d = new Date();
         const yymmdd = `${String(d.getFullYear() % 100).padStart(2, "0")}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
         const base = `${yymmdd}_${proj ? slug(proj) + "_" : ""}${slug(source.camera)}_${slug(source.mode)}_${slug(target.name)}_framingchart`;
@@ -933,7 +934,7 @@ const Index = () => {
                   />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">DP / Author</span>
+                  <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Author</span>
                   <input
                     type="text"
                     value={authorName}

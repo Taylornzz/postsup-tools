@@ -164,7 +164,7 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
     doc.setFont("courier", "bold");
     doc.setFontSize(10);
     doc.setTextColor(INK[0], INK[1], INK[2]);
-    const slate = [proj ? clean(proj) : null, author ? `DP ${clean(author)}` : null]
+    const slate = [proj ? clean(proj) : null, author ? clean(author) : null]
       .filter(Boolean)
       .join("    ·    ");
     doc.text(slate, M, y + 6);

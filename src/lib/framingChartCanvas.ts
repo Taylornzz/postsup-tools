@@ -302,7 +302,7 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     protection > 0
       ? `PROTECTION ${fd.protection_dimensions.width}×${fd.protection_dimensions.height}  ·  ${(protection * 100).toFixed(1)}%`
       : `PROTECTION none`,
-    `${authorName ? "DP " + authorName + "  ·  " : ""}${date}  ·  ${creator}`,
+    `${authorName ? authorName + "  ·  " : ""}${date}  ·  ${creator}`,
   ];
   // Centred info box, sitting just below the centre crosshair.
   ctx.textAlign = "center";
