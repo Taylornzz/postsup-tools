@@ -34,7 +34,6 @@ const BASE: CameraReportInput = {
   targetAspectLabel: "1.78:1",
   hdr: "SDR",
   hdrNits: 100,
-  audio: "5.1 · -27 LUFS · -2 dBTP",
   extractPxW: 4096,
   extractPxH: 2160,
   cropPctH: 0.11,

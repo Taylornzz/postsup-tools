@@ -27,7 +27,6 @@ import {
   FitMode,
   Codec,
   HdrVariant,
-  AudioChannelConfig,
   LensSpec,
 } from "@/lib/formats";
 import { SuiteSelect } from "@/components/SuiteSelect";
@@ -69,7 +68,6 @@ import {
   ShieldCheck,
   Link2,
   Sun,
-  Volume2,
   Focus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -80,8 +78,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.21";
+const VERSION = "v1.9.22";
 const CHANGELOG = [
+  "v1.9.22 — removed UHD 8K as a delivery target (shoot 8K, deliver 4K is the supersampling path) and removed the audio delivery spec (channels / LUFS / dBTP) — this tool is the picture path; loudness is a sound-department concern. Tightens the Delivery panel and the Camera Report.",
   "v1.9.21 — added a downloadable Camera Report (PDF): a printable spec sheet covering source/lens, recording, delivery, extraction, and the full mag/card + offload + proxy storage plan (runtime per card, cards-per-day, on-set inventory, daily footage). Mirrors the on-screen state and the permalink.",
   "v1.9.20 — added a Custom aspect option to 'Framing For': enter any W:H ratio and it drives the framing, chart, FDL and extract math like any preset (persisted in the permalink).",
   "v1.9.19 — new Optics tab: field-of-view (H/V/diagonal + subject-plane coverage), depth of field (near/far/total + hyperfocal, anamorphic-aware), and focal-length equivalence (full-frame / Super 35) for the selected camera. Math is unit-tested.",
@@ -299,11 +298,6 @@ const Index = () => {
     const n = readNum(URL_KEYS.stn, 2);
     return Math.max(1, Math.min(4, Math.round(n)));
   });
-  // Audio channel layout override (per delivery target)
-  const [audioChannels, setAudioChannels] = useState<AudioChannelConfig | null>(() => {
-    const v = readParam(URL_KEYS.aud) as AudioChannelConfig | null;
-    return v ?? null;
-  });
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -393,14 +387,6 @@ const Index = () => {
   }, [targetId]);
   const hdrInUse: HdrVariant = supportedHdr.includes(hdr) ? hdr : supportedHdr[0];
 
-  // Audio variants — clamp to what the target supports.
-  const supportedAudio: AudioChannelConfig[] =
-    target.audioVariants ?? (target.audio ? [target.audio.channels] : []);
-  const audioInUse: AudioChannelConfig | null =
-    audioChannels && supportedAudio.includes(audioChannels)
-      ? audioChannels
-      : (supportedAudio[0] ?? target.audio?.channels ?? null);
-
   // Netflix camera-approval status (for source badge)
   const netflixStatus = useMemo(
     () => netflixStatusForCamera(source.camera),
@@ -438,7 +424,6 @@ const Index = () => {
     params.set(URL_KEYS.prx, proxyCodecId);
     params.set(URL_KEYS.prot, String(protectionPct));
     params.set(URL_KEYS.stn, String(offloadStations));
-    if (audioInUse) params.set(URL_KEYS.aud, audioInUse);
     params.set(URL_KEYS.exs, String(extractionScale));
     if (deliveryCropId !== "none") params.set(URL_KEYS.dcr, deliveryCropId);
     if (targetId === "custom") {
@@ -452,7 +437,7 @@ const Index = () => {
     desqueeze, showThirds, showSafeArea, showMask, showGuides, pixelTrue,
     hdrInUse, lensId, cardId, backupCopies, bwId,
     recordHoursPerDay, cameraCount, proxyCodecId, protectionPct,
-    offloadStations, audioInUse, extractionScale, deliveryCropId,
+    offloadStations, extractionScale, deliveryCropId,
     customW, customH,
   ]);
 
@@ -630,9 +615,6 @@ const Index = () => {
     const aspectLine = source.squeeze !== 1
       ? `  Aspect     : Sensor ${sensorAspectName} (${sensorAspectDec}) · Image ${srcAspectName} (${srcAspectDec})`
       : `  Aspect     : ${srcAspectName} (${srcAspectDec})`;
-    const audioLine = target.audio
-      ? `  Audio      : ${target.audio.channels} · ${target.audio.lufs} LUFS · ${target.audio.truePeakDb} dBTP`
-      : "";
     const lines = [
       `LUMINA FRAME MATRIX — SPEC SHEET ${VERSION}`,
       "",
@@ -665,7 +647,6 @@ const Index = () => {
         : "",
       `  Aspect     : ${tgtAspectName}`,
       `  HDR        : ${hdrInUse} · ${hdrPeakNits(hdrInUse)} nits peak`,
-      audioLine,
       "",
       `EXTRACTION (delivery-aspect cover crop)`,
       `  Extract Px : ${formatNumber(sourcePxAcrossExtraction)} × ${formatNumber(Math.round(ext.extractH))}`,
@@ -802,9 +783,6 @@ const Index = () => {
         targetAspectLabel: target.ratioLabel,
         hdr: hdrInUse,
         hdrNits: hdrPeakNits(hdrInUse),
-        audio: audioInUse
-          ? `${audioInUse}${target.audio ? ` · ${target.audio.lufs} LUFS · ${target.audio.truePeakDb} dBTP` : ""}`
-          : null,
         extractPxW: Math.round(ext.extractW / source.squeeze),
         extractPxH: Math.round(ext.extractH),
         cropPctH: ext.cropPctH,
@@ -835,7 +813,7 @@ const Index = () => {
     }
   }, [
     source, srcDisp, srcAspectName, srcAspectDec, lens, lensCovers, sensorDiagMm,
-    codec, fps, mbps, perHourGB, target, hdrInUse, audioInUse, ext,
+    codec, fps, mbps, perHourGB, target, hdrInUse, ext,
     recordHoursPerDay, cameraCount, perDayGB, card, cardMin, bandwidth,
     backupCopies, offloadStations, offloadHrs, proxyPlan,
   ]);
@@ -1067,12 +1045,12 @@ const Index = () => {
               )}
             </div>
 
-            {/* Delivery spec — HDR / audio: not framing, kept collapsed but
-                still carried into the spec sheet + FDL export. */}
+            {/* Delivery spec — HDR: not framing, kept collapsed but still
+                carried into the spec sheet + FDL export. */}
             <details className="group border-t border-suite-border/60 pt-3">
               <summary className="cursor-pointer list-none text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text flex items-center gap-1.5 select-none">
                 <span className="transition-transform group-open:rotate-90">▸</span>
-                Delivery spec · HDR &amp; audio
+                Delivery spec · HDR
               </summary>
               <div className="flex flex-col gap-4 pt-3">
                 {supportedHdr.length > 1 && (
@@ -1099,45 +1077,11 @@ const Index = () => {
                     </div>
                   </div>
                 )}
-                {supportedAudio.length > 1 && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted flex items-center gap-1.5">
-                      <Volume2 className="size-3" strokeWidth={1.5} /> Audio Layout
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {supportedAudio.map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => setAudioChannels(v)}
-                          className={cn(
-                            "px-2 py-1 text-[10px] font-mono tabular rounded-sm border transition-colors",
-                            audioInUse === v
-                              ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text"
-                              : "border-suite-border text-suite-text-muted hover:text-suite-text",
-                          )}
-                          title={v === "7.1.4 Atmos" ? "Dolby Atmos — required for Netflix / Apple TV+ / Disney+ premium tiers" : undefined}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  <Metric
-                    label="HDR · Peak"
-                    value={hdrInUse}
-                    hint={`${hdrPeakNits(hdrInUse)} nits${hdrInUse === "Dolby Vision P8.1" ? " · DV required for Netflix HDR" : ""}`}
-                  />
-                  {target.audio && (
-                    <Metric
-                      label="Audio · LUFS"
-                      value={`${audioInUse ?? target.audio.channels} · ${target.audio.lufs}`}
-                      hint={`${target.audio.truePeakDb} dBTP true-peak${audioInUse === "7.1.4 Atmos" ? " · Atmos premium tier" : ""}`}
-                    />
-                  )}
-                </div>
+                <Metric
+                  label="HDR · Peak"
+                  value={hdrInUse}
+                  hint={`${hdrPeakNits(hdrInUse)} nits${hdrInUse === "Dolby Vision P8.1" ? " · DV required for Netflix HDR" : ""}`}
+                />
               </div>
             </details>
 

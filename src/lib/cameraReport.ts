@@ -41,7 +41,6 @@ export interface CameraReportInput {
   targetAspectLabel: string;
   hdr: string;
   hdrNits: number;
-  audio: string | null;
   // EXTRACTION
   extractPxW: number;
   extractPxH: number;
@@ -200,7 +199,6 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
   kv("Resolution", `${formatNumber(d.targetW)} × ${formatNumber(d.targetH)}`);
   kv("Aspect", d.targetAspectLabel);
   kv("HDR", `${d.hdr} · ${d.hdrNits} nits peak`);
-  if (d.audio) kv("Audio", d.audio);
 
   // ---- Extraction ---------------------------------------------------------
   sectionHeader("Extraction (delivery-aspect cover crop)");
