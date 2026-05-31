@@ -244,7 +244,7 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
   sectionHeader("Storage & Media");
   kv("Recording plan", `${d.recordHoursPerDay} h/day rolling · ${d.cameraCount} camera${d.cameraCount !== 1 ? "s" : ""}`);
   kv("Footage / day", formatSize(d.perDayGB), "warn");
-  kv(`${word[0].toUpperCase()}${word.slice(1)}`, `${d.cardName} · ${(d.cardGB / 1024).toFixed(d.cardGB % 1024 === 0 ? 0 : 2)} TB`);
+  kv(`${word[0].toUpperCase()}${word.slice(1)}`, `${d.cardName} · ${(d.cardGB / 1000).toFixed(d.cardGB % 1000 === 0 ? 0 : 2)} TB`);
   kv(`${word} runtime`, fmtMinutes(d.cardRuntimeMin));
   kv(`${word}s / cam / day`, `${cardsPerCamDay}  (${(((perCamGB / d.cardGB) % 1) * 100).toFixed(0)}% into the last ${word})`);
   kv(`${word}s / day`, `${cardsPerDay}  (${cardsPerCamDay} × ${d.cameraCount} cam${d.cameraCount !== 1 ? "s" : ""})`, "warn");

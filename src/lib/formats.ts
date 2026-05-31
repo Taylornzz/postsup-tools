@@ -1341,31 +1341,32 @@ export const CODECS: Codec[] = [
   },
 
   // -------- SONY --------
-  // X-OCN bppx calibrated to Sony's published VENICE 2 8.6K 3:2 (8640×5760) 24p
-  // rates: XT ≈ 6.7 Gbps, ST ≈ 4.4 Gbps, LT ≈ 2.7 Gbps. (bppx = Gbps·1e9 / (W·H·fps))
+  // X-OCN bppx calibrated to Sony's published VENICE 2 8.6K 17:9 (8640×4556) 24p
+  // figure: LT = 1,706 Mbps (verified). ST/XT scaled from Sony's record-time ratio.
+  // bppx = rate·1e6 / (W·H·fps): LT 1.81, ST 3.07, XT 4.55.
   {
     id: "sony-x-ocn-xt",
     vendor: "Sony",
     family: "RAW",
     name: "X-OCN XT (VENICE)",
-    bppx: 5.6,
-    rateLabel: "16-bit linear, near-lossless · ~6.7 Gbps @ 8.6K 3:2 24p · ~3.0 TB/hr",
+    bppx: 4.55,
+    rateLabel: "16-bit linear, near-lossless · ~4.29 Gbps @ 8.6K 17:9 24p · ~1.93 TB/hr",
   },
   {
     id: "sony-x-ocn-st",
     vendor: "Sony",
     family: "RAW",
     name: "X-OCN ST (VENICE)",
-    bppx: 3.7,
-    rateLabel: "16-bit linear (standard) · ~4.4 Gbps @ 8.6K 3:2 24p · ~2.0 TB/hr",
+    bppx: 3.07,
+    rateLabel: "16-bit linear (standard) · ~2.90 Gbps @ 8.6K 17:9 24p · ~1.30 TB/hr",
   },
   {
     id: "sony-x-ocn-lt",
     vendor: "Sony",
     family: "RAW",
     name: "X-OCN LT (VENICE)",
-    bppx: 2.26,
-    rateLabel: "16-bit linear (light) · ~2.7 Gbps @ 8.6K 3:2 24p · ~1.2 TB/hr",
+    bppx: 1.81,
+    rateLabel: "16-bit linear (light) · 1.71 Gbps @ 8.6K 17:9 24p · ~0.77 TB/hr",
   },
   {
     id: "sony-xavc-i-4k",
@@ -1597,10 +1598,10 @@ export const CODECS: Codec[] = [
     id: "dnxhr-hqx",
     vendor: "Avid",
     family: "DNxHR",
-    name: "DNxHR HQX (High Quality 10/12-bit)",
-    fixedMbps: 330,
+    name: "DNxHR HQX (High Quality 12-bit)",
+    fixedMbps: 666, // Avid KB: 83.26 MB/s @ UHD 23.976p
     refRes: { width: 3840, height: 2160, fps: 24 },
-    rateLabel: "HDR-grade mezzanine · 10/12-bit 4:2:2 · 330 Mbps @ UHD 24p",
+    rateLabel: "HDR-grade mezzanine · 12-bit 4:2:2 · ~666 Mbps @ UHD 24p",
   },
 
   // -------- H.264 dailies (viewing copies) --------
@@ -1761,8 +1762,8 @@ export function formatNumber(n: number, digits = 0) {
 
 // --- File size estimation ---------------------------------------------------
 
-/** Look up the closest published rate from a rate table for given (W, fps). */
-function lookupProResRate(table: ProResRateTable, width: number, fps: number): number | null {
+/** Look up the closest published rate from a rate table for given (W, H, fps). */
+function lookupProResRate(table: ProResRateTable, width: number, height: number, fps: number): number | null {
   // Pick the resolution row whose width is closest to requested width.
   const widths = Object.keys(table).map(Number).sort((a, b) => a - b);
   if (widths.length === 0) return null;
@@ -1782,12 +1783,12 @@ function lookupProResRate(table: ProResRateTable, width: number, fps: number): n
     const d = Math.abs(f - fps);
     if (d < bestFD) { bestFD = d; bestF = f; }
   }
-  // Linear scale from published reference up to actual width × fps,
-  // so out-of-table requests still get a sensible number.
+  // Linear scale from published reference up to the ACTUAL pixel rate, so tall /
+  // anamorphic / out-of-table requests scale on real W×H (not an assumed 16:9).
   const refRate = row[bestF];
-  const refPx = bestW * (bestW / (16 / 9)); // assume 16:9 reference height
+  const refPx = bestW * (bestW * 9 / 16); // published rows are 16:9 reference frames
   const refPxRate = refPx * bestF;
-  const askPxRate = width * (width / (16 / 9)) * fps;
+  const askPxRate = width * height * fps;
   if (refPxRate <= 0) return refRate;
   return refRate * (askPxRate / refPxRate);
 }
@@ -1805,7 +1806,7 @@ export function codecMbps(
   fps: number,
 ): number {
   if (codec.rateTable) {
-    const r = lookupProResRate(codec.rateTable, width, fps);
+    const r = lookupProResRate(codec.rateTable, width, height, fps);
     if (r != null) return r;
   }
   if (codec.bppx) {
@@ -1820,18 +1821,20 @@ export function codecMbps(
   return codec.fixedMbps ?? 0;
 }
 
-/** Estimate file size in gigabytes for a clip of `seconds` length. */
+/** Estimate file size in gigabytes for a clip of `seconds` length.
+ *  Decimal GB (1 GB = 1e9 bytes) to match Finder / Hedge / Silverstack and the
+ *  way card capacities are marketed. */
 export function estimateFileSizeGB(mbps: number, seconds: number): number {
-  // Mbps → MB/s = /8; × seconds = MB; / 1024 = GB
-  return (mbps * seconds) / 8 / 1024;
+  // Mbps → MB/s = /8; × seconds = MB; / 1000 = GB (decimal)
+  return (mbps * seconds) / 8 / 1000;
 }
 
-/** Format byte size into human-readable string. */
+/** Format a decimal-GB value into a human-readable string (decimal units). */
 export function formatSize(gb: number): string {
-  if (gb < 0.001) return `${(gb * 1024 * 1024).toFixed(0)} KB`;
-  if (gb < 1) return `${(gb * 1024).toFixed(1)} MB`;
-  if (gb < 1024) return `${gb.toFixed(2)} GB`;
-  return `${(gb / 1024).toFixed(2)} TB`;
+  if (gb < 0.001) return `${(gb * 1000 * 1000).toFixed(0)} KB`;
+  if (gb < 1) return `${(gb * 1000).toFixed(1)} MB`;
+  if (gb < 1000) return `${gb.toFixed(2)} GB`;
+  return `${(gb / 1000).toFixed(2)} TB`;
 }
 
 export function formatDuration(seconds: number): string {
@@ -2021,18 +2024,18 @@ export type CardSpec = {
 };
 export const CARDS: CardSpec[] = [
   { id: "cfx-512",   name: "CFexpress Type B 512 GB", gb: 512,  kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "cfx-1tb",   name: "CFexpress Type B 1 TB",   gb: 1024, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "cfx-2tb",   name: "CFexpress Type B 2 TB",   gb: 2048, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "cfx4-1tb",  name: "CFexpress 4.0 Type B 1 TB", gb: 1024, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "cfx4-2tb",  name: "CFexpress 4.0 Type B 2 TB", gb: 2048, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "codex-1tb", name: "Codex Compact Drive 1 TB", gb: 1024, kind: "mag",  vendors: ["ARRI"] },
-  { id: "codex-2tb", name: "Codex Compact Drive 2 TB", gb: 2048, kind: "mag",  vendors: ["ARRI"] },
-  { id: "codex-4tb", name: "Codex Compact Drive 4 TB", gb: 4096, kind: "mag",  vendors: ["ARRI"] },
-  { id: "red-13tb",  name: "RED Pro CFexpress 1.3 TB", gb: 1331, kind: "card", vendors: ["RED"] },
+  { id: "cfx-1tb",   name: "CFexpress Type B 1 TB",   gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
+  { id: "cfx-2tb",   name: "CFexpress Type B 2 TB",   gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
+  { id: "cfx4-1tb",  name: "CFexpress 4.0 Type B 1 TB", gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
+  { id: "cfx4-2tb",  name: "CFexpress 4.0 Type B 2 TB", gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
+  { id: "codex-1tb", name: "Codex Compact Drive 1 TB", gb: 1000, kind: "mag",  vendors: ["ARRI"] },
+  { id: "codex-2tb", name: "Codex Compact Drive 2 TB", gb: 2000, kind: "mag",  vendors: ["ARRI"] },
+  { id: "codex-4tb", name: "Codex Compact Drive 4 TB", gb: 4000, kind: "mag",  vendors: ["ARRI"] },
+  { id: "red-13tb",  name: "RED Pro CFexpress 1.3 TB", gb: 1300, kind: "card", vendors: ["RED"] },
   { id: "sxs-256",   name: "Sony SxS Pro+ 256 GB",     gb: 256,  kind: "card", vendors: ["Sony"] },
   { id: "sxs-512",   name: "Sony SxS Pro+ 512 GB",     gb: 512,  kind: "card", vendors: ["Sony"] },
-  { id: "axs-1tb",   name: "Sony AXSM A-Series 1 TB",  gb: 1024, kind: "mag",  vendors: ["Sony"] },
-  { id: "axs-2tb",   name: "Sony AXSM A-Series 2 TB",  gb: 2048, kind: "mag",  vendors: ["Sony"] },
+  { id: "axs-1tb",   name: "Sony AXSM A-Series 1 TB",  gb: 1000, kind: "mag",  vendors: ["Sony"] },
+  { id: "axs-2tb",   name: "Sony AXSM A-Series 2 TB",  gb: 2000, kind: "mag",  vendors: ["Sony"] },
   { id: "sd-uhsii-256", name: "SD UHS-II 256 GB",      gb: 256,  kind: "card", vendors: ["Sony", "Canon", "Panasonic", "Blackmagic"] },
   { id: "sd-uhsii-512", name: "SD UHS-II 512 GB",      gb: 512,  kind: "card", vendors: ["Sony", "Canon", "Panasonic", "Blackmagic"] },
 ];
@@ -2053,8 +2056,8 @@ export const OFFLOAD_BANDWIDTHS: { id: string; label: string; mbps: number }[] =
 /** Minutes of recording on a card of the given GB capacity at the given Mbps. */
 export function cardRuntimeMinutes(cardGB: number, mbps: number): number {
   if (mbps <= 0) return Infinity;
-  // GB → Mb: gb * 1024 * 8.    minutes = Mb / Mbps / 60
-  return (cardGB * 1024 * 8) / mbps / 60;
+  // decimal GB → Mb: gb * 1000 * 8.    minutes = Mb / Mbps / 60
+  return (cardGB * 1000 * 8) / mbps / 60;
 }
 
 /** Offload hours for a TB/day budget at the given offload-bandwidth (MB/s),
@@ -2069,7 +2072,7 @@ export function offloadHours(
   if (bandwidthMBps <= 0) return Infinity;
   const s = Math.max(1, Math.floor(stations));
   const totalGB = perDayGB * copies;
-  const totalSeconds = (totalGB * 1024) / bandwidthMBps;
+  const totalSeconds = (totalGB * 1000) / bandwidthMBps; // decimal GB → MB
   return totalSeconds / 3600 / s;
 }
 

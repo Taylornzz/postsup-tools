@@ -53,11 +53,11 @@ const codec = (over: Partial<Codec>): Codec => ({
 
 // --- estimateFileSizeGB -----------------------------------------------------
 describe("estimateFileSizeGB", () => {
-  it("converts Mbps × seconds to GB", () => {
-    // 1024 Mbps for 8s = 8192 Mb = 1024 MB = 1 GB
-    expect(estimateFileSizeGB(1024, 8)).toBe(1);
-    // 8192 Mbps for 1h = 3600 GB
-    expect(estimateFileSizeGB(8192, 3600)).toBe(3600);
+  it("converts Mbps × seconds to decimal GB", () => {
+    // 1000 Mbps for 8s = 8000 Mb = 1000 MB = 1 GB (decimal)
+    expect(estimateFileSizeGB(1000, 8)).toBe(1);
+    // 8000 Mbps for 1h = 3600 GB
+    expect(estimateFileSizeGB(8000, 3600)).toBe(3600);
   });
   it("is zero for zero duration", () => {
     expect(estimateFileSizeGB(5000, 0)).toBe(0);
@@ -67,30 +67,30 @@ describe("estimateFileSizeGB", () => {
 // --- cardRuntimeMinutes -----------------------------------------------------
 describe("cardRuntimeMinutes", () => {
   it("computes minutes of runtime for a card at a bitrate", () => {
-    // 900 GB at 1024 Mbps = 900*8192/1024/60 = 120 min
-    expect(cardRuntimeMinutes(900, 1024)).toBeCloseTo(120, 6);
+    // 900 GB at 1000 Mbps = 900*8000/1000/60 = 120 min (decimal GB)
+    expect(cardRuntimeMinutes(900, 1000)).toBeCloseTo(120, 6);
   });
   it("returns Infinity at non-positive bitrate", () => {
-    expect(cardRuntimeMinutes(1024, 0)).toBe(Infinity);
-    expect(cardRuntimeMinutes(1024, -5)).toBe(Infinity);
+    expect(cardRuntimeMinutes(1000, 0)).toBe(Infinity);
+    expect(cardRuntimeMinutes(1000, -5)).toBe(Infinity);
   });
 });
 
 // --- offloadHours -----------------------------------------------------------
 describe("offloadHours", () => {
   it("scales with backup copies and bandwidth", () => {
-    // 7200 GB/day × 2 copies @ 800 MB/s, 1 station = 5.12 h
-    expect(offloadHours(7200, 2, 800, 1)).toBeCloseTo(5.12, 6);
+    // 7200 GB/day × 2 copies @ 800 MB/s, 1 station = 14400*1000/800/3600 = 5.0 h
+    expect(offloadHours(7200, 2, 800, 1)).toBeCloseTo(5.0, 6);
   });
   it("divides by parallel offload stations", () => {
-    expect(offloadHours(7200, 2, 800, 2)).toBeCloseTo(2.56, 6);
+    expect(offloadHours(7200, 2, 800, 2)).toBeCloseTo(2.5, 6);
   });
   it("defaults to a single station", () => {
-    expect(offloadHours(7200, 2, 800)).toBeCloseTo(5.12, 6);
+    expect(offloadHours(7200, 2, 800)).toBeCloseTo(5.0, 6);
   });
   it("floors and clamps station count to at least 1", () => {
-    expect(offloadHours(7200, 2, 800, 0)).toBeCloseTo(5.12, 6); // clamps to 1
-    expect(offloadHours(7200, 2, 800, 2.9)).toBeCloseTo(2.56, 6); // floors to 2
+    expect(offloadHours(7200, 2, 800, 0)).toBeCloseTo(5.0, 6); // clamps to 1
+    expect(offloadHours(7200, 2, 800, 2.9)).toBeCloseTo(2.5, 6); // floors to 2
   });
   it("returns Infinity at non-positive bandwidth", () => {
     expect(offloadHours(100, 1, 0)).toBe(Infinity);
@@ -109,14 +109,20 @@ describe("codecMbps", () => {
     expect(codecMbps(c, 3840, 2160, 25)).toBeCloseTo(960, 6); // 4× the pixels
   });
   it("computes Sony X-OCN rates that match the published VENICE 2 figures", () => {
-    // 8.6K 3:2 = 8640×5760 @ 24p → XT ≈ 6.7, ST ≈ 4.4, LT ≈ 2.7 Gbps.
+    // 8.6K 17:9 = 8640×4556 @ 24p → LT = 1.71 Gbps (Sony-verified), ST ≈ 2.90, XT ≈ 4.30.
     const at = (id: string) => {
       const c = CODECS.find((x) => x.id === id)!;
-      return codecMbps(c, 8640, 5760, 24) / 1000; // Gbps
+      return codecMbps(c, 8640, 4556, 24) / 1000; // Gbps
     };
-    expect(at("sony-x-ocn-xt")).toBeCloseTo(6.7, 1);
-    expect(at("sony-x-ocn-st")).toBeCloseTo(4.4, 1);
-    expect(at("sony-x-ocn-lt")).toBeCloseTo(2.7, 1);
+    expect(at("sony-x-ocn-xt")).toBeCloseTo(4.3, 1);
+    expect(at("sony-x-ocn-st")).toBeCloseTo(2.9, 1);
+    expect(at("sony-x-ocn-lt")).toBeCloseTo(1.71, 1);
+  });
+  it("scales ProRes on real pixels — a taller frame is not understated", () => {
+    const c = CODECS.find((x) => x.id === "arri-prores-422hq")!;
+    const wide = codecMbps(c, 4096, 1716, 24); // 2.39:1
+    const tall = codecMbps(c, 4096, 3416, 24); // ~6:5 — many more rows
+    expect(tall).toBeGreaterThan(wide); // was equal under the old 16:9 assumption
   });
   it("reads a rate table and scales for off-table fps", () => {
     const c = codec({ rateTable: { "1920": { 24: 100, 30: 200 } } });

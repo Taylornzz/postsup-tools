@@ -184,7 +184,7 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
             onChange={setCardId}
             options={compatibleCards.map((c) => ({
               value: c.id,
-              label: `${c.name} · ${(c.gb / 1024).toFixed(c.gb % 1024 === 0 ? 0 : 2)} TB`,
+              label: `${c.name} · ${(c.gb / 1000).toFixed(c.gb % 1000 === 0 ? 0 : 2)} TB`,
             }))}
           />
           <p className="text-[10px] leading-relaxed text-suite-text-dim font-mono -mt-2">
