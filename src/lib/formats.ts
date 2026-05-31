@@ -326,14 +326,19 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "Log3G10",
   },
   {
-    id: "raptor-s35-7k-43-2x-ana",
+    // The S35 sensor is 26.21×13.82 mm (8192×4320, 17:9). It has no 7K 4:3 mode —
+    // that exists only on the larger 8K VV sensor. The real S35 4:3 2x mode is
+    // 8K 4:3 = 5760×4320 using an 18.43×13.82 mm photosite area. (Verified vs RED docs.)
+    id: "raptor-s35-8k-43-2x-ana",
     camera: "RED V-RAPTOR [X] S35",
-    mode: "7K S35 4:3 2x Anamorphic",
-    width: 5040,
-    height: 3780,
+    mode: "8K S35 4:3 2x Anamorphic",
+    width: 5760,
+    height: 4320,
     squeeze: 2,
     sensorWidthMm: 26.21,
-    sensorHeightMm: 19.66,
+    sensorHeightMm: 13.82,
+    usedSensorWidthMm: 18.43,
+    usedSensorHeightMm: 13.82,
     colorSpace: "REDWideGamutRGB",
     oetf: "Log3G10",
   },
@@ -463,19 +468,22 @@ export const SOURCE_FORMATS: SourceFormat[] = [
       "Real VENICE 2 1.3x ana mode (replaces v1.3's impossible 8.2K entry — that exceeded sensor row count).",
   },
   {
-    id: "venice2-17-18x",
+    // Real VENICE 2 8K-sensor anamorphic mode (replaces a fabricated "7.6K 17:9
+    // 1.8x" entry — 1.8x is a de-squeeze MONITORING option, not a recording mode).
+    id: "venice2-58k-65-2x",
     camera: "Sony VENICE 2",
-    mode: "7.6K 17:9 1.8x Anamorphic",
-    width: 7680,
-    height: 4050,
-    squeeze: 1.8,
+    mode: "5.8K 6:5 2x Anamorphic",
+    width: 5760,
+    height: 4800,
+    squeeze: 2,
     sensorWidthMm: 35.90,
     sensorHeightMm: 24.00,
-    usedSensorWidthMm: 31.92,
-    usedSensorHeightMm: 16.84,
+    usedSensorWidthMm: 23.93,
+    usedSensorHeightMm: 20.00,
+    maxFps: 48,
     colorSpace: "S-Gamut3.Cine",
     oetf: "S-Log3",
-    notes: "1.8x squeeze for ultra-wide cinemascope without 4:3 sensor area.",
+    notes: "Documented VENICE 2 8K-sensor anamorphic mode (CBKZ-3620A license); 2x desqueeze → 2.40:1.",
   },
   {
     id: "burano-86k-og",
@@ -793,7 +801,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
   {
     id: "c500ii-59k-og",
     camera: "Canon EOS C500 Mk II",
-    mode: "5.9K Full Frame Open Gate",
+    mode: "5.9K Full Frame (17:9)", // 5952×3140 = 1.896:1 (17:9), not a 3:2 open gate
     width: 5952,
     height: 3140,
     squeeze: 1,
@@ -803,7 +811,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "Canon Log 2",
   },
   {
-    // §B.9 fix: 6000×3164 is 17:9, not Open Gate 3:2. C400 has no 3:2 OG mode.
+    // §B.9 fix: 6000×3164 is the 17:9 6K RAW recording frame (not a 3:2 capture).
     id: "c400-6k-og",
     camera: "Canon EOS C400",
     mode: "6K Full-Sensor Readout (17:9)",
@@ -959,7 +967,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     squeeze: 1,
     sensorWidthMm: 28.25,
     sensorHeightMm: 18.17,
-    maxFps: 48,
+    maxFps: 30, // 3.4K Open Gate is ARRIRAW-only, capped at 30 fps (ARRI tech data)
     colorSpace: "ARRI Wide Gamut 3",
     oetf: "LogC3",
   },
@@ -973,7 +981,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     sensorWidthMm: 28.25,
     sensorHeightMm: 18.17,
     usedSensorWidthMm: 23.76,
-    usedSensorHeightMm: 18.17,
+    usedSensorHeightMm: 17.82, // 2160 rows × 8.251µm pitch (4:3 photosite area)
     maxFps: 50,
     colorSpace: "ARRI Wide Gamut 3",
     oetf: "LogC3",
@@ -1047,13 +1055,13 @@ export const SOURCE_FORMATS: SourceFormat[] = [
   {
     id: "phantom-flex4k",
     camera: "Phantom Flex4K",
-    mode: "4K 17:9 High-Speed",
+    mode: "4K 16:9 High-Speed", // 4096×2304 = 16:9; 938 fps at full readout (1000 fps needs the shorter 4096×2160)
     width: 4096,
     height: 2304,
     squeeze: 1,
     sensorWidthMm: 27.6,
     sensorHeightMm: 15.5,
-    maxFps: 1000,
+    maxFps: 938,
   },
   // Canon EOS C700 FF — full-frame 5.9K (38.1 × 20.1 mm)
   {
@@ -1898,7 +1906,13 @@ export type LensSpec = {
   /** Image-circle diameter in mm. */
   diameterMm: number;
   /** Mount system or family hint. */
-  family: "Spherical S35" | "Spherical FF/VV" | "Anamorphic FF/VV" | "Spherical Large Format";
+  family:
+    | "Spherical S35"
+    | "Spherical FF/VV"
+    | "Spherical Large Format"
+    | "Anamorphic S35"
+    | "Anamorphic FF/VV"
+    | "Anamorphic Large Format";
   notes?: string;
 };
 
@@ -1908,7 +1922,7 @@ export const LENSES: LensSpec[] = [
   { id: "zeiss-supreme-ff", name: "Zeiss Supreme Prime", diameterMm: 44, family: "Spherical FF/VV", notes: "Covers full frame; common large-format choice." },
   { id: "arri-signature", name: "ARRI Signature Prime", diameterMm: 46, family: "Spherical FF/VV", notes: "ARRI's flagship LF/VV image circle." },
   { id: "panavision-primo-artiste", name: "Panavision Primo Artiste", diameterMm: 46, family: "Spherical FF/VV" },
-  { id: "cooke-anamorphic-ffplus", name: "Cooke Anamorphic /i FF+", diameterMm: 52, family: "Anamorphic FF/VV", notes: "Designed for full-frame anamorphic." },
+  { id: "cooke-anamorphic-ffplus", name: "Cooke Anamorphic /i FF+", diameterMm: 46.3, family: "Anamorphic FF/VV", notes: "1.8× squeeze; ~Ø46.3 mm image circle covers full frame." },
 
   // --- Spherical Super 35 (image circle ~Ø31–34 mm) ---
   { id: "zeiss-master-prime", name: "Zeiss Master Prime", diameterMm: 33, family: "Spherical S35", notes: "High-speed S35 prime; does not cover full frame." },
@@ -1929,15 +1943,17 @@ export const LENSES: LensSpec[] = [
   { id: "arri-prime-dna", name: "ARRI Prime DNA", diameterMm: 60, family: "Spherical Large Format", notes: "Large-format / 65 coverage." },
 
   // --- Anamorphic Super 35 (2x; image circle ~Ø31–34 mm) ---
-  { id: "zeiss-master-ana", name: "ARRI/Zeiss Master Anamorphic", diameterMm: 33, family: "Anamorphic FF/VV", notes: "S35 2x anamorphic coverage." },
-  { id: "hawk-vlite", name: "Hawk V-Lite 2x", diameterMm: 33, family: "Anamorphic FF/VV", notes: "S35 2x anamorphic." },
-  { id: "atlas-orion", name: "Atlas Orion 2x", diameterMm: 33, family: "Anamorphic FF/VV", notes: "S35 2x anamorphic." },
-  { id: "panavision-cseries", name: "Panavision C-Series 2x", diameterMm: 32, family: "Anamorphic FF/VV", notes: "Classic S35 2x anamorphic." },
+  { id: "zeiss-master-ana", name: "ARRI/Zeiss Master Anamorphic", diameterMm: 33, family: "Anamorphic S35", notes: "S35 2x anamorphic coverage." },
+  { id: "hawk-vlite", name: "Hawk V-Lite 2x", diameterMm: 33, family: "Anamorphic S35", notes: "S35 2x anamorphic." },
+  { id: "atlas-orion", name: "Atlas Orion 2x", diameterMm: 33, family: "Anamorphic S35", notes: "S35 2x anamorphic." },
+  { id: "panavision-cseries", name: "Panavision C-Series 2x", diameterMm: 32, family: "Anamorphic S35", notes: "Classic S35 2x anamorphic." },
 
-  // --- Anamorphic Full Frame / 65 ---
+  // --- Anamorphic Full Frame / VistaVision ---
   { id: "panavision-ultravista", name: "Panavision Ultra Vista 1.65x", diameterMm: 46, family: "Anamorphic FF/VV", notes: "Full-frame 1.65x anamorphic." },
   { id: "atlas-mercury", name: "Atlas Mercury 1.5x", diameterMm: 44, family: "Anamorphic FF/VV", notes: "Full-frame 1.5x anamorphic." },
-  { id: "hawk65", name: "Hawk65 2x", diameterMm: 60, family: "Anamorphic FF/VV", notes: "65 / large-format 2x anamorphic." },
+
+  // --- Anamorphic Large Format / 65 ---
+  { id: "hawk65", name: "Hawk65 2x", diameterMm: 60, family: "Anamorphic Large Format", notes: "65 / large-format 2x anamorphic." },
 ];
 
 // --- Field of view + depth of field ----------------------------------------
@@ -2063,13 +2079,13 @@ export function offloadHours(
 const NETFLIX_APPROVED_PATTERNS: RegExp[] = [
   /alexa 35/i, /alexa lf/i, /alexa mini/i, /alexa 65/i, /amira/i,
   /v-raptor/i, /monstro/i, /komodo/i,
-  /venice/i, /burano/i, /fx9/i, /fx6/i,
+  /venice/i, /burano/i, /fx9/i, /fx6/i, /fs7/i, // FS7/FS7 II approved (4K XAVC-I)
   /c500 mk ii/i, /c500ii/i, /c400/i, /c300 mk iii/i, /c300iii/i, /r5 ?c/i, /c700/i,
   /ursa cine 12k/i, /panavision/i, /phantom/i,
-  /z8|z9/i, /gfx100 ii/i, /gfx100ii/i,
+  /fx3/i, // FX3 is a fully approved primary camera (firmware 2.0, XAVC S-I 4K)
 ];
 const NETFLIX_LIMITED_PATTERNS: RegExp[] = [
-  /fx3/i, /c70/i, // C70: non-fiction only; FX3: limited use
+  /c70/i, // C70: non-fiction only (status under review)
 ];
 
 export function netflixStatusForCamera(cameraName: string): NetflixStatus | null {

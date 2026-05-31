@@ -102,7 +102,7 @@ export function FovCalculator({ source }: { source: SourceFormat }) {
               </div>
               <p className="text-[10px] text-suite-text-dim font-mono mt-3">
                 Circle of confusion {r.coc.toFixed(3)} mm (sensor Ø {r.diag.toFixed(1)} mm ÷ 1500).
-                At T/f below ~the hyperfocal, far focus reaches infinity.
+                When subject distance reaches the hyperfocal distance, far focus extends to infinity.
               </p>
             </section>
 

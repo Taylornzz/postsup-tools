@@ -170,14 +170,17 @@ describe("netflixStatusForCamera", () => {
     expect(netflixStatusForCamera("ARRI ALEXA 35")).toBe("approved");
     expect(netflixStatusForCamera("Sony VENICE 2")).toBe("approved");
     expect(netflixStatusForCamera("Sony FX9")).toBe("approved");
+    expect(netflixStatusForCamera("Sony FX3")).toBe("approved"); // firmware 2.0, XAVC S-I 4K
+    expect(netflixStatusForCamera("Sony PXW-FS7 II")).toBe("approved"); // 4K XAVC-I
   });
   it("flags limited-use cameras", () => {
-    expect(netflixStatusForCamera("Sony FX3")).toBe("limited");
     expect(netflixStatusForCamera("Canon EOS C70")).toBe("limited");
   });
   it("flags non-approved cameras", () => {
     expect(netflixStatusForCamera("Sony α7S III")).toBe("not-approved");
     expect(netflixStatusForCamera("iPhone 15 Pro")).toBe("not-approved");
+    expect(netflixStatusForCamera("Nikon Z9")).toBe("not-approved"); // Nikon not a Netflix brand
+    expect(netflixStatusForCamera("Fujifilm GFX100 II")).toBe("not-approved");
   });
   it("returns null for reference plates", () => {
     expect(netflixStatusForCamera("Reference Plate")).toBeNull();
