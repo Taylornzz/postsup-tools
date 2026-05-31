@@ -108,7 +108,7 @@ export function buildFdl({
   source,
   target,
   protection = 0,
-  creator = "Lumina Frame Matrix",
+  creator = "LuminaFox Frame Matrix",
   secondaryCropAR = null,
 }: FramingChartParams): Fdl {
   const W = source.width;

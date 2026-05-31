@@ -80,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.31";
+const VERSION = "v1.9.32";
 const CHANGELOG = [
+  "v1.9.32 — renamed the product from Lumina to LuminaFox (header brand, PNG chart mark, FDL / spec-sheet creator, Camera Report PDF, page title & metadata).",
   "v1.9.31 — exporting a PNG/FDL while a live punch-in (extraction scale) or reframe is active now warns that the chart/FDL is the neutral delivery framing reference and those shot-level adjustments aren't baked in (instead of silently dropping them).",
   "v1.9.30 — ACES now resolves Canon Log 3 (e.g. R5 C) and Blackmagic Film Gen 5 (URSA Cine / Pocket) to their official IDTs instead of 'unknown'. Added ProRes 422 HQ UHD/HD mezzanine master targets; merged the duplicate YouTube Short / Vertical social entries; aligned the camera-count cap (now 1–32 everywhere).",
   "v1.9.29 — storage & codec accuracy: file sizes and card capacities are now decimal (GB = 1e9 bytes, matching Finder / Hedge / Silverstack and how cards are marketed) instead of mixing binary GiB math with decimal-marketed cards. ProRes bitrate now scales on real W×H (anamorphic / tall modes were understated ~25%). Sony X-OCN recalibrated to the verified 8.6K 17:9 figure (LT 1,706 Mbps). DNxHR HQX corrected to 12-bit 4:2:2 (~666 Mbps @ UHD).",
@@ -646,7 +647,7 @@ const Index = () => {
       ? `  Aspect     : Sensor ${sensorAspectName} (${sensorAspectDec}) · Image ${srcAspectName} (${srcAspectDec})`
       : `  Aspect     : ${srcAspectName} (${srcAspectDec})`;
     const lines = [
-      `LUMINA FRAME MATRIX — SPEC SHEET ${VERSION}`,
+      `LUMINAFOX FRAME MATRIX — SPEC SHEET ${VERSION}`,
       projectName.trim() ? `  Project    : ${projectName.trim()}` : "",
       authorName.trim() ? `  Author     : ${authorName.trim()}` : "",
       `  Date       : ${new Date().toISOString().slice(0, 10)}`,
@@ -716,7 +717,7 @@ const Index = () => {
         const proj = projectName.trim();
         const author = authorName.trim();
         // FDL/text creator string carries project + DP so the metadata travels.
-        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}Lumina Frame Matrix ${VERSION}`;
+        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}LuminaFox Frame Matrix ${VERSION}`;
         // The chart/FDL is the NEUTRAL delivery framing reference (ASC convention) —
         // live punch-in / reframe are shot-level previews and are not baked in. Warn
         // so the operator isn't misled into thinking the export captured them.
@@ -753,7 +754,7 @@ const Index = () => {
           protection,
           showThirds,
           showSafeArea,
-          creator: `Lumina Frame Matrix ${VERSION}`,
+          creator: `LuminaFox Frame Matrix ${VERSION}`,
           projectName: proj || undefined,
           authorName: author || undefined,
           referenceImage: refEl,
@@ -886,7 +887,7 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
-            <span className="text-suite-text-muted">LUMINA</span>
+            <span className="text-suite-text-muted">LUMINAFOX</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
               {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : "STORAGE"}

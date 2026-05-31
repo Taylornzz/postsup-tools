@@ -42,7 +42,7 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     protection = 0,
     showThirds = false,
     showSafeArea = false,
-    creator = "Lumina Frame Matrix",
+    creator = "LuminaFox Frame Matrix",
     projectName,
     authorName,
     referenceImage = null,
@@ -255,7 +255,7 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   const brandY = frame.y + frame.h * 0.28;
   ctx.fillStyle = TEXT;
   ctx.font = `700 ${font * 2.6}px ui-monospace, Menlo, Consolas, monospace`;
-  ctx.fillText("LUMINA", cx, brandY);
+  ctx.fillText("LUMINAFOX", cx, brandY);
   ctx.fillStyle = FRAME_LINE;
   ctx.font = `${font * 1.05}px ui-monospace, Menlo, Consolas, monospace`;
   ctx.fillText("F R A M E   M A T R I X", cx, brandY + font * 2.1);
