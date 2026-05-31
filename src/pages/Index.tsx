@@ -71,6 +71,8 @@ import {
   Link2,
   Sun,
   Focus,
+  ChevronRight,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -80,8 +82,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.33";
+const VERSION = "v1.9.34";
 const CHANGELOG = [
+  "v1.9.34 — UX: the Delivery Spec and ACES Colour Pipeline panels are now obvious expandable cards (bordered, with an icon, a value preview and a chevron) instead of easy-to-miss text. Reference Plate gains a Guide / Your Plate / Off toggle — your uploaded plate is kept when you switch to the guide and back, and a separate Replace / discard control.",
   "v1.9.33 — new LuminaFox favicon (cyan framing brackets + orange centre ring on a dark tile, matching the chart palette) as SVG + multi-size .ico + PNG, replacing the leftover Lovable icon; dropped the stray Lovable Twitter handle.",
   "v1.9.32 — renamed the product from Lumina to LuminaFox (header brand, PNG chart mark, FDL / spec-sheet creator, Camera Report PDF, page title & metadata).",
   "v1.9.31 — exporting a PNG/FDL while a live punch-in (extraction scale) or reframe is active now warns that the chart/FDL is the neutral delivery framing reference and those shot-level adjustments aren't baked in (instead of silently dropping them).",
@@ -249,13 +252,18 @@ const Index = () => {
     x: 0,
     y: 0,
   });
-  const [refImage, setRefImage] = useState<string | null>(BUILTIN_GUIDE);
+  // Reference plate — the uploaded image is kept separately from the active
+  // selection, so you can switch Guide ⇄ Your Plate ⇄ Off without losing it.
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [plateMode, setPlateMode] = useState<"guide" | "uploaded" | "none">("guide");
+  const refImage =
+    plateMode === "guide" ? BUILTIN_GUIDE : plateMode === "uploaded" ? uploadedImage : null;
+  const usingBuiltin = plateMode === "guide";
   // Composite the studio plate behind the exported chart (PNG/TIFF) instead of
   // the clean ASC-style field. FDL is geometry-only and ignores this.
   const [exportWithImage, setExportWithImage] = useState(false);
   // Saved setups (localStorage; ready to sync to an account later).
   const [savedSetups, setSavedSetups] = useState<SavedSetup[]>(() => readSavedSetups());
-  const [usingBuiltin, setUsingBuiltin] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // HDR + lens + storage planning
@@ -485,19 +493,24 @@ const Index = () => {
     const f = e.target.files?.[0];
     if (!f) return;
     const url = URL.createObjectURL(f);
-    setRefImage(url);
-    setUsingBuiltin(false);
+    setUploadedImage((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return url;
+    });
+    setPlateMode("uploaded");
   };
 
-  const useBuiltin = () => {
-    setRefImage(BUILTIN_GUIDE);
-    setUsingBuiltin(true);
-    if (fileRef.current) fileRef.current.value = "";
-  };
+  const useBuiltin = () => setPlateMode("guide");
+  const usePlate = () => uploadedImage && setPlateMode("uploaded");
+  const plateOff = () => setPlateMode("none");
 
-  const clearImage = () => {
-    setRefImage(null);
-    setUsingBuiltin(false);
+  // Discard the uploaded plate entirely (and fall back to the guide).
+  const removeUpload = () => {
+    setUploadedImage((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPlateMode((m) => (m === "uploaded" ? "guide" : m));
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -1152,12 +1165,18 @@ const Index = () => {
 
             {/* Delivery spec — HDR: not framing, kept collapsed but still
                 carried into the spec sheet + FDL export. */}
-            <details className="group border-t border-suite-border/60 pt-3">
-              <summary className="cursor-pointer list-none text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text flex items-center gap-1.5 select-none">
-                <span className="transition-transform group-open:rotate-90">▸</span>
-                Delivery spec · HDR
+            <details className="group mt-3 border border-suite-border rounded-sm bg-suite-panel-elevated/40 hover:bg-suite-panel-elevated/70 transition-colors">
+              <summary className="cursor-pointer list-none flex items-center justify-between gap-2 px-3 py-2.5 select-none">
+                <span className="flex items-center gap-2 text-[11px] tracking-[0.14em] uppercase text-suite-text font-semibold">
+                  <Sun className="size-3.5 text-guide-target" strokeWidth={1.6} />
+                  Delivery Spec · HDR
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-[9px] font-mono text-suite-text-dim tabular hidden sm:inline">{hdrInUse}</span>
+                  <ChevronRight className="size-4 text-suite-text-muted transition-transform group-open:rotate-90" strokeWidth={2} />
+                </span>
               </summary>
-              <div className="flex flex-col gap-4 pt-3">
+              <div className="flex flex-col gap-4 px-3 pb-3 pt-1">
                 {supportedHdr.length > 1 && (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted flex items-center gap-1.5">
@@ -1191,11 +1210,18 @@ const Index = () => {
             </details>
 
             {/* ACES colour-pipeline reference — read-only IDT / working / ODT. */}
-            <details className="group border-t border-suite-border/60 pt-3">
-              <summary className="cursor-pointer list-none text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text flex items-center gap-1.5 select-none">
-                <span className="transition-transform group-open:rotate-90">▸</span>
-                ACES colour pipeline
+            <details className="group mt-3 border border-suite-border rounded-sm bg-suite-panel-elevated/40 hover:bg-suite-panel-elevated/70 transition-colors">
+              <summary className="cursor-pointer list-none flex items-center justify-between gap-2 px-3 py-2.5 select-none">
+                <span className="flex items-center gap-2 text-[11px] tracking-[0.14em] uppercase text-suite-text font-semibold">
+                  <Palette className="size-3.5 text-guide-target" strokeWidth={1.6} />
+                  ACES Colour Pipeline
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-[9px] font-mono text-suite-text-dim tabular hidden sm:inline">v{acesVersion}</span>
+                  <ChevronRight className="size-4 text-suite-text-muted transition-transform group-open:rotate-90" strokeWidth={2} />
+                </span>
               </summary>
+              <div className="px-3 pb-3">
               <AcesPanel
                 source={source}
                 hdrVariant={hdrInUse}
@@ -1203,6 +1229,7 @@ const Index = () => {
                 version={acesVersion}
                 onVersionChange={setAcesVersion}
               />
+              </div>
             </details>
 
             {/* Extract readout — merged into Framing (Fit/Fill removed; the
@@ -1434,37 +1461,49 @@ const Index = () => {
                   Reference Plate
                 </span>
                 <span className="font-mono text-[9px] text-suite-text-dim tabular">
-                  {usingBuiltin ? "BUILT-IN" : refImage ? "UPLOADED" : "NONE"}
+                  {plateMode === "guide" ? "GUIDE" : plateMode === "uploaded" ? "YOUR PLATE" : "OFF"}
                 </span>
+              </div>
+              {/* Segmented toggle — switch freely without losing the upload. */}
+              <div className="flex gap-1 p-0.5 bg-suite-bg border border-suite-border rounded-sm">
+                {([
+                  { id: "guide", label: "Guide", on: () => useBuiltin(), disabled: false, title: "Built-in person guide, auto-cropped to the camera aspect" },
+                  { id: "uploaded", label: "Your Plate", on: () => usePlate(), disabled: !uploadedImage, title: uploadedImage ? "Your uploaded reference plate" : "Upload a plate first" },
+                  { id: "none", label: "Off", on: () => plateOff(), disabled: false, title: "Neutral field — no reference image" },
+                ] as const).map((seg) => (
+                  <button
+                    key={seg.id}
+                    onClick={seg.on}
+                    disabled={seg.disabled}
+                    title={seg.title}
+                    className={cn(
+                      "flex-1 px-2 py-1.5 text-[10px] tracking-[0.16em] uppercase rounded-[3px] transition-colors",
+                      plateMode === seg.id
+                        ? "bg-guide-source/15 text-guide-source"
+                        : seg.disabled
+                          ? "text-suite-text-dim/40 cursor-not-allowed"
+                          : "text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated",
+                    )}
+                  >
+                    {seg.label}
+                  </button>
+                ))}
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={useBuiltin}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 px-3 py-2 text-[10px] tracking-[0.18em] uppercase border rounded-sm transition-colors",
-                    usingBuiltin
-                      ? "border-guide-source/60 text-guide-source bg-guide-source/5"
-                      : "border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated",
-                  )}
-                  title="Use the built-in person guide image — auto-cropped to the selected camera's aspect ratio"
-                >
-                  <Aperture className="size-3" strokeWidth={1.5} />
-                  Guide
-                </button>
-                <button
                   onClick={() => fileRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-[10px] tracking-[0.18em] uppercase border border-suite-border hover:border-suite-border-strong hover:bg-suite-panel-elevated transition-colors rounded-sm"
-                  title="Upload your own reference image"
+                  title="Upload your own reference image (kept even when you switch to the guide)"
                 >
                   <Upload className="size-3" strokeWidth={1.5} />
-                  {refImage && !usingBuiltin ? "Replace" : "Upload"}
+                  {uploadedImage ? "Replace plate" : "Upload plate"}
                 </button>
-                {refImage && (
+                {uploadedImage && (
                   <button
-                    onClick={clearImage}
+                    onClick={removeUpload}
                     className="px-2 py-2 border border-suite-border hover:border-destructive/60 hover:text-destructive transition-colors rounded-sm"
-                    aria-label="Clear image"
-                    title="Hide image — show neutral fill"
+                    aria-label="Remove uploaded plate"
+                    title="Discard the uploaded plate"
                   >
                     <X className="size-3" strokeWidth={1.5} />
                   </button>
