@@ -1117,8 +1117,10 @@ export const TARGETS: TargetContainer[] = [
   { id: "uhd-4k", group: "Broadcast", name: "UHD 4K", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
 
   // Cinema
-  { id: "uhd-2to1-in-169", group: "Cinema", name: "2:1 in UHD 16:9", width: 3840, height: 2160, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 3840, activeHeight: 1920, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "hd-2to1-in-169", group: "Cinema", name: "2:1 in HD 16:9", width: 1920, height: 1080, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 1920, activeHeight: 960, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
+  // 2:1 (Univisium) active picture area letterboxed inside a 16:9 UHD/HD container —
+  // a streaming/broadcast master (Netflix-style), NOT a theatrical DCP. Lives in Broadcast.
+  { id: "uhd-2to1-in-169", group: "Broadcast", name: "2:1 in UHD 16:9", width: 3840, height: 2160, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 3840, activeHeight: 1920, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
+  { id: "hd-2to1-in-169", group: "Broadcast", name: "2:1 in HD 16:9", width: 1920, height: 1080, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 1920, activeHeight: 960, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
   { id: "dci-2k-flat", group: "Cinema", name: "DCI 2K Flat", width: 1998, height: 1080, ratioLabel: "1.85:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-2k-scope", group: "Cinema", name: "DCI 2K Scope", width: 2048, height: 858, ratioLabel: "2.39:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-2k-full", group: "Cinema", name: "DCI 2K Full", width: 2048, height: 1080, ratioLabel: "1.90:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },

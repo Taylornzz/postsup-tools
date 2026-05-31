@@ -80,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.26";
+const VERSION = "v1.9.27";
 const CHANGELOG = [
+  "v1.9.27 — moved '2:1 in UHD 16:9' and '2:1 in HD 16:9' from Cinema to Broadcast. They're streaming masters (a 2:1 active area inside a 16:9 container with Netflix HDR + streaming audio), not theatrical DCI deliverables.",
   "v1.9.26 — renamed the slate 'DP / Author' field to just 'Author' and dropped the 'DP' prefix from the stamps on the PNG chart, FDL, Camera Report and spec sheet.",
   "v1.9.25 — fixed the secondary-crop label on the PNG chart: it was colliding with (and hidden behind) the FINAL FRAME label at the top-left and was hard to read in violet. It's now at the bottom-left of the crop rectangle in a lighter, legible lavender.",
   "v1.9.24 — added an ACES colour-pipeline reference (ACES 2.0 default, 1.3 optional): from the selected camera + delivery it shows the Input Transform (IDT) with an official-vs-third-party badge, the working/interchange spaces (ACEScct / ACEScg / ACES2065-1) and the Output Transform (display · EOTF · peak nits). It's a read-only readout — Frame Matrix doesn't apply transforms — and it's carried into the Camera Report PDF and the copied spec sheet. Data web-verified and adversarially fact-checked (Nikon N-Log / Fuji F-Log2 correctly flagged as having no official ACES IDT).",
