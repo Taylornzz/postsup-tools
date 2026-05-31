@@ -13,6 +13,9 @@ export type ChartOptions = {
   showThirds?: boolean;
   showSafeArea?: boolean;
   creator?: string;
+  /** Slate metadata stamped into the title block. */
+  projectName?: string;
+  authorName?: string;
   /** Pre-loaded reference image drawn behind the guides (optional). */
   referenceImage?: HTMLImageElement | null;
   /** Optional secondary delivery crop (e.g. 2.0 for 2:1) drawn as an extra
@@ -39,6 +42,8 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     showThirds = false,
     showSafeArea = false,
     creator = "Lumina Frame Matrix",
+    projectName,
+    authorName,
     referenceImage = null,
     secondaryCropAR = null,
     secondaryCropLabel,
@@ -285,14 +290,16 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
 
   // Title block (bottom-left)
   const sqLabel = source.squeeze !== 1 ? `${source.squeeze}× ANAMORPHIC` : "SPHERICAL";
+  const date = new Date().toISOString().slice(0, 10);
   const lines = [
-    `${source.camera} — ${source.mode}`,
+    projectName ? projectName.toUpperCase() : `${source.camera} — ${source.mode}`,
+    ...(projectName ? [`${source.camera} — ${source.mode}`] : []),
     `SENSOR ${source.width}×${source.height}  ·  ${sqLabel}`,
     `FINAL FRAME ${fd.dimensions.width}×${fd.dimensions.height} @ ${target.name}`,
     protection > 0
       ? `PROTECTION ${fd.protection_dimensions.width}×${fd.protection_dimensions.height}  ·  ${(protection * 100).toFixed(1)}%`
       : `PROTECTION none`,
-    `${creator}  ·  ${new Date().toISOString().slice(0, 10)}`,
+    `${authorName ? "DP " + authorName + "  ·  " : ""}${date}  ·  ${creator}`,
   ];
   // Centred info box, sitting just below the centre crosshair.
   ctx.textAlign = "center";

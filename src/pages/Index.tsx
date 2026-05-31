@@ -78,8 +78,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.22";
+const VERSION = "v1.9.23";
 const CHANGELOG = [
+  "v1.9.23 — added a Slate block (00 · Slate): enter Project / Production and DP / Author once, and it's stamped onto the PNG framing chart, the FDL (fdl_creator), the Camera Report PDF, the copied spec sheet, the file names, and the permalink. The date is added automatically.",
   "v1.9.22 — removed UHD 8K as a delivery target (shoot 8K, deliver 4K is the supersampling path) and removed the audio delivery spec (channels / LUFS / dBTP) — this tool is the picture path; loudness is a sound-department concern. Tightens the Delivery panel and the Camera Report.",
   "v1.9.21 — added a downloadable Camera Report (PDF): a printable spec sheet covering source/lens, recording, delivery, extraction, and the full mag/card + offload + proxy storage plan (runtime per card, cards-per-day, on-set inventory, daily footage). Mirrors the on-screen state and the permalink.",
   "v1.9.20 — added a Custom aspect option to 'Framing For': enter any W:H ratio and it drives the framing, chart, FDL and extract math like any preset (persisted in the permalink).",
@@ -148,6 +149,8 @@ const URL_KEYS = {
   dcr: "dcr",
   cw: "cw",
   ch: "ch",
+  proj: "proj",
+  auth: "auth",
 } as const;
 
 const DELIVERY_CROPS: { id: string; label: string; ar: number | null }[] = [
@@ -298,6 +301,9 @@ const Index = () => {
     const n = readNum(URL_KEYS.stn, 2);
     return Math.max(1, Math.min(4, Math.round(n)));
   });
+  // Slate metadata — project + author, stamped onto every export & permalink.
+  const [projectName, setProjectName] = useState<string>(() => readParam(URL_KEYS.proj) ?? "");
+  const [authorName, setAuthorName] = useState<string>(() => readParam(URL_KEYS.auth) ?? "");
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -430,6 +436,8 @@ const Index = () => {
       params.set(URL_KEYS.cw, String(customW));
       params.set(URL_KEYS.ch, String(customH));
     }
+    if (projectName.trim()) params.set(URL_KEYS.proj, projectName.trim());
+    if (authorName.trim()) params.set(URL_KEYS.auth, authorName.trim());
     const next = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", next);
   }, [
@@ -438,7 +446,7 @@ const Index = () => {
     hdrInUse, lensId, cardId, backupCopies, bwId,
     recordHoursPerDay, cameraCount, proxyCodecId, protectionPct,
     offloadStations, extractionScale, deliveryCropId,
-    customW, customH,
+    customW, customH, projectName, authorName,
   ]);
 
   const resetReframe = () => setReframeOffset({ x: 0, y: 0 });
@@ -617,6 +625,9 @@ const Index = () => {
       : `  Aspect     : ${srcAspectName} (${srcAspectDec})`;
     const lines = [
       `LUMINA FRAME MATRIX — SPEC SHEET ${VERSION}`,
+      projectName.trim() ? `  Project    : ${projectName.trim()}` : "",
+      authorName.trim() ? `  DP / Author: ${authorName.trim()}` : "",
+      `  Date       : ${new Date().toISOString().slice(0, 10)}`,
       "",
       `SOURCE`,
       `  Camera     : ${source.camera}`,
@@ -664,6 +675,7 @@ const Index = () => {
     writeClipboard,
     source, srcDisp, target, codec, fps, mbps, perHourGB, perDayGB, ext, fitMode,
     hdrInUse, lens, lensCovers, sensorDiagMm, card, cardMin, backupCopies, bandwidth, offloadHrs,
+    projectName, authorName,
   ]);
 
   // Downloadable framing chart — PNG / TIFF raster + ASC FDL (Netflix-style).
@@ -673,10 +685,13 @@ const Index = () => {
     async (format: "png" | "tiff" | "fdl") => {
       try {
         const protection = Math.max(0, Math.min(0.9, protectionPct / 100));
-        const creator = `Lumina Frame Matrix ${VERSION}`;
+        const proj = projectName.trim();
+        const author = authorName.trim();
+        // FDL/text creator string carries project + DP so the metadata travels.
+        const creator = `${proj ? proj + " — " : ""}${author ? "DP " + author + " — " : ""}Lumina Frame Matrix ${VERSION}`;
         const d = new Date();
         const yymmdd = `${String(d.getFullYear() % 100).padStart(2, "0")}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-        const base = `${yymmdd}_${slug(source.camera)}_${slug(source.mode)}_${slug(target.name)}_framingchart`;
+        const base = `${yymmdd}_${proj ? slug(proj) + "_" : ""}${slug(source.camera)}_${slug(source.mode)}_${slug(target.name)}_framingchart`;
 
         if (format === "fdl") {
           const fdl = buildFdl({ source, target, protection, creator, secondaryCropAR: deliveryCrop.ar });
@@ -705,7 +720,9 @@ const Index = () => {
           protection,
           showThirds,
           showSafeArea,
-          creator,
+          creator: `Lumina Frame Matrix ${VERSION}`,
+          projectName: proj || undefined,
+          authorName: author || undefined,
           referenceImage: refEl,
           secondaryCropAR: deliveryCrop.ar,
           secondaryCropLabel: deliveryCrop.ar != null ? deliveryCrop.label.split(" ")[0] : undefined,
@@ -730,7 +747,7 @@ const Index = () => {
         toast.error("Framing-chart export failed");
       }
     },
-    [source, target, protectionPct, showThirds, showSafeArea, refImage, exportWithImage, deliveryCrop.ar, deliveryCrop.label],
+    [source, target, protectionPct, showThirds, showSafeArea, refImage, exportWithImage, deliveryCrop.ar, deliveryCrop.label, projectName, authorName],
   );
 
   // Source aspect labels (for clarity-fix wording)
@@ -752,6 +769,8 @@ const Index = () => {
         version: VERSION,
         dateLabel: `${dt.getFullYear()}-${mm}-${dd}`,
         url: typeof window !== "undefined" ? window.location.href : "",
+        projectName: projectName.trim() || undefined,
+        authorName: authorName.trim() || undefined,
         camera: source.camera,
         mode: source.mode,
         recordedW: source.width,
@@ -805,7 +824,7 @@ const Index = () => {
         proxyPerDayGB: proxyPlan?.perDayGB ?? null,
         proxyRatioPct: proxyPlan?.ratioPct ?? null,
       });
-      downloadBlob(blob, `${yy}${mm}${dd}_${slug(source.camera)}_${slug(source.mode)}_camera-report.pdf`);
+      downloadBlob(blob, `${yy}${mm}${dd}_${projectName.trim() ? slug(projectName.trim()) + "_" : ""}${slug(source.camera)}_${slug(source.mode)}_camera-report.pdf`);
       toast.success("Camera report (PDF) downloaded");
     } catch (e) {
       console.error(e);
@@ -815,7 +834,7 @@ const Index = () => {
     source, srcDisp, srcAspectName, srcAspectDec, lens, lensCovers, sensorDiagMm,
     codec, fps, mbps, perHourGB, target, hdrInUse, ext,
     recordHoursPerDay, cameraCount, perDayGB, card, cardMin, bandwidth,
-    backupCopies, offloadStations, offloadHrs, proxyPlan,
+    backupCopies, offloadStations, offloadHrs, proxyPlan, projectName, authorName,
   ]);
 
   return (
@@ -861,6 +880,48 @@ const Index = () => {
       <main className="flex-1 flex min-h-0">
         {/* Left inspector */}
         <aside className="w-96 shrink-0 bg-suite-panel border-r border-suite-border flex flex-col overflow-y-auto">
+          {/* Slate — project + DP, stamped onto every export. */}
+          <section className="px-5 py-3 border-b border-suite-border">
+            <details className="group">
+              <summary className="cursor-pointer list-none flex items-center justify-between text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text select-none">
+                <span className="flex items-center gap-1.5">
+                  <span className="transition-transform group-open:rotate-90">▸</span>
+                  00 · Slate
+                </span>
+                <span className="font-mono normal-case tracking-normal text-suite-text-dim truncate max-w-[55%] text-right">
+                  {projectName.trim() || "untitled"}
+                  {authorName.trim() ? ` · ${authorName.trim()}` : ""}
+                </span>
+              </summary>
+              <div className="flex flex-col gap-3 pt-3">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Project / Production</span>
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="e.g. Untitled Feature"
+                    maxLength={80}
+                    className="w-full bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono focus:outline-none focus:border-guide-target"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">DP / Author</span>
+                  <input
+                    type="text"
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    placeholder="e.g. Mark Taylor"
+                    maxLength={60}
+                    className="w-full bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono focus:outline-none focus:border-guide-target"
+                  />
+                </label>
+                <p className="text-[10px] leading-relaxed text-suite-text-dim font-mono">
+                  Stamped onto the PNG chart, FDL, Camera Report and permalink. Date is added automatically.
+                </p>
+              </div>
+            </details>
+          </section>
           {/* Source */}
           <section className="p-5 border-b border-suite-border flex flex-col gap-4">
             <SectionHeader

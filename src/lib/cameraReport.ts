@@ -7,6 +7,8 @@ export interface CameraReportInput {
   version: string;
   dateLabel: string; // human date for the header
   url: string;
+  projectName?: string;
+  authorName?: string;
   // SOURCE
   camera: string;
   mode: string;
@@ -147,6 +149,19 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
   doc.text("Camera & Storage Report", M, y + 22);
   doc.text(`${d.dateLabel}  ·  ${d.version}`, PAGE_W - M, y + 22, { align: "right" });
   y += 30;
+  // Slate line — project + DP, only when supplied.
+  const proj = (d.projectName || "").trim();
+  const author = (d.authorName || "").trim();
+  if (proj || author) {
+    doc.setFont("courier", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(INK[0], INK[1], INK[2]);
+    const slate = [proj ? clean(proj) : null, author ? `DP ${clean(author)}` : null]
+      .filter(Boolean)
+      .join("    ·    ");
+    doc.text(slate, M, y + 6);
+    y += 14;
+  }
   doc.setDrawColor(INK[0], INK[1], INK[2]);
   doc.setLineWidth(0.75);
   doc.line(M, y, PAGE_W - M, y);
