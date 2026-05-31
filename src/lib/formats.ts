@@ -1140,12 +1140,13 @@ export const TARGETS: TargetContainer[] = [
   { id: "imf-uhd-j2k", group: "Mastering", name: "IMF UHD (J2K MXF)", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
   { id: "imf-4k-j2k", group: "Mastering", name: "IMF 4K DCI (J2K MXF)", width: 4096, height: 2160, ratioLabel: "1.90:1", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
   { id: "imf-hd-j2k", group: "Mastering", name: "IMF HD (J2K MXF)", width: 1920, height: 1080, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
+  { id: "prores-uhd-master", group: "Mastering", name: "ProRes 422 HQ UHD Master", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
+  { id: "prores-hd-master", group: "Mastering", name: "ProRes 422 HQ HD Master", width: 1920, height: 1080, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
 
   // Social
-  { id: "social-vert", group: "Social", name: "Vertical (Reels / TikTok)", width: 1080, height: 1920, ratioLabel: "9:16", hdrVariants: SDR_ONLY, audio: SOCIAL_AUDIO },
+  { id: "social-vert", group: "Social", name: "Vertical (Reels / Shorts / TikTok)", width: 1080, height: 1920, ratioLabel: "9:16", hdrVariants: SDR_ONLY, audio: SOCIAL_AUDIO },
   { id: "social-square", group: "Social", name: "Square (Instagram Feed)", width: 1080, height: 1080, ratioLabel: "1:1", hdrVariants: SDR_ONLY, audio: SOCIAL_AUDIO },
   { id: "social-portrait", group: "Social", name: "Portrait (Instagram 4:5)", width: 1080, height: 1350, ratioLabel: "4:5", hdrVariants: SDR_ONLY, audio: SOCIAL_AUDIO },
-  { id: "social-yt-short", group: "Social", name: "YouTube Short", width: 1080, height: 1920, ratioLabel: "9:16", hdrVariants: SDR_ONLY, audio: SOCIAL_AUDIO },
 ];
 
 /** Peak luminance (nits) per HDR variant for spec sheet. */

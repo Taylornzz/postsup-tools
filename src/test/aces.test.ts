@@ -44,6 +44,16 @@ describe("acesIdtForSource", () => {
     expect(idt.official).toBe(false);
     expect(idt.label).toMatch(/F-Log2/);
   });
+  it("maps Canon Log 3 (R5 C) to its own official IDT, not Log 2", () => {
+    const idt = acesIdtForSource(byId("r5c-8k-raw"));
+    expect(idt.label).toMatch(/Canon Log 3/);
+    expect(idt.official).toBe(true);
+  });
+  it("maps Blackmagic Film Gen 5 to the official BMD IDT", () => {
+    const idt = acesIdtForSource(byId("ursa-12k-og"));
+    expect(idt.label).toMatch(/Film Gen 5/);
+    expect(idt.official).toBe(true);
+  });
 });
 
 describe("acesOdtFor", () => {

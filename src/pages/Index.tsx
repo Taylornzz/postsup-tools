@@ -80,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.29";
+const VERSION = "v1.9.30";
 const CHANGELOG = [
+  "v1.9.30 — ACES now resolves Canon Log 3 (e.g. R5 C) and Blackmagic Film Gen 5 (URSA Cine / Pocket) to their official IDTs instead of 'unknown'. Added ProRes 422 HQ UHD/HD mezzanine master targets; merged the duplicate YouTube Short / Vertical social entries; aligned the camera-count cap (now 1–32 everywhere).",
   "v1.9.29 — storage & codec accuracy: file sizes and card capacities are now decimal (GB = 1e9 bytes, matching Finder / Hedge / Silverstack and how cards are marketed) instead of mixing binary GiB math with decimal-marketed cards. ProRes bitrate now scales on real W×H (anamorphic / tall modes were understated ~25%). Sony X-OCN recalibrated to the verified 8.6K 17:9 figure (LT 1,706 Mbps). DNxHR HQX corrected to 12-bit 4:2:2 (~666 Mbps @ UHD).",
   "v1.9.28 — accuracy pass (audit-driven, spec-verified): Netflix approval corrected (Nikon Z9/Z8 & Fuji GFX100 II removed — not Netflix brands; Sony FX3 promoted to approved; Sony FS7/FS7 II added). Camera specs fixed: RED V-RAPTOR S35 4:3 2x corrected to the real 8K 5760×4320 @ 18.43×13.82 mm (the old 19.66 mm height didn't exist); ALEXA Mini 3.4K OG capped at 30 fps (ARRIRAW); Phantom Flex4K → 938 fps / 16:9 label; C500 Mk II relabelled 17:9; ALEXA Mini 2.8K ana used-height corrected; replaced a fabricated VENICE 2 '1.8× anamorphic' mode with the real 5.8K 6:5 2×. Lenses: Cooke Anamorphic FF+ image circle 52→46.3 mm; S35 & large-format anamorphics now have their own family buckets. Optics DoF caption corrected. Protection slider now spans the full 0–40%; custom-aspect label matches the realized ratio.",
   "v1.9.27 — moved '2:1 in UHD 16:9' and '2:1 in HD 16:9' from Cinema to Broadcast. They're streaming masters (a 2:1 active area inside a 16:9 container with Netflix HDR + streaming audio), not theatrical DCI deliverables.",
@@ -282,7 +283,7 @@ const Index = () => {
   });
   const [cameraCount, setCameraCount] = useState<number>(() => {
     const n = readNum(URL_KEYS.cams, 1);
-    return Math.max(1, Math.min(12, Math.round(n)));
+    return Math.max(1, Math.min(32, Math.round(n)));
   });
   const [proxyCodecId, setProxyCodecId] = useState<string>(() => {
     const id = readParam(URL_KEYS.prx);
@@ -1859,7 +1860,7 @@ function ShootPlanControls({
             value={cameras}
             onChange={(e) => {
               const n = Number(e.target.value);
-              if (Number.isFinite(n)) onCamerasChange(Math.max(1, Math.min(12, Math.round(n))));
+              if (Number.isFinite(n)) onCamerasChange(Math.max(1, Math.min(32, Math.round(n))));
             }}
             className="flex-1 bg-transparent text-center text-xs font-mono tabular text-suite-text focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />

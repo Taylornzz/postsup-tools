@@ -80,6 +80,18 @@ const CANON_CLOG2: AcesIdt = {
   mapsInto: "ACES2065-1 / AP0",
   note: "Canon Log 2 ≠ Canon Log 3 — match BOTH the log and the gamut to what the camera recorded (a common mismatch).",
 };
+const CANON_CLOG3: AcesIdt = {
+  label: "Canon Log 3 / Cinema Gamut",
+  official: true,
+  mapsInto: "ACES2065-1 / AP0",
+  note: "Canon Log 3 ≠ Canon Log 2 — use the Log 3 IDT for footage shot in CLog3 (e.g. EOS R5 C).",
+};
+const BMD_FILM_GEN5: AcesIdt = {
+  label: "Blackmagic Film Gen 5 / BMD Wide Gamut",
+  official: true,
+  mapsInto: "ACES2065-1 / AP0",
+  note: "Official Blackmagic Design Film Gen 5 IDT (URSA Cine / Pocket). For BRAW, Resolve can also decode straight to ACES.",
+};
 const NIKON_NLOG: AcesIdt = {
   label: "Nikon N-Log (third-party IDT)",
   official: false,
@@ -119,7 +131,9 @@ export function acesIdtForSource(source: SourceFormat): AcesIdt {
   if (oetf.includes("logc3")) return ARRI_LOGC3;
   if (oetf.includes("s-log3")) return SONY_SLOG3;
   if (oetf.includes("log3g10")) return RED_LOG3G10;
+  if (oetf.includes("canon log 3")) return CANON_CLOG3;
   if (oetf.includes("canon log 2")) return CANON_CLOG2;
+  if (oetf.includes("film gen 5")) return BMD_FILM_GEN5;
   if (/nikon|z9|z8/.test(cam)) return NIKON_NLOG;
   if (/fuji|gfx/.test(cam)) return FUJI_FLOG2;
   if (/iphone|apple/.test(cam)) return APPLE_LOG;
