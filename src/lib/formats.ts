@@ -1115,7 +1115,6 @@ export const TARGETS: TargetContainer[] = [
   // Broadcast
   { id: "hd-1080", group: "Broadcast", name: "HD 1080p", width: 1920, height: 1080, ratioLabel: "16:9", hdrVariants: SDR_ONLY, audio: BROADCAST_AUDIO, audioVariants: BROADCAST_AUDIO_VARIANTS },
   { id: "uhd-4k", group: "Broadcast", name: "UHD 4K", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "uhd-8k", group: "Broadcast", name: "UHD 8K", width: 7680, height: 4320, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
 
   // Cinema
   { id: "uhd-2to1-in-169", group: "Cinema", name: "2:1 in UHD 16:9", width: 3840, height: 2160, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 3840, activeHeight: 1920, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
