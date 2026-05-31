@@ -80,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.24";
+const VERSION = "v1.9.25";
 const CHANGELOG = [
+  "v1.9.25 — fixed the secondary-crop label on the PNG chart: it was colliding with (and hidden behind) the FINAL FRAME label at the top-left and was hard to read in violet. It's now at the bottom-left of the crop rectangle in a lighter, legible lavender.",
   "v1.9.24 — added an ACES colour-pipeline reference (ACES 2.0 default, 1.3 optional): from the selected camera + delivery it shows the Input Transform (IDT) with an official-vs-third-party badge, the working/interchange spaces (ACEScct / ACEScg / ACES2065-1) and the Output Transform (display · EOTF · peak nits). It's a read-only readout — Frame Matrix doesn't apply transforms — and it's carried into the Camera Report PDF and the copied spec sheet. Data web-verified and adversarially fact-checked (Nikon N-Log / Fuji F-Log2 correctly flagged as having no official ACES IDT).",
   "v1.9.23 — added a Slate block (00 · Slate): enter Project / Production and DP / Author once, and it's stamped onto the PNG framing chart, the FDL (fdl_creator), the Camera Report PDF, the copied spec sheet, the file names, and the permalink. The date is added automatically.",
   "v1.9.22 — removed UHD 8K as a delivery target (shoot 8K, deliver 4K is the supersampling path) and removed the audio delivery spec (channels / LUFS / dBTP) — this tool is the picture path; loudness is a sound-department concern. Tightens the Delivery panel and the Camera Report.",

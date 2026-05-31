@@ -29,7 +29,8 @@ export type ChartOptions = {
 const SENSOR_LINE = "#6b7280";
 const FRAME_LINE = "#22d3ee"; // final frame — cyan
 const PROTECT_LINE = "#f59e0b"; // protection — orange (band + boundary + label)
-const CROP_LINE = "#c084fc"; // secondary delivery crop — violet
+const CROP_LINE = "#c084fc"; // secondary delivery crop — violet (line)
+const CROP_TEXT = "#e2cffd"; // lighter lavender for the crop label (legible on dark)
 const SAFE_LINE = "#94a3b8"; // safe action/title — neutral slate (distinct from protection)
 const TEXT = "#f5f5f7";
 const TEXT_DIM = "#cbd5e1";
@@ -192,13 +193,15 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     roundRectPath(ctx, cxp, cyp, cw, ch, Math.min(cw, ch) * 0.02);
     ctx.stroke();
     ctx.setLineDash([]);
+    // Bottom-left of the crop rect — keeps it clear of the FINAL FRAME label
+    // (which sits top-left) so the two never collide.
     label(
       ctx,
       `CROP · ${secondaryCropLabel ?? `${secondaryCropAR.toFixed(2)}:1`}`,
       cxp + font * 0.4,
-      cyp + font * 0.4,
+      cyp + ch - font * 1.45,
       font * 0.85,
-      CROP_LINE,
+      CROP_TEXT,
     );
   }
 
