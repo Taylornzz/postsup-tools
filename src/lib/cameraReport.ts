@@ -66,6 +66,14 @@ export interface CameraReportInput {
   proxyName: string | null;
   proxyPerDayGB: number | null;
   proxyRatioPct: number | null;
+  // COLOUR · ACES (optional)
+  acesVersion?: string;
+  acesIdt?: string;
+  acesIdtOfficial?: boolean;
+  acesGrade?: string;
+  acesInterchange?: string;
+  acesOdt?: string;
+  acesOdtDisplay?: string; // "<display> · <eotf> · <nits> nits"
 }
 
 const INK = [26, 26, 26] as const;
@@ -257,6 +265,18 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
       `${formatSize(d.proxyPerDayGB)}${d.proxyRatioPct != null ? `  (${d.proxyRatioPct.toFixed(1)}% of camera footage)` : ""}`,
     );
     kv("Camera + proxy / day", formatSize(d.perDayGB + d.proxyPerDayGB), "warn");
+  }
+
+  // ---- Colour · ACES ------------------------------------------------------
+  if (d.acesIdt && d.acesOdt) {
+    sectionHeader(`Colour · ACES ${d.acesVersion ?? "2.0"}`);
+    kv("Input · IDT", `${d.acesIdt}${d.acesIdtOfficial === false ? "  (third-party — no official ACES IDT)" : ""}`,
+      d.acesIdtOfficial === false ? "warn" : undefined);
+    if (d.acesGrade) kv("Working space", d.acesGrade);
+    if (d.acesInterchange) kv("Interchange", d.acesInterchange);
+    kv("Output · Transform", d.acesOdt, "accent");
+    if (d.acesOdtDisplay) kv("Display", d.acesOdtDisplay);
+    kv("Note", "Reference only — set in your grading app; menu names vary by app & version. 1.3 and 2.0 renders are not interchangeable.");
   }
 
   // ---- Footer -------------------------------------------------------------

@@ -40,6 +40,8 @@ import {
 } from "@/lib/framingChart";
 import { renderFramingChart } from "@/lib/framingChartCanvas";
 import { buildCameraReportPdf } from "@/lib/cameraReport";
+import { AcesPanel } from "@/components/AcesPanel";
+import { AcesVersion, acesPipeline } from "@/lib/aces";
 import { Metric } from "@/components/Metric";
 import { FrameViewer } from "@/components/FrameViewer";
 import {
@@ -78,8 +80,9 @@ import referencePerson from "@/assets/reference-bg.jpg";
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.23";
+const VERSION = "v1.9.24";
 const CHANGELOG = [
+  "v1.9.24 — added an ACES colour-pipeline reference (ACES 2.0 default, 1.3 optional): from the selected camera + delivery it shows the Input Transform (IDT) with an official-vs-third-party badge, the working/interchange spaces (ACEScct / ACEScg / ACES2065-1) and the Output Transform (display · EOTF · peak nits). It's a read-only readout — Frame Matrix doesn't apply transforms — and it's carried into the Camera Report PDF and the copied spec sheet. Data web-verified and adversarially fact-checked (Nikon N-Log / Fuji F-Log2 correctly flagged as having no official ACES IDT).",
   "v1.9.23 — added a Slate block (00 · Slate): enter Project / Production and DP / Author once, and it's stamped onto the PNG framing chart, the FDL (fdl_creator), the Camera Report PDF, the copied spec sheet, the file names, and the permalink. The date is added automatically.",
   "v1.9.22 — removed UHD 8K as a delivery target (shoot 8K, deliver 4K is the supersampling path) and removed the audio delivery spec (channels / LUFS / dBTP) — this tool is the picture path; loudness is a sound-department concern. Tightens the Delivery panel and the Camera Report.",
   "v1.9.21 — added a downloadable Camera Report (PDF): a printable spec sheet covering source/lens, recording, delivery, extraction, and the full mag/card + offload + proxy storage plan (runtime per card, cards-per-day, on-set inventory, daily footage). Mirrors the on-screen state and the permalink.",
@@ -151,6 +154,7 @@ const URL_KEYS = {
   ch: "ch",
   proj: "proj",
   auth: "auth",
+  aces: "aces",
 } as const;
 
 const DELIVERY_CROPS: { id: string; label: string; ar: number | null }[] = [
@@ -304,6 +308,10 @@ const Index = () => {
   // Slate metadata — project + author, stamped onto every export & permalink.
   const [projectName, setProjectName] = useState<string>(() => readParam(URL_KEYS.proj) ?? "");
   const [authorName, setAuthorName] = useState<string>(() => readParam(URL_KEYS.auth) ?? "");
+  // ACES reference version (2.0 default, 1.3 optional).
+  const [acesVersion, setAcesVersion] = useState<AcesVersion>(() =>
+    readParam(URL_KEYS.aces) === "1.3" ? "1.3" : "2.0",
+  );
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -393,6 +401,9 @@ const Index = () => {
   }, [targetId]);
   const hdrInUse: HdrVariant = supportedHdr.includes(hdr) ? hdr : supportedHdr[0];
 
+  // ACES reference pipeline (read-only) for the current camera + delivery.
+  const acesRef = acesPipeline(source, hdrInUse, target.name, acesVersion);
+
   // Netflix camera-approval status (for source badge)
   const netflixStatus = useMemo(
     () => netflixStatusForCamera(source.camera),
@@ -438,6 +449,7 @@ const Index = () => {
     }
     if (projectName.trim()) params.set(URL_KEYS.proj, projectName.trim());
     if (authorName.trim()) params.set(URL_KEYS.auth, authorName.trim());
+    if (acesVersion !== "2.0") params.set(URL_KEYS.aces, acesVersion);
     const next = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", next);
   }, [
@@ -446,7 +458,7 @@ const Index = () => {
     hdrInUse, lensId, cardId, backupCopies, bwId,
     recordHoursPerDay, cameraCount, proxyCodecId, protectionPct,
     offloadStations, extractionScale, deliveryCropId,
-    customW, customH, projectName, authorName,
+    customW, customH, projectName, authorName, acesVersion,
   ]);
 
   const resetReframe = () => setReframeOffset({ x: 0, y: 0 });
@@ -666,6 +678,12 @@ const Index = () => {
       `  Sensor Used: ${(ext.usedArea * 100).toFixed(1)}% (of source area retained)`,
       `  Pixel Scale: ${ext.scale.toFixed(3)}× — ${ext.scale > 1.001 ? "UPSCALE (target larger than extraction)" : "downscale / supersampled (safe)"}`,
       "",
+      `COLOUR · ACES ${acesVersion}`,
+      `  Input IDT  : ${acesRef.idt.label}${acesRef.idt.official ? "" : " (third-party — no official ACES IDT)"}`,
+      `  Working    : ${acesRef.grade.name} (grade) · ${acesRef.vfx.name} (VFX) · ${acesRef.interchange.name}`,
+      `  Output     : ${acesVersion === "2.0" ? acesRef.odt.label2 : acesRef.odt.label13}`,
+      `  Display    : ${acesRef.odt.display} · ${acesRef.odt.eotf} · ${acesRef.odt.peakNits} nits`,
+      "",
       `LINK`,
       `  ${typeof window !== "undefined" ? window.location.href : ""}`,
     ].filter(Boolean);
@@ -675,7 +693,7 @@ const Index = () => {
     writeClipboard,
     source, srcDisp, target, codec, fps, mbps, perHourGB, perDayGB, ext, fitMode,
     hdrInUse, lens, lensCovers, sensorDiagMm, card, cardMin, backupCopies, bandwidth, offloadHrs,
-    projectName, authorName,
+    projectName, authorName, acesRef, acesVersion,
   ]);
 
   // Downloadable framing chart — PNG / TIFF raster + ASC FDL (Netflix-style).
@@ -823,6 +841,13 @@ const Index = () => {
         proxyName: proxyPlan?.name ?? null,
         proxyPerDayGB: proxyPlan?.perDayGB ?? null,
         proxyRatioPct: proxyPlan?.ratioPct ?? null,
+        acesVersion,
+        acesIdt: acesRef.idt.label,
+        acesIdtOfficial: acesRef.idt.official,
+        acesGrade: `${acesRef.grade.name} (grade) · ${acesRef.vfx.name} (VFX)`,
+        acesInterchange: acesRef.interchange.name,
+        acesOdt: acesVersion === "2.0" ? acesRef.odt.label2 : acesRef.odt.label13,
+        acesOdtDisplay: `${acesRef.odt.display} · ${acesRef.odt.eotf} · ${acesRef.odt.peakNits} nits`,
       });
       downloadBlob(blob, `${yy}${mm}${dd}_${projectName.trim() ? slug(projectName.trim()) + "_" : ""}${slug(source.camera)}_${slug(source.mode)}_camera-report.pdf`);
       toast.success("Camera report (PDF) downloaded");
@@ -835,6 +860,7 @@ const Index = () => {
     codec, fps, mbps, perHourGB, target, hdrInUse, ext,
     recordHoursPerDay, cameraCount, perDayGB, card, cardMin, bandwidth,
     backupCopies, offloadStations, offloadHrs, proxyPlan, projectName, authorName,
+    acesRef, acesVersion,
   ]);
 
   return (
@@ -1144,6 +1170,21 @@ const Index = () => {
                   hint={`${hdrPeakNits(hdrInUse)} nits${hdrInUse === "Dolby Vision P8.1" ? " · DV required for Netflix HDR" : ""}`}
                 />
               </div>
+            </details>
+
+            {/* ACES colour-pipeline reference — read-only IDT / working / ODT. */}
+            <details className="group border-t border-suite-border/60 pt-3">
+              <summary className="cursor-pointer list-none text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text flex items-center gap-1.5 select-none">
+                <span className="transition-transform group-open:rotate-90">▸</span>
+                ACES colour pipeline
+              </summary>
+              <AcesPanel
+                source={source}
+                hdrVariant={hdrInUse}
+                targetName={target.name}
+                version={acesVersion}
+                onVersionChange={setAcesVersion}
+              />
             </details>
 
             {/* Extract readout — merged into Framing (Fit/Fill removed; the
