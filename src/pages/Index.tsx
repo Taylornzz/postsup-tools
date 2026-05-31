@@ -80,10 +80,26 @@ import { FileSizeCalculator } from "@/components/FileSizeCalculator";
 import { FovCalculator } from "@/components/FovCalculator";
 import referencePerson from "@/assets/reference-bg.jpg";
 
+// Uploaded reference plate is persisted to localStorage (as a downscaled data
+// URL) so it survives a refresh. Blob object URLs can't be persisted.
+const PLATE_KEY = "luminafox-ref-plate";
+const PLATE_MODE_KEY = "luminafox-ref-plate-mode";
+type PlateMode = "guide" | "uploaded" | "none";
+function readStoredPlate(): string | null {
+  try { return localStorage.getItem(PLATE_KEY); } catch { return null; }
+}
+function readStoredPlateMode(): PlateMode {
+  try {
+    const m = localStorage.getItem(PLATE_MODE_KEY);
+    return m === "uploaded" || m === "none" ? m : "guide";
+  } catch { return "guide"; }
+}
+
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.34";
+const VERSION = "v1.9.35";
 const CHANGELOG = [
+  "v1.9.35 — your uploaded reference plate is now remembered across refreshes (saved to this device, downscaled + compressed to fit), and it reloads in whatever mode you left it — Guide / Your Plate / Off.",
   "v1.9.34 — UX: the Delivery Spec and ACES Colour Pipeline panels are now obvious expandable cards (bordered, with an icon, a value preview and a chevron) instead of easy-to-miss text. Reference Plate gains a Guide / Your Plate / Off toggle — your uploaded plate is kept when you switch to the guide and back, and a separate Replace / discard control.",
   "v1.9.33 — new LuminaFox favicon (cyan framing brackets + orange centre ring on a dark tile, matching the chart palette) as SVG + multi-size .ico + PNG, replacing the leftover Lovable icon; dropped the stray Lovable Twitter handle.",
   "v1.9.32 — renamed the product from Lumina to LuminaFox (header brand, PNG chart mark, FDL / spec-sheet creator, Camera Report PDF, page title & metadata).",
@@ -253,9 +269,13 @@ const Index = () => {
     y: 0,
   });
   // Reference plate — the uploaded image is kept separately from the active
-  // selection, so you can switch Guide ⇄ Your Plate ⇄ Off without losing it.
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [plateMode, setPlateMode] = useState<"guide" | "uploaded" | "none">("guide");
+  // selection (so Guide ⇄ Your Plate ⇄ Off doesn't lose it) AND persisted to
+  // localStorage so it survives a page refresh.
+  const [uploadedImage, setUploadedImage] = useState<string | null>(() => readStoredPlate());
+  const [plateMode, setPlateMode] = useState<PlateMode>(() => {
+    const m = readStoredPlateMode();
+    return m === "uploaded" && !readStoredPlate() ? "guide" : m;
+  });
   const refImage =
     plateMode === "guide" ? BUILTIN_GUIDE : plateMode === "uploaded" ? uploadedImage : null;
   const usingBuiltin = plateMode === "guide";
@@ -489,15 +509,39 @@ const Index = () => {
     setSourceTransform((t) => ({ ...t, x: 0, y: 0 }));
   }, [sourceId, targetId, desqueeze]);
 
+  // Remember which plate mode is active across refreshes.
+  useEffect(() => {
+    try { localStorage.setItem(PLATE_MODE_KEY, plateMode); } catch { /* ignore */ }
+  }, [plateMode]);
+
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const url = URL.createObjectURL(f);
-    setUploadedImage((prev) => {
-      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return url;
-    });
-    setPlateMode("uploaded");
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Downscale (cap longest edge) + JPEG so it fits in localStorage.
+        const MAX = 1920;
+        const k = Math.min(1, MAX / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * k));
+        const h = Math.max(1, Math.round(img.height * k));
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d")!.drawImage(img, 0, 0, w, h);
+        let dataUrl = String(reader.result);
+        try { dataUrl = c.toDataURL("image/jpeg", 0.85); } catch { /* keep original */ }
+        setUploadedImage(dataUrl);
+        setPlateMode("uploaded");
+        try {
+          localStorage.setItem(PLATE_KEY, dataUrl);
+        } catch {
+          toast.warning("Plate set for this session — too large to remember after a refresh.");
+        }
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(f);
   };
 
   const useBuiltin = () => setPlateMode("guide");
@@ -506,11 +550,9 @@ const Index = () => {
 
   // Discard the uploaded plate entirely (and fall back to the guide).
   const removeUpload = () => {
-    setUploadedImage((prev) => {
-      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return null;
-    });
+    setUploadedImage(null);
     setPlateMode((m) => (m === "uploaded" ? "guide" : m));
+    try { localStorage.removeItem(PLATE_KEY); } catch { /* ignore */ }
     if (fileRef.current) fileRef.current.value = "";
   };
 
