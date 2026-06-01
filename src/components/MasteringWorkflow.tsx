@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import {
   AcesVersion,
 } from "@/lib/aces";
@@ -7,7 +7,11 @@ import {
   buildMasterGraph, MNode, Lane, DeliverableRole, EdgeOp,
 } from "@/lib/mastering";
 import { cn } from "@/lib/utils";
-import { Crown, AlertTriangle, X } from "lucide-react";
+import { Crown, AlertTriangle, X, Plus, Minus, Maximize } from "lucide-react";
+
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 2.2;
+const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 
 interface Props {
   version: AcesVersion;
@@ -83,6 +87,57 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
   const sel = graph.nodes.find((n) => n.id === selected) ?? null;
   const inbound = sel ? graph.edges.filter((e) => e.to === sel.id) : [];
 
+  // --- Zoom + pan ----------------------------------------------------------
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1);
+
+  // Wheel-zoom toward the cursor (native non-passive listener so preventDefault works).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.shiftKey) return; // shift+wheel = native horizontal scroll
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left + el.scrollLeft;
+      const py = e.clientY - rect.top + el.scrollTop;
+      setZoom((z) => {
+        const next = clampZoom(z * Math.exp(-e.deltaY * 0.0015));
+        const ratio = next / z;
+        requestAnimationFrame(() => {
+          el.scrollLeft = px * ratio - (e.clientX - rect.left);
+          el.scrollTop = py * ratio - (e.clientY - rect.top);
+        });
+        return next;
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // Drag-to-pan on empty canvas (ignore drags that start on a node).
+  const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
+  const onPanDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    const el = scrollRef.current; if (!el) return;
+    pan.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+  };
+  const onPanMove = (e: React.MouseEvent) => {
+    if (!pan.current) return;
+    const el = scrollRef.current; if (!el) return;
+    el.scrollLeft = pan.current.sl - (e.clientX - pan.current.x);
+    el.scrollTop = pan.current.st - (e.clientY - pan.current.y);
+  };
+  const onPanUp = () => { pan.current = null; };
+
+  const zoomBy = (f: number) => setZoom((z) => clampZoom(z * f));
+  const fit = useCallback(() => {
+    const el = scrollRef.current; if (!el) return;
+    const avail = el.clientWidth - 32;
+    setZoom(clampZoom(avail / width));
+    requestAnimationFrame(() => { el.scrollLeft = 0; el.scrollTop = 0; });
+  }, [width]);
+
   return (
     <div className="flex-1 min-h-0 flex bg-suite-canvas">
       <div className="flex-1 min-w-0 flex flex-col">
@@ -103,16 +158,34 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">ACES</span>
-              <div className="flex gap-1">
-                {(["2.0", "1.3"] as AcesVersion[]).map((v) => (
-                  <button key={v} onClick={() => onVersionChange(v)}
-                    className={cn("px-2 py-0.5 text-[10px] font-mono rounded-sm border transition-colors",
-                      version === v ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>
-                    {v}
-                  </button>
-                ))}
+            <div className="flex items-center gap-3">
+              {/* Zoom controls */}
+              <div className="flex items-center gap-1">
+                <button onClick={() => zoomBy(1 / 1.2)} title="Zoom out"
+                  className="size-6 grid place-items-center rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong transition-colors">
+                  <Minus className="size-3" strokeWidth={2} />
+                </button>
+                <span className="w-10 text-center text-[10px] font-mono tabular text-suite-text-dim">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => zoomBy(1.2)} title="Zoom in"
+                  className="size-6 grid place-items-center rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong transition-colors">
+                  <Plus className="size-3" strokeWidth={2} />
+                </button>
+                <button onClick={fit} title="Fit to width"
+                  className="size-6 grid place-items-center rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong transition-colors">
+                  <Maximize className="size-3" strokeWidth={1.8} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">ACES</span>
+                <div className="flex gap-1">
+                  {(["2.0", "1.3"] as AcesVersion[]).map((v) => (
+                    <button key={v} onClick={() => onVersionChange(v)}
+                      className={cn("px-2 py-0.5 text-[10px] font-mono rounded-sm border transition-colors",
+                        version === v ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -122,8 +195,17 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
         </div>
 
         {/* Graph */}
-        <div className="flex-1 min-h-0 overflow-auto p-4">
-          <div className="relative" style={{ width, height }}>
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 overflow-auto p-4 cursor-grab active:cursor-grabbing"
+          onMouseDown={onPanDown}
+          onMouseMove={onPanMove}
+          onMouseUp={onPanUp}
+          onMouseLeave={onPanUp}
+        >
+          {/* Scaled sizer — keeps the scrollable area in sync with the zoom. */}
+          <div style={{ width: width * zoom, height: height * zoom }}>
+          <div className="relative" style={{ width, height, transform: `scale(${zoom})`, transformOrigin: "0 0" }}>
             {/* Lane headers */}
             {LANES.map((l, li) => (
               <div key={l.id} className="absolute text-[9px] tracking-[0.22em] uppercase text-suite-text-dim font-semibold"
@@ -215,7 +297,8 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
               );
             })}
           </div>
-          <p className="text-[10px] text-suite-text-dim font-mono mt-3 max-w-3xl leading-relaxed">
+          </div>
+          <p className="text-[10px] text-suite-text-dim font-mono mt-3 max-w-3xl leading-relaxed sticky left-4">
             Reference planning view, not an automated pipeline. Cyan edges are ACES-managed (up to the Output Transform); grey are downstream (Dolby Vision trims, wraps, encodes); <span className="text-red-300">red = up-volume — a fresh re-grade off the archive, never a clean transform</span>. Verify trim ladders, IMF/DCDM specs and CMVersion with your post house.
           </p>
         </div>
