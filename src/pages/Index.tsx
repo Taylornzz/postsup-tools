@@ -74,12 +74,14 @@ import {
   ChevronRight,
   Palette,
   Share2,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { FileSizeCalculator } from "@/components/FileSizeCalculator";
 import { FovCalculator } from "@/components/FovCalculator";
 import { MasteringWorkflow } from "@/components/MasteringWorkflow";
+import { WorkflowPipeline } from "@/components/WorkflowPipeline";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 // Uploaded reference plate is persisted to localStorage (as a downscaled data
@@ -99,8 +101,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.43";
+const VERSION = "v1.9.44";
 const CHANGELOG = [
+  "v1.9.44 — new Production Workflow tab: the whole pipeline as a vertical node tree — camera test + show LUT → on-set → DIT offload/verify → dailies → editorial lock → VFX pull/comp/master loop → conform → grade & masters → 3-layer QC (with fail-loops back upstream on a red rail) → delivery → long-term archive, plus a parallel AUDIO column (production sound → DME editorial → final mix/Atmos/printmaster/loudness QC) that re-marries picture at the IMF/DCP wrap. The Grade & Mastering stage folds in the existing Mastering tree (click → open it). Research-driven and adversarially verified (Netflix/SMPTE/ACES/Dolby). Planning view, not an automated pipeline.",
   "v1.9.43 — Mastering Workflow: actually fixed pan/scroll. The canvas container wasn't width-constrained (a missing flexbox min-width:0), so it grew to fit the content and had nothing to scroll — the grab cursor moved but nothing happened. Now it's bounded and scrollable, so drag-to-pan, sideways scroll and the scrollbar all work.",
   "v1.9.42 — Mastering Workflow: fixed horizontal scrolling. The wheel handler was swallowing sideways trackpad/wheel gestures (so the scrollbar never appeared); now horizontal-intent and shift-scroll move the canvas, vertical wheel still zooms, and there's an always-visible thin scrollbar plus drag-to-pan. Added an on-screen hint for the controls.",
   "v1.9.41 — Mastering Workflow gains a Custom strategy: pick the master you grade first (HDR PQ / DCI-P3 theatrical / SDR Rec.709) and toggle which deliverables you need (streaming HDR, theatrical DCP, SDR/Broadcast HD, ACES archive, proxies). The tree derives the order for you — down-volume targets derive cleanly, while anything above the hero's dynamic range is shown as a fresh up-volume re-grade off the archive (flagged red), because that's unavoidable.",
@@ -158,7 +161,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics" | "mastering";
+type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -247,7 +250,7 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" ? t : "frame";
   });
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
@@ -956,7 +959,7 @@ const Index = () => {
             <span className="text-suite-text-muted">LUMINAFOX</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
@@ -966,12 +969,17 @@ const Index = () => {
           <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
           <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
+          <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
         </div>
         {/* Reserved for user login / account (future). */}
         <div className="flex items-center gap-3" />
       </header>
 
-      {appTab === "mastering" ? (
+      {appTab === "workflow" ? (
+        <main className="flex-1 flex min-h-0">
+          <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} />
+        </main>
+      ) : appTab === "mastering" ? (
         <main className="flex-1 flex min-h-0">
           <MasteringWorkflow version={acesVersion} onVersionChange={setAcesVersion} />
         </main>
@@ -2159,6 +2167,25 @@ function MasteringTabButton({ active, onClick }: { active: boolean; onClick: () 
     >
       <Share2 className="size-3" strokeWidth={1.5} />
       Mastering
+    </button>
+  );
+}
+
+function WorkflowTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Production Workflow — full pipeline: camera test → set → dailies → VFX → conform → grade → QC → delivery → archive, + audio"
+    >
+      <GitBranch className="size-3" strokeWidth={1.5} />
+      Workflow
     </button>
   );
 }
