@@ -964,8 +964,8 @@ const Index = () => {
         <div className="flex items-center gap-2">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
           <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
-          <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
+          <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
         </div>
         {/* Reserved for user login / account (future). */}
         <div className="flex items-center gap-3" />
