@@ -42,6 +42,8 @@ import { renderFramingChart } from "@/lib/framingChartCanvas";
 import { buildCameraReportPdf } from "@/lib/cameraReport";
 import { AcesPanel } from "@/components/AcesPanel";
 import { AcesVersion, acesPipeline } from "@/lib/aces";
+import { MasteringStrategy, MasterNits, CustomConfig, STRATEGIES, CUSTOM_HEROES } from "@/lib/mastering";
+import { PipelineConfig } from "@/lib/pipeline";
 import { Metric } from "@/components/Metric";
 import { FrameViewer } from "@/components/FrameViewer";
 import {
@@ -101,8 +103,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.44";
+const VERSION = "v1.9.45";
 const CHANGELOG = [
+  "v1.9.45 — the Production Workflow tab now reflects YOUR project: the Camera Original shows the selected camera/codec, the ACES Grade shows the ACES version + resolved IDT + Output Transform, the Mastering stage shows the chosen hero/strategy/nits, and the IMF node shows the delivery target + HDR. The mastering strategy/peak/custom config is now shared between the Mastering and Workflow tabs (one source of truth).",
   "v1.9.44 — new Production Workflow tab: the whole pipeline as a vertical node tree — camera test + show LUT → on-set → DIT offload/verify → dailies → editorial lock → VFX pull/comp/master loop → conform → grade & masters → 3-layer QC (with fail-loops back upstream on a red rail) → delivery → long-term archive, plus a parallel AUDIO column (production sound → DME editorial → final mix/Atmos/printmaster/loudness QC) that re-marries picture at the IMF/DCP wrap. The Grade & Mastering stage folds in the existing Mastering tree (click → open it). Research-driven and adversarially verified (Netflix/SMPTE/ACES/Dolby). Planning view, not an automated pipeline.",
   "v1.9.43 — Mastering Workflow: actually fixed pan/scroll. The canvas container wasn't width-constrained (a missing flexbox min-width:0), so it grew to fit the content and had nothing to scroll — the grab cursor moved but nothing happened. Now it's bounded and scrollable, so drag-to-pan, sideways scroll and the scrollbar all work.",
   "v1.9.42 — Mastering Workflow: fixed horizontal scrolling. The wheel handler was swallowing sideways trackpad/wheel gestures (so the scrollbar never appeared); now horizontal-intent and shift-scroll move the canvas, vertical wheel still zooms, and there's an always-visible thin scrollbar plus drag-to-pan. Added an on-screen hint for the controls.",
@@ -362,6 +365,14 @@ const Index = () => {
   const [acesVersion, setAcesVersion] = useState<AcesVersion>(() =>
     readParam(URL_KEYS.aces) === "1.3" ? "1.3" : "2.0",
   );
+  // Mastering config — lifted here so the Mastering tab AND the Workflow tab
+  // (which reflects it) share one source of truth.
+  const [masteringStrategy, setMasteringStrategy] = useState<MasteringStrategy>("hdr-first");
+  const [masterNits, setMasterNits] = useState<MasterNits>(1000);
+  const [masteringCustom, setMasteringCustom] = useState<CustomConfig>({
+    hero: "streaming-hdr",
+    deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"],
+  });
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -456,6 +467,31 @@ const Index = () => {
 
   // ACES reference pipeline (read-only) for the current camera + delivery.
   const acesRef = acesPipeline(source, hdrInUse, target.name, acesVersion);
+
+  // Live project context fed to the Production Workflow tab so its nodes reflect
+  // the actual camera, IDT, ACES version, delivery target and mastering choice.
+  const masteringHero =
+    masteringStrategy === "custom"
+      ? (CUSTOM_HEROES.find((h) => h.id === masteringCustom.hero)?.label ?? "—")
+      : masteringStrategy === "hdr-first" ? "HDR PQ (Dolby Vision)"
+      : masteringStrategy === "theatrical-first" ? "DCI-P3 theatrical"
+      : "HDR PQ + DCI-P3";
+  const pipelineConfig: PipelineConfig = useMemo(() => ({
+    camera: source.camera,
+    cameraMode: source.mode,
+    codec: codec.name,
+    idt: acesRef.idt.label,
+    idtOfficial: acesRef.idt.official,
+    acesVersion,
+    outputTransform: acesVersion === "2.0" ? acesRef.odt.label2 : acesRef.odt.label13,
+    delivery: target.name,
+    deliveryRes: `${target.width}×${target.height}`,
+    hdr: hdrInUse,
+    hdrNits: hdrPeakNits(hdrInUse),
+    masteringHero,
+    masteringStrategy: STRATEGIES.find((s) => s.id === masteringStrategy)?.name,
+    masterNits,
+  }), [source.camera, source.mode, codec.name, acesRef.idt, acesRef.odt, acesVersion, target.name, target.width, target.height, hdrInUse, masteringHero, masteringStrategy, masterNits]);
 
   // Netflix camera-approval status (for source badge)
   const netflixStatus = useMemo(
@@ -977,11 +1013,20 @@ const Index = () => {
 
       {appTab === "workflow" ? (
         <main className="flex-1 flex min-h-0">
-          <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} />
+          <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} config={pipelineConfig} />
         </main>
       ) : appTab === "mastering" ? (
         <main className="flex-1 flex min-h-0">
-          <MasteringWorkflow version={acesVersion} onVersionChange={setAcesVersion} />
+          <MasteringWorkflow
+            version={acesVersion}
+            onVersionChange={setAcesVersion}
+            strategy={masteringStrategy}
+            onStrategyChange={setMasteringStrategy}
+            masterNits={masterNits}
+            onMasterNitsChange={setMasterNits}
+            custom={masteringCustom}
+            onCustomChange={setMasteringCustom}
+          />
         </main>
       ) : appTab === "optics" ? (
         <main className="flex-1 flex min-h-0">

@@ -227,6 +227,64 @@ export const EDGES: PEdge[] = [
   { from: "a-print", to: "arc-lto", op: "retain", label: "Archive Atmos ADM/IAB, DME stems, printmaster, M&E" },
 ];
 
-export function buildPipeline(): PipelineGraph {
-  return { stages: STAGES, nodes: NODES, edges: EDGES };
+/** Live project context — when supplied, key pipeline nodes reflect the actual
+ *  camera, IDT, ACES version, delivery target and mastering choice. */
+export interface PipelineConfig {
+  camera?: string;
+  cameraMode?: string;
+  codec?: string;
+  idt?: string;
+  idtOfficial?: boolean;
+  acesVersion?: string;
+  outputTransform?: string;
+  delivery?: string;
+  deliveryRes?: string;
+  hdr?: string;
+  hdrNits?: number;
+  masteringHero?: string;
+  masteringStrategy?: string;
+  masterNits?: number;
+}
+
+export function buildPipeline(cfg?: PipelineConfig): PipelineGraph {
+  if (!cfg) return { stages: STAGES, nodes: NODES, edges: EDGES };
+
+  const cam = cfg.camera ?? "";
+  const hdrLine = cfg.hdr ? `${cfg.hdr}${cfg.hdrNits ? ` · ${cfg.hdrNits} nit` : ""}` : "";
+  const overrides: Record<string, { label?: string; detail?: (base: string) => string }> = {
+    "t-test": { detail: (b) => (cam ? `${cam} chart/talent test. ` : "") + b },
+    "p-orig": {
+      label: cam ? `Camera Original · ${cam}` : undefined,
+      detail: (b) => (cam ? `${cam} · ${cfg.cameraMode ?? ""} · ${cfg.codec ?? ""}. ` : "") + b,
+    },
+    "o-verified": { detail: (b) => (cam ? `${cam} · ${cfg.codec ?? ""}. ` : "") + b },
+    "d-dailies": {
+      detail: (b) => (cfg.hdr && cfg.hdr !== "SDR" ? "PQ dailies (HDR pipeline). " : "") + b,
+    },
+    "m-grade": {
+      label: cfg.acesVersion ? `ACES Grade · ACES ${cfg.acesVersion}` : undefined,
+      detail: (b) =>
+        (cfg.idt ? `IDT: ${cfg.idt}${cfg.idtOfficial === false ? " (third-party — verify)" : ""} · ` : "") +
+        (cfg.acesVersion ? `ACES ${cfg.acesVersion} · ` : "") +
+        (cfg.outputTransform ? `OT → ${cfg.outputTransform}. ` : "") + b,
+    },
+    "m-master": {
+      label: cfg.masteringStrategy ? `Mastering · ${cfg.masteringStrategy} ▸` : undefined,
+      detail: () =>
+        `Hero: ${cfg.masteringHero ?? "—"}${cfg.masterNits ? ` · ${cfg.masterNits} nit` : ""}` +
+        (cfg.outputTransform ? ` · OT → ${cfg.outputTransform}` : "") +
+        ". The existing Mastering deliverables DAG — open it to expand.",
+    },
+    "del-imf": {
+      label: cfg.delivery ? `IMF · ${cfg.delivery}` : undefined,
+      detail: (b) => (cfg.delivery ? `${cfg.delivery} · ${cfg.deliveryRes ?? ""}${hdrLine ? ` · ${hdrLine}` : ""}. ` : "") + b,
+    },
+  };
+
+  const nodes = NODES.map((n) => {
+    const o = overrides[n.id];
+    if (!o) return n;
+    return { ...n, label: o.label ?? n.label, detail: o.detail ? o.detail(n.detail) : n.detail };
+  });
+  return { stages: STAGES, nodes, edges: EDGES };
 }

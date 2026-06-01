@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import {
-  buildPipeline, PNode, PEdge, KIND_ACCENT, P_EDGE_META,
+  buildPipeline, PNode, PEdge, KIND_ACCENT, P_EDGE_META, PipelineConfig,
 } from "@/lib/pipeline";
 import { cn } from "@/lib/utils";
 import { X, Plus, Minus, Maximize, ArrowUpRight, AlertTriangle } from "lucide-react";
@@ -18,10 +18,10 @@ const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.2;
 const cz = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 
-interface Props { onOpenMastering: () => void; }
+interface Props { onOpenMastering: () => void; config?: PipelineConfig; }
 
-export function WorkflowPipeline({ onOpenMastering }: Props) {
-  const { stages, nodes, edges } = useMemo(() => buildPipeline(), []);
+export function WorkflowPipeline({ onOpenMastering, config }: Props) {
+  const { stages, nodes, edges } = useMemo(() => buildPipeline(config), [config]);
   const [selected, setSelected] = useState<string | null>(null);
 
   // --- Layout: orders → Y-bands; picture/data left block, audio right block ---

@@ -18,6 +18,12 @@ const clampZoom = (z: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
 interface Props {
   version: AcesVersion;
   onVersionChange: (v: AcesVersion) => void;
+  strategy: MasteringStrategy;
+  onStrategyChange: (s: MasteringStrategy) => void;
+  masterNits: MasterNits;
+  onMasterNitsChange: (n: MasterNits) => void;
+  custom: CustomConfig;
+  onCustomChange: (c: CustomConfig) => void;
 }
 
 const COL_W = 184;
@@ -54,13 +60,13 @@ const ROLE_ACCENT: Record<DeliverableRole, string> = {
   review: "#6b7280",        // gray
 };
 
-export function MasteringWorkflow({ version, onVersionChange }: Props) {
-  const [strategy, setStrategy] = useState<MasteringStrategy>("hdr-first");
-  const [masterNits, setMasterNits] = useState<MasterNits>(1000);
-  const [custom, setCustom] = useState<CustomConfig>({
-    hero: "streaming-hdr",
-    deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"],
-  });
+export function MasteringWorkflow({
+  version, onVersionChange, strategy, onStrategyChange,
+  masterNits, onMasterNitsChange, custom, onCustomChange,
+}: Props) {
+  const setStrategy = onStrategyChange;
+  const setMasterNits = onMasterNitsChange;
+  const setCustom = (fn: (c: CustomConfig) => CustomConfig) => onCustomChange(fn(custom));
   const [selected, setSelected] = useState<string | null>(null);
 
   const graph = useMemo(
@@ -70,10 +76,10 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
     [strategy, version, masterNits, custom],
   );
   const toggleDeliverable = (d: CustomDeliverable) =>
-    setCustom((c) => ({
-      ...c,
-      deliverables: c.deliverables.includes(d) ? c.deliverables.filter((x) => x !== d) : [...c.deliverables, d],
-    }));
+    onCustomChange({
+      ...custom,
+      deliverables: custom.deliverables.includes(d) ? custom.deliverables.filter((x) => x !== d) : [...custom.deliverables, d],
+    });
   const strat = STRATEGIES.find((s) => s.id === strategy)!;
 
   // --- Deterministic layered layout (lanes = X columns) --------------------

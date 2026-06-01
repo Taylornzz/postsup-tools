@@ -39,4 +39,21 @@ describe("buildPipeline", () => {
     expect(g.edges.some((e) => e.op === "rejoin" && e.to === "del-imf")).toBe(true);
     expect(g.edges.filter((e) => e.op === "qc-fail-loop").length).toBeGreaterThanOrEqual(2);
   });
+
+  it("reflects the project config in the key nodes when supplied", () => {
+    const cfg = buildPipeline({
+      camera: "ARRI ALEXA 35", cameraMode: "4.6K 3:2 OG", codec: "ARRIRAW",
+      idt: "ARRI LogC4 (AWG4)", idtOfficial: true, acesVersion: "2.0",
+      outputTransform: "Rec.709 (SDR, 100 nit)", delivery: "DCI 2K Scope", deliveryRes: "2048×858",
+      hdr: "SDR", hdrNits: 100, masteringHero: "HDR PQ (Dolby Vision)", masteringStrategy: "HDR-First", masterNits: 1000,
+    });
+    const orig = cfg.nodes.find((n) => n.id === "p-orig")!;
+    expect(orig.label).toContain("ARRI ALEXA 35");
+    expect(cfg.nodes.find((n) => n.id === "m-grade")!.label).toContain("ACES 2.0");
+    expect(cfg.nodes.find((n) => n.id === "m-master")!.label).toContain("HDR-First");
+    expect(cfg.nodes.find((n) => n.id === "m-master")!.detail).toContain("HDR PQ");
+    expect(cfg.nodes.find((n) => n.id === "del-imf")!.label).toContain("DCI 2K Scope");
+    // a node with no override is unchanged
+    expect(cfg.nodes.find((n) => n.id === "arc-nam")!.label).toBe("NAM (Non-Graded)");
+  });
 });
