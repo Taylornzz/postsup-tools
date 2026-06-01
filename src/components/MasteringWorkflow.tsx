@@ -4,7 +4,7 @@ import {
 } from "@/lib/aces";
 import {
   MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META,
-  buildMasterGraph, MNode, MEdge, Lane, DeliverableRole,
+  buildMasterGraph, MNode, Lane, DeliverableRole, EdgeOp,
 } from "@/lib/mastering";
 import { cn } from "@/lib/utils";
 import { Crown, AlertTriangle, X } from "lucide-react";
@@ -14,12 +14,30 @@ interface Props {
   onVersionChange: (v: AcesVersion) => void;
 }
 
-const COL_W = 188;
+const COL_W = 184;
 const NODE_H = 80;
-const GAP_X = 78;
-const GAP_Y = 20;
+const GAP_X = 124;
+const GAP_Y = 26;
 const PAD = 24;
 const HEADER_H = 26;
+
+// Compact token shown on each edge by default; the full label appears on hover
+// (title) and in the side panel, so the graph stays legible.
+const OP_TOKEN: Record<EdgeOp, string> = {
+  "grade": "grade",
+  "render-archive": "archive",
+  "output-transform": "OT",
+  "analyze": "L1",
+  "trim": "trim",
+  "cm-derive": "derive",
+  "colour-convert": "convert",
+  "regrade": "REGRADE",
+  "downscale": "↓ res",
+  "wrap": "wrap",
+  "embed": "embed",
+  "transcode": "proxy",
+  "reference-match": "match",
+};
 
 const ROLE_ACCENT: Record<DeliverableRole, string> = {
   source: "#4ade80",        // green
@@ -133,26 +151,29 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
                 );
               })}
             </svg>
-            {/* Edge label chips (midpoint) */}
+            {/* Edge chips (midpoint). Compact op token by default; the selected
+                node's edges expand to the full transform label. */}
             {graph.edges.map((e, i) => {
               const a = pos.get(e.from); const b = pos.get(e.to);
-              if (!a || !b || !e.label) return null;
+              if (!a || !b) return null;
               const mx = (a.x + COL_W + b.x) / 2;
               const my = (a.y + b.y) / 2 + NODE_H / 2;
               const up = e.direction === "up-volume";
-              const active = sel && (e.from === sel.id || e.to === sel.id);
-              if (sel && !active) return null;
+              const active = !!(sel && (e.from === sel.id || e.to === sel.id));
+              const full = active && !!e.label;
               return (
                 <div key={i} title={e.warning ? `${e.label}\n\n${e.warning}` : e.label}
                   className={cn(
-                    "absolute -translate-x-1/2 -translate-y-1/2 max-w-[150px] px-1.5 py-0.5 rounded-[3px] border text-[8.5px] leading-tight font-mono text-center pointer-events-auto",
-                    up ? "bg-red-950/80 border-red-500/50 text-red-200"
+                    "absolute -translate-x-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-[3px] border font-mono text-center pointer-events-auto transition-opacity",
+                    full ? "max-w-[150px] text-[8.5px] leading-tight z-30" : "text-[8px] leading-none whitespace-nowrap",
+                    sel && !active ? "opacity-25" : "opacity-100",
+                    up ? "bg-red-950/85 border-red-500/50 text-red-200"
                       : e.acesManaged ? "bg-suite-bg border-guide-target/40 text-guide-target"
                       : "bg-suite-bg border-suite-border text-suite-text-dim",
                   )}
-                  style={{ left: mx, top: my, zIndex: 5 }}>
+                  style={{ left: mx, top: my, zIndex: full ? 30 : 4 }}>
                   {up && <AlertTriangle className="inline size-2.5 mr-0.5 -mt-0.5" strokeWidth={2} />}
-                  {e.label}
+                  {full ? e.label : OP_TOKEN[e.op]}
                 </div>
               );
             })}
@@ -166,11 +187,11 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
                 <button key={n.id} onClick={() => setSelected(isActive ? null : n.id)}
                   className={cn(
                     "absolute text-left transition-shadow flex flex-col gap-0.5 px-2.5 py-1.5 overflow-hidden",
-                    isSidecar ? "rounded-full bg-suite-panel/90" : "rounded-sm bg-suite-panel",
+                    isSidecar ? "rounded-xl border-dashed bg-suite-panel/80" : "rounded-sm bg-suite-panel",
                     "border hover:z-20",
                     isActive ? "border-guide-target shadow-[0_0_0_2px_rgba(34,211,238,0.4)] z-20" : "border-suite-border",
                   )}
-                  style={{ left: p.x, top: p.y, width: COL_W, height: NODE_H, borderLeft: `3px solid ${accent}`, zIndex: isActive ? 20 : 10 }}>
+                  style={{ left: p.x, top: p.y, width: COL_W, height: isSidecar ? NODE_H - 14 : NODE_H, marginTop: isSidecar ? 7 : 0, borderLeft: `3px solid ${accent}`, zIndex: isActive ? 20 : 10 }}>
                   <span className="flex items-center gap-1 text-[10.5px] font-semibold text-suite-text leading-tight truncate w-full">
                     {n.isHero && <Crown className="size-3 shrink-0" style={{ color: accent }} strokeWidth={2} />}
                     {n.label}
