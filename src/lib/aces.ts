@@ -171,7 +171,7 @@ const DV_PQ: AcesOdt = {
   display: "Rec.2100",
   eotf: "PQ / ST.2084",
   peakNits: "1000–4000",
-  note: "ACES renders only the PQ mastering pass at your mastering-display peak. Dolby Vision L1–L8 trims (incl. the P8.1 cinema/SDR trims) happen downstream in DV tooling.",
+  note: "ACES renders only the PQ mastering pass at your mastering-display peak. Dolby Vision L1 analysis + L2/L8 trims (toward targets like SDR Rec.709 100nit, P3 48nit, PQ 108nit) happen downstream in DV tooling.",
 };
 const DCI_THEATRICAL: AcesOdt = {
   label2: "P3-D65 48 nit (γ2.6) → DCDM (XYZ-E)",

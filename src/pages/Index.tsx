@@ -73,11 +73,13 @@ import {
   Focus,
   ChevronRight,
   Palette,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { FileSizeCalculator } from "@/components/FileSizeCalculator";
 import { FovCalculator } from "@/components/FovCalculator";
+import { MasteringWorkflow } from "@/components/MasteringWorkflow";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 // Uploaded reference plate is persisted to localStorage (as a downscaled data
@@ -97,8 +99,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.36";
+const VERSION = "v1.9.37";
 const CHANGELOG = [
+  "v1.9.37 — new Mastering Workflow tab: a deliverables node-tree (DAG) showing how the grade flows into the ACES archive, a chosen hero master, and down through trim/derive/wrap edges to each deliverable and viewing copy. Pick a strategy — HDR-First, Theatrical-First or Dual-Hero — and the tree re-derives, flagging up-volume re-grades (e.g. theatrical → HDR) in red because they're a fresh grade off the archive, not a clean transform. Output-Transform edges read from the same ACES fixtures as the Optics/ACES tab (2.0/1.3). Research-driven and verified vs Netflix/Dolby/SMPTE.",
   "v1.9.36 — moved Secondary Crop up to sit directly under 'Framing For' (it's the same kind of aspect choice). Removed the redundant '2:1 in UHD/HD 16:9' delivery presets (use a Secondary Crop instead) and the Mastering (IMF / ProRes master) targets for now.",
   "v1.9.35 — your uploaded reference plate is now remembered across refreshes (saved to this device, downscaled + compressed to fit), and it reloads in whatever mode you left it — Guide / Your Plate / Off.",
   "v1.9.34 — UX: the Delivery Spec and ACES Colour Pipeline panels are now obvious expandable cards (bordered, with an icon, a value preview and a chevron) instead of easy-to-miss text. Reference Plate gains a Guide / Your Plate / Off toggle — your uploaded plate is kept when you switch to the guide and back, and a separate Replace / discard control.",
@@ -149,7 +152,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics";
+type AppTab = "frame" | "storage" | "optics" | "mastering";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -238,7 +241,7 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" ? t : "frame";
   });
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
@@ -947,7 +950,7 @@ const Index = () => {
             <span className="text-suite-text-muted">LUMINAFOX</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
@@ -955,13 +958,18 @@ const Index = () => {
         <div className="flex items-center gap-2">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
           <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
+          <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
         </div>
         {/* Reserved for user login / account (future). */}
         <div className="flex items-center gap-3" />
       </header>
 
-      {appTab === "optics" ? (
+      {appTab === "mastering" ? (
+        <main className="flex-1 flex min-h-0">
+          <MasteringWorkflow version={acesVersion} onVersionChange={setAcesVersion} />
+        </main>
+      ) : appTab === "optics" ? (
         <main className="flex-1 flex min-h-0">
           <FovCalculator source={source} />
         </main>
@@ -2126,6 +2134,25 @@ function OpticsTabButton({ active, onClick }: { active: boolean; onClick: () => 
     >
       <Aperture className="size-3" strokeWidth={1.5} />
       Optics
+    </button>
+  );
+}
+
+function MasteringTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Mastering Workflow — deliverables node tree (grade → masters → trims → deliverables)"
+    >
+      <Share2 className="size-3" strokeWidth={1.5} />
+      Mastering
     </button>
   );
 }
