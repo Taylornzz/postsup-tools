@@ -113,7 +113,9 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.shiftKey) return; // shift+wheel = native horizontal scroll
+      // Let horizontal-intent (trackpad swipe) and shift+wheel scroll the canvas;
+      // only vertical-intent wheel zooms.
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const px = e.clientX - rect.left + el.scrollLeft;
@@ -258,7 +260,8 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
         {/* Graph */}
         <div
           ref={scrollRef}
-          className="flex-1 min-h-0 overflow-auto p-4 cursor-grab active:cursor-grabbing"
+          className="flex-1 min-h-0 overflow-auto p-4 cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-suite-border-strong [&::-webkit-scrollbar-track]:bg-transparent"
+          style={{ scrollbarWidth: "thin" }}
           onMouseDown={onPanDown}
           onMouseMove={onPanMove}
           onMouseUp={onPanUp}
@@ -360,6 +363,7 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
           </div>
           </div>
           <p className="text-[10px] text-suite-text-dim font-mono mt-3 max-w-3xl leading-relaxed sticky left-4">
+            <span className="text-suite-text-muted">Drag to pan · scroll to zoom · shift-scroll (or trackpad) to move across · Fit ⤢ frames everything.</span><br />
             Reference planning view, not an automated pipeline. Cyan edges are ACES-managed (up to the Output Transform); grey are downstream (Dolby Vision trims, wraps, encodes); <span className="text-red-300">red = up-volume — a fresh re-grade off the archive, never a clean transform</span>. Verify trim ladders, IMF/DCDM specs and CMVersion with your post house.
           </p>
         </div>
