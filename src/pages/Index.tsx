@@ -97,8 +97,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.35";
+const VERSION = "v1.9.36";
 const CHANGELOG = [
+  "v1.9.36 — moved Secondary Crop up to sit directly under 'Framing For' (it's the same kind of aspect choice). Removed the redundant '2:1 in UHD/HD 16:9' delivery presets (use a Secondary Crop instead) and the Mastering (IMF / ProRes master) targets for now.",
   "v1.9.35 — your uploaded reference plate is now remembered across refreshes (saved to this device, downscaled + compressed to fit), and it reloads in whatever mode you left it — Guide / Your Plate / Off.",
   "v1.9.34 — UX: the Delivery Spec and ACES Colour Pipeline panels are now obvious expandable cards (bordered, with an icon, a value preview and a chevron) instead of easy-to-miss text. Reference Plate gains a Guide / Your Plate / Off toggle — your uploaded plate is kept when you switch to the guide and back, and a separate Replace / discard control.",
   "v1.9.33 — new LuminaFox favicon (cyan framing brackets + orange centre ring on a dark tile, matching the chart palette) as SVG + multi-size .ico + PNG, replacing the leftover Lovable icon; dropped the stray Lovable Twitter handle.",
@@ -1188,6 +1189,39 @@ const Index = () => {
                 <span className="pb-1.5 text-[10px] font-mono text-suite-text tabular">{customAR.toFixed(2)}:1</span>
               </div>
             )}
+            {/* Secondary crop — a *sub-aspect* inside the delivery frame (e.g. a
+                2:1 or 2.39 extract, or a 9:16 social pull) the operator also
+                composes to. Drawn inside the primary final frame and written onto
+                the framing chart + FDL as a second framing intent. Sits here next
+                to the primary delivery aspect since it's the same kind of choice. */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted"
+                  title="A SECONDARY delivery crop (e.g. 2:1, 2.39 scope, 9:16 social) that the camera operator also frames to. Drawn inside the primary final frame and exported onto the framing chart + FDL as a second framing intent. The primary deliverable is still set by 'Framing For'."
+                >
+                  Secondary Crop (on chart)
+                </span>
+                {deliveryCropId !== "none" && (
+                  <button
+                    onClick={() => setDeliveryCropId("none")}
+                    className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text transition-colors"
+                  >
+                    clear
+                  </button>
+                )}
+              </div>
+              <select
+                value={deliveryCropId}
+                onChange={(e) => setDeliveryCropId(e.target.value)}
+                className="w-full bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono focus:outline-none focus:border-guide-target"
+                title="Choose a secondary delivery-intent aspect ratio to overlay inside the final frame"
+              >
+                {DELIVERY_CROPS.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-3 pt-1">
               <Metric
                 label="Resolution"
@@ -1461,39 +1495,6 @@ const Index = () => {
                 Center &amp; Fill
               </button>
             </div>
-            {/* Secondary delivery crop — a *different* aspect (e.g. a 2:1 or 2.39
-                extract, or a 9:16 social pull) the operator also composes to. It
-                is drawn inside the primary final frame and IS written onto the
-                framing chart + FDL as a second framing intent. */}
-            <div className="flex flex-col gap-2 px-1 pt-2">
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted"
-                  title="A SECONDARY delivery crop (e.g. 2:1, 2.39 scope, 9:16 social) that the camera operator also frames to. Drawn inside the primary final frame and exported onto the framing chart + FDL as a second framing intent. The primary deliverable is still set by 'Framing For'."
-                >
-                  Secondary Crop · on chart
-                </span>
-                {deliveryCropId !== "none" && (
-                  <button
-                    onClick={() => setDeliveryCropId("none")}
-                    className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text transition-colors"
-                  >
-                    clear
-                  </button>
-                )}
-              </div>
-              <select
-                value={deliveryCropId}
-                onChange={(e) => setDeliveryCropId(e.target.value)}
-                className="w-full bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono focus:outline-none focus:border-guide-target"
-                title="Choose a delivery-intent aspect ratio to overlay on the source view"
-              >
-                {DELIVERY_CROPS.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-
             <div className="flex flex-col gap-2 pt-2">
               <div className="flex items-center justify-between gap-2 px-1">
                 <span

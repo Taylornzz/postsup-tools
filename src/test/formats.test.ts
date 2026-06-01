@@ -284,8 +284,11 @@ describe("catalog data integrity", () => {
     const ids = SOURCE_FORMATS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
-  it("includes IMF mastering targets", () => {
-    expect(TARGETS.some((t) => t.id.startsWith("imf-"))).toBe(true);
+  it("covers the core delivery groups (Broadcast / Cinema / Social)", () => {
+    const groups = new Set(TARGETS.map((t) => t.group));
+    expect(groups.has("Broadcast")).toBe(true);
+    expect(groups.has("Cinema")).toBe(true);
+    expect(groups.has("Social")).toBe(true);
   });
   it("includes modern card media (CFexpress 4.0, AXS, SxS, SD UHS-II)", () => {
     const ids = CARDS.map((c) => c.id);

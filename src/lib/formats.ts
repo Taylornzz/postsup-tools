@@ -1124,24 +1124,14 @@ export const TARGETS: TargetContainer[] = [
   { id: "hd-1080", group: "Broadcast", name: "HD 1080p", width: 1920, height: 1080, ratioLabel: "16:9", hdrVariants: SDR_ONLY, audio: BROADCAST_AUDIO, audioVariants: BROADCAST_AUDIO_VARIANTS },
   { id: "uhd-4k", group: "Broadcast", name: "UHD 4K", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
 
-  // Cinema
-  // 2:1 (Univisium) active picture area letterboxed inside a 16:9 UHD/HD container —
-  // a streaming/broadcast master (Netflix-style), NOT a theatrical DCP. Lives in Broadcast.
-  { id: "uhd-2to1-in-169", group: "Broadcast", name: "2:1 in UHD 16:9", width: 3840, height: 2160, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 3840, activeHeight: 1920, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "hd-2to1-in-169", group: "Broadcast", name: "2:1 in HD 16:9", width: 1920, height: 1080, ratioLabel: "2:1 ⊂ 16:9", activeWidth: 1920, activeHeight: 960, hdrVariants: NETFLIX_HDR, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
+  // Cinema — a sub-aspect inside a delivery frame (e.g. 2:1 in 16:9) is handled
+  // by the Secondary Crop control, so no dedicated "2:1 in UHD" targets here.
   { id: "dci-2k-flat", group: "Cinema", name: "DCI 2K Flat", width: 1998, height: 1080, ratioLabel: "1.85:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-2k-scope", group: "Cinema", name: "DCI 2K Scope", width: 2048, height: 858, ratioLabel: "2.39:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-2k-full", group: "Cinema", name: "DCI 2K Full", width: 2048, height: 1080, ratioLabel: "1.90:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-4k-flat", group: "Cinema", name: "DCI 4K Flat", width: 3996, height: 2160, ratioLabel: "1.85:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-4k-scope", group: "Cinema", name: "DCI 4K Scope", width: 4096, height: 1716, ratioLabel: "2.39:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
   { id: "dci-4k-full", group: "Cinema", name: "DCI 4K Full", width: 4096, height: 2160, ratioLabel: "1.90:1", hdrVariants: SDR_ONLY, audio: DCI_AUDIO, audioVariants: DCI_AUDIO_VARIANTS },
-
-  // Mastering — required for delivery to Netflix / Amazon / Apple / Disney+
-  { id: "imf-uhd-j2k", group: "Mastering", name: "IMF UHD (J2K MXF)", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "imf-4k-j2k", group: "Mastering", name: "IMF 4K DCI (J2K MXF)", width: 4096, height: 2160, ratioLabel: "1.90:1", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "imf-hd-j2k", group: "Mastering", name: "IMF HD (J2K MXF)", width: 1920, height: 1080, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "prores-uhd-master", group: "Mastering", name: "ProRes 422 HQ UHD Master", width: 3840, height: 2160, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
-  { id: "prores-hd-master", group: "Mastering", name: "ProRes 422 HQ HD Master", width: 1920, height: 1080, ratioLabel: "16:9", hdrVariants: HDR_STREAMING, audio: STREAMING_AUDIO, audioVariants: STREAMING_AUDIO_VARIANTS },
 
   // Social
   { id: "social-vert", group: "Social", name: "Vertical (Reels / Shorts / TikTok)", width: 1080, height: 1920, ratioLabel: "9:16", hdrVariants: SDR_ONLY, audio: SOCIAL_AUDIO },
