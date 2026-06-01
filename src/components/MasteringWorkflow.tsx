@@ -158,8 +158,8 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
   }, [width]);
 
   return (
-    <div className="flex-1 min-h-0 flex bg-suite-canvas">
-      <div className="flex-1 min-w-0 flex flex-col">
+    <div className="flex-1 min-h-0 min-w-0 flex bg-suite-canvas">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {/* Controls */}
         <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">

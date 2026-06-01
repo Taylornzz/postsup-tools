@@ -99,8 +99,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.42";
+const VERSION = "v1.9.43";
 const CHANGELOG = [
+  "v1.9.43 — Mastering Workflow: actually fixed pan/scroll. The canvas container wasn't width-constrained (a missing flexbox min-width:0), so it grew to fit the content and had nothing to scroll — the grab cursor moved but nothing happened. Now it's bounded and scrollable, so drag-to-pan, sideways scroll and the scrollbar all work.",
   "v1.9.42 — Mastering Workflow: fixed horizontal scrolling. The wheel handler was swallowing sideways trackpad/wheel gestures (so the scrollbar never appeared); now horizontal-intent and shift-scroll move the canvas, vertical wheel still zooms, and there's an always-visible thin scrollbar plus drag-to-pan. Added an on-screen hint for the controls.",
   "v1.9.41 — Mastering Workflow gains a Custom strategy: pick the master you grade first (HDR PQ / DCI-P3 theatrical / SDR Rec.709) and toggle which deliverables you need (streaming HDR, theatrical DCP, SDR/Broadcast HD, ACES archive, proxies). The tree derives the order for you — down-volume targets derive cleanly, while anything above the hero's dynamic range is shown as a fresh up-volume re-grade off the archive (flagged red), because that's unavoidable.",
   "v1.9.40 — Mastering Workflow, colourist notes: the mastering-display peak is now selectable (1000 / 2000 / 4000 nit; 1000 default) and flows through the HDR hero, HDR10 and IMF masters and the PQ Output-Transform edge. Node side-panels now carry the caveats a reviewing colourist would raise — the theatrical DCDM is a DEDICATED 48-nit trim (not a tone-map down), the SDR is a DV auto-map + manual per-shot trims, and HDR10+ needs its own pass.",
