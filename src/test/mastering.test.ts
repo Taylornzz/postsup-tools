@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildMasterGraph, STRATEGIES, MasteringStrategy } from "@/lib/mastering";
+import { buildMasterGraph, buildCustomGraph, STRATEGIES, MasteringStrategy } from "@/lib/mastering";
 
 const STRATS = STRATEGIES.map((s) => s.id) as MasteringStrategy[];
 
@@ -63,5 +63,36 @@ describe("buildMasterGraph", () => {
     const ot = g.edges.find((e) => e.op === "output-transform")!;
     expect(ot.acesManaged).toBe(true);
     expect(trim.acesManaged).toBe(false);
+  });
+});
+
+describe("buildCustomGraph", () => {
+  const noDangling = (g: ReturnType<typeof buildCustomGraph>) => {
+    const ids = new Set(g.nodes.map((n) => n.id));
+    g.edges.forEach((e) => { expect(ids.has(e.from)).toBe(true); expect(ids.has(e.to)).toBe(true); });
+  };
+
+  it("HDR hero + full set: clean derives, theatrical a dedicated trim, no up-volume", () => {
+    const g = buildCustomGraph({ hero: "streaming-hdr", deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"] }, "2.0");
+    noDangling(g);
+    expect(g.nodes.find((n) => n.isHero)!.id).toBe("hdrHero");
+    expect(g.edges.some((e) => e.direction === "up-volume")).toBe(false);
+    expect(g.edges.find((e) => e.to === "dcdm4k")!.op).toBe("regrade"); // dedicated trim
+  });
+
+  it("SDR hero + HDR wanted: HDR is an up-volume re-grade off the archive", () => {
+    const g = buildCustomGraph({ hero: "broadcast", deliverables: ["hdr", "sdr"] }, "2.0");
+    noDangling(g);
+    expect(g.nodes.find((n) => n.isHero)!.id).toBe("sdr");
+    const up = g.edges.find((e) => e.direction === "up-volume");
+    expect(up).toBeTruthy();
+    expect(up!.op).toBe("regrade");
+    expect(up!.to).toBe("hdrHero");
+  });
+
+  it("a minimal set builds without dangling edges", () => {
+    noDangling(buildCustomGraph({ hero: "streaming-hdr", deliverables: ["hdr"] }, "2.0"));
+    noDangling(buildCustomGraph({ hero: "theatrical", deliverables: ["theatrical"] }, "2.0"));
+    noDangling(buildCustomGraph({ hero: "broadcast", deliverables: ["sdr"] }, "2.0"));
   });
 });

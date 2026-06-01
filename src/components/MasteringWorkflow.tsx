@@ -4,8 +4,9 @@ import {
 } from "@/lib/aces";
 import {
   MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META,
-  buildMasterGraph, MNode, Lane, DeliverableRole, EdgeOp,
-  MASTER_NITS, MasterNits,
+  buildMasterGraph, buildCustomGraph, MNode, Lane, DeliverableRole, EdgeOp,
+  MASTER_NITS, MasterNits, CustomConfig, CustomDeliverable,
+  CUSTOM_HEROES, CUSTOM_DELIVERABLES,
 } from "@/lib/mastering";
 import { cn } from "@/lib/utils";
 import { Crown, AlertTriangle, X, Plus, Minus, Maximize } from "lucide-react";
@@ -56,9 +57,23 @@ const ROLE_ACCENT: Record<DeliverableRole, string> = {
 export function MasteringWorkflow({ version, onVersionChange }: Props) {
   const [strategy, setStrategy] = useState<MasteringStrategy>("hdr-first");
   const [masterNits, setMasterNits] = useState<MasterNits>(1000);
+  const [custom, setCustom] = useState<CustomConfig>({
+    hero: "streaming-hdr",
+    deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"],
+  });
   const [selected, setSelected] = useState<string | null>(null);
 
-  const graph = useMemo(() => buildMasterGraph(strategy, version, masterNits), [strategy, version, masterNits]);
+  const graph = useMemo(
+    () => strategy === "custom"
+      ? buildCustomGraph(custom, version, masterNits)
+      : buildMasterGraph(strategy, version, masterNits),
+    [strategy, version, masterNits, custom],
+  );
+  const toggleDeliverable = (d: CustomDeliverable) =>
+    setCustom((c) => ({
+      ...c,
+      deliverables: c.deliverables.includes(d) ? c.deliverables.filter((x) => x !== d) : [...c.deliverables, d],
+    }));
   const strat = STRATEGIES.find((s) => s.id === strategy)!;
 
   // --- Deterministic layered layout (lanes = X columns) --------------------
@@ -207,6 +222,37 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
           <p className="text-[11px] text-suite-text-dim font-mono leading-relaxed">
             <span className="text-suite-text">Hero: {strat.hero}.</span> {strat.when}
           </p>
+          {strategy === "custom" && (
+            <div className="flex flex-wrap items-start gap-x-8 gap-y-2 pt-1">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Grade first (hero)</span>
+                <div className="flex gap-1">
+                  {CUSTOM_HEROES.map((h) => (
+                    <button key={h.id} onClick={() => setCustom((c) => ({ ...c, hero: h.id }))}
+                      className={cn("px-2 py-1 text-[10px] font-mono rounded-sm border transition-colors",
+                        custom.hero === h.id ? "bg-guide-target/15 text-guide-target border-guide-target/50" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>
+                      {h.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Deliverables</span>
+                <div className="flex flex-wrap gap-1">
+                  {CUSTOM_DELIVERABLES.map((d) => {
+                    const on = custom.deliverables.includes(d.id);
+                    return (
+                      <button key={d.id} onClick={() => toggleDeliverable(d.id)}
+                        className={cn("px-2 py-1 text-[10px] font-mono rounded-sm border transition-colors",
+                          on ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-dim hover:text-suite-text")}>
+                        {on ? "✓ " : ""}{d.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Graph */}

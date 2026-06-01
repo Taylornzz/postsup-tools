@@ -19,7 +19,28 @@ export type EdgeOp =
   | "cm-derive" | "colour-convert" | "regrade" | "downscale"
   | "wrap" | "embed" | "transcode" | "reference-match";
 export type EdgeDirection = "down-volume" | "lateral" | "up-volume";
-export type MasteringStrategy = "hdr-first" | "theatrical-first" | "dual-hero";
+export type MasteringStrategy = "hdr-first" | "theatrical-first" | "dual-hero" | "custom";
+
+/** Which master is graded first in a custom build. */
+export type CustomHero = "streaming-hdr" | "theatrical" | "broadcast";
+/** Deliverable families a custom build can include. */
+export type CustomDeliverable = "hdr" | "theatrical" | "sdr" | "archive" | "proxies";
+export interface CustomConfig {
+  hero: CustomHero;
+  deliverables: CustomDeliverable[];
+}
+export const CUSTOM_DELIVERABLES: { id: CustomDeliverable; label: string }[] = [
+  { id: "hdr", label: "Streaming HDR (Dolby Vision + HDR10)" },
+  { id: "theatrical", label: "Theatrical DCP (4K + 2K)" },
+  { id: "sdr", label: "SDR Rec.709 / Broadcast HD" },
+  { id: "archive", label: "ACES archive (App 5 + NAM)" },
+  { id: "proxies", label: "Viewing proxies" },
+];
+export const CUSTOM_HEROES: { id: CustomHero; label: string }[] = [
+  { id: "streaming-hdr", label: "HDR PQ (Dolby Vision)" },
+  { id: "theatrical", label: "DCI-P3 theatrical" },
+  { id: "broadcast", label: "SDR Rec.709" },
+];
 
 export interface MNode {
   id: string;
@@ -92,6 +113,14 @@ export const STRATEGIES: {
     when: "Tentpole / studio features delivering theatrical AND streaming HDR both at hero quality.",
     pros: "Each domain graded in its own viewing condition; no lossy up-volume derive; cleanest creative result.",
     cons: "Most expensive — two real grades plus match passes; two master families to QC and archive.",
+  },
+  {
+    id: "custom",
+    name: "Custom",
+    hero: "You choose — pick the master you grade first and which deliverables to include.",
+    when: "Your specific delivery list. The tree derives the order for you and flags any up-volume re-grade.",
+    pros: "Models your exact project. Down-volume targets derive cleanly; the tool shows where a fresh grade is unavoidable.",
+    cons: "Can't beat physics — a master above the hero's dynamic range is still a fresh re-grade off the archive (flagged red).",
   },
 ];
 
@@ -245,4 +274,121 @@ export function buildMasterGraph(
     };
   });
   return { strategy, version, nodes, edges };
+}
+
+function otLabel(variant: string, target: string, version: AcesVersion, nits?: number): string {
+  const odt = acesOdtFor(variant, target);
+  const isPq = variant.toLowerCase().includes("dolby");
+  return `ACES OT → ${version === "2.0" ? odt.label2 : odt.label13}${isPq && nits ? ` @ ${nits} nit` : ""}`;
+}
+
+/** Build a custom mastering DAG from a chosen hero + deliverable set. The derive
+ *  direction follows the dynamic-range rules (down-volume derives; up-volume is a
+ *  fresh re-grade off the archive, flagged), so the order is computed, not arbitrary. */
+export function buildCustomGraph(
+  cfg: CustomConfig,
+  version: AcesVersion,
+  masterNits: MasterNits = 1000,
+): MasterGraph {
+  const want = new Set(cfg.deliverables);
+  const heroIsHdr = cfg.hero === "streaming-hdr";
+  const heroIsTheatrical = cfg.hero === "theatrical";
+  const heroIsSdr = cfg.hero === "broadcast";
+
+  const nodes: MNode[] = [];
+  const edges: MEdge[] = [];
+  const add = (n: MNode) => { if (!nodes.some((x) => x.id === n.id)) nodes.push(n); };
+  const pq = (n: MNode): MNode => ({ ...n, peakNits: String(masterNits) });
+
+  add(N.grade());
+
+  // A PQ master exists if HDR is wanted OR the hero is HDR.
+  const hasPq = want.has("hdr") || heroIsHdr;
+  // The archive is needed for any up-volume / dedicated regrade, or if requested.
+  const needArch =
+    want.has("archive") ||
+    (want.has("theatrical") && !heroIsTheatrical) ||
+    (hasPq && !heroIsHdr) ||
+    (want.has("sdr") && heroIsTheatrical && !hasPq);
+  if (needArch) {
+    add(N.arch());
+    edges.push({ from: "grade", to: "arch", op: "render-archive", label: "Bake graded ACEScct → AP0 EXR (App 5)", direction: "lateral", acesManaged: true });
+    if (want.has("archive")) {
+      add(N.nam());
+      edges.push({ from: "grade", to: "nam", op: "render-archive", label: "Flat pass, OT off → ACES2065-1 AP0 EXR", direction: "lateral", acesManaged: true });
+    }
+  }
+
+  // --- Hero node + its OT edge ---------------------------------------------
+  if (heroIsHdr) {
+    add(pq({ ...N.hdrHero(true) }));
+    edges.push({ from: "grade", to: "hdrHero", op: "output-transform", label: otLabel("Dolby Vision P8.1", "UHD 4K", version, masterNits), direction: "lateral", acesManaged: true, warning: ACES_INTEROP_WARNING });
+  } else if (heroIsTheatrical) {
+    add(N.dcdm4k("hero", true));
+    edges.push({ from: "grade", to: "dcdm4k", op: "output-transform", label: otLabel("SDR", "DCI 4K Scope", version), direction: "lateral", acesManaged: true, warning: ACES_INTEROP_WARNING });
+  } else {
+    add({ ...N.sdr(), type: "hero", lane: "hero", isHero: true, acesManaged: true });
+    edges.push({ from: "grade", to: "sdr", op: "output-transform", label: otLabel("SDR", "UHD 4K", version), direction: "lateral", acesManaged: true, warning: ACES_INTEROP_WARNING });
+  }
+
+  // --- Streaming HDR family ------------------------------------------------
+  if (hasPq) {
+    if (!heroIsHdr) {
+      add(pq({ ...N.hdrHero(false), lane: "masters" }));
+      edges.push({ from: "arch", to: "hdrHero", op: "regrade", label: "UP-VOLUME regrade off archive → P3-D65 PQ (fresh grade, not math)", direction: "up-volume", acesManaged: false });
+    }
+    if (want.has("hdr")) {
+      add(N.dvxml()); add(pq(N.hdr10())); add(pq(N.imf2e()));
+      edges.push(
+        { from: "hdrHero", to: "dvxml", op: "analyze", label: "Dolby Vision L1 analysis (min/avg/max)", direction: "lateral", acesManaged: false },
+        { from: "hdrHero", to: "dvxml", op: "trim", label: "TID1 trim → SDR Rec.709 100 nit (first), +600 nit", direction: "down-volume", acesManaged: false },
+        { from: "hdrHero", to: "hdr10", op: "cm-derive", label: "Content-map → HDR10 (L1 + L6 static)", direction: "lateral", acesManaged: false },
+        { from: "dvxml", to: "hdr10", op: "embed", label: "L6 MaxCLL/MaxFALL drives HDR10", direction: "lateral", acesManaged: false },
+        { from: "hdrHero", to: "imf2e", op: "wrap", label: "Wrap PQ essence → IMF App 2E CPL (J2K/MXF)", direction: "lateral", acesManaged: false },
+        { from: "dvxml", to: "imf2e", op: "embed", label: "Embed DV metadata, CMVersion [4 1]", direction: "lateral", acesManaged: false },
+      );
+      if (want.has("proxies")) { add(N.revhdr()); edges.push({ from: "hdrHero", to: "revhdr", op: "transcode", label: "H.265 HDR review proxy (no new OT)", direction: "lateral", acesManaged: false }); }
+    }
+  }
+
+  // --- SDR family ----------------------------------------------------------
+  if (want.has("sdr") && !heroIsSdr) {
+    add(N.sdr()); add(N.imfsdr());
+    if (hasPq) {
+      edges.push(
+        { from: "hdrHero", to: "sdr", op: "cm-derive", label: "DV TID1 map → SDR Rec.709 100 nit (+ manual per-shot trims)", direction: "down-volume", acesManaged: false },
+        { from: "dvxml", to: "sdr", op: "trim", label: "L8/L2 TID1 trim drives the SDR derive", direction: "down-volume", acesManaged: false },
+      );
+    } else {
+      edges.push({ from: "arch", to: "sdr", op: "regrade", label: "SDR trim off archive → Rec.709 100 nit (dim-surround, fresh grade)", direction: "down-volume", acesManaged: false });
+    }
+    edges.push({ from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2 SDR / Broadcast HD CPL", direction: "lateral", acesManaged: false });
+    if (want.has("proxies")) { add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false }); }
+  } else if (heroIsSdr && want.has("proxies")) {
+    add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false });
+  }
+
+  // --- Theatrical family ---------------------------------------------------
+  if (want.has("theatrical")) {
+    if (heroIsTheatrical) {
+      add(N.dcdm2k()); add(N.dcp4k()); add(N.dcp2k());
+      edges.push(
+        { from: "dcdm4k", to: "dcp4k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 4K (ST 429)", direction: "lateral", acesManaged: false },
+        { from: "dcdm4k", to: "dcdm2k", op: "downscale", label: "4K → 2K DCI", direction: "lateral", acesManaged: false },
+        { from: "dcdm2k", to: "dcp2k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 2K", direction: "lateral", acesManaged: false },
+      );
+    } else {
+      add(N.dcdm4k("masters")); add(N.dcdm2k()); add(N.dcp4k()); add(N.dcp2k());
+      edges.push(
+        { from: "arch", to: "dcdm4k", op: "regrade", label: "Dedicated theatrical trim off archive → P3-D65 48 nit γ2.6 (fresh grade, not math)", direction: "down-volume", acesManaged: false },
+        { from: "dcdm4k", to: "dcdm2k", op: "downscale", label: "4K → 2K DCI", direction: "lateral", acesManaged: false },
+        { from: "dcdm4k", to: "dcp4k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 4K (ST 429)", direction: "lateral", acesManaged: false },
+        { from: "dcdm2k", to: "dcp2k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 2K", direction: "lateral", acesManaged: false },
+      );
+    }
+  }
+
+  // Apply colourist notes.
+  const finalNodes = nodes.map((n) => ({ ...n, note: NODE_NOTES[n.id] ?? n.note }));
+  return { strategy: "custom", version, nodes: finalNodes, edges };
 }
