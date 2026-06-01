@@ -33,6 +33,23 @@ describe("buildMasterGraph", () => {
     expect(ot2.warning).toBeTruthy(); // interop warning attached
   });
 
+  it("propagates the chosen mastering-display peak to the HDR nodes + PQ OT edge", () => {
+    const g = buildMasterGraph("hdr-first", "2.0", 4000);
+    const hero = g.nodes.find((n) => n.id === "hdrHero")!;
+    expect(hero.peakNits).toBe("4000");
+    const ot = g.edges.find((e) => e.op === "output-transform")!;
+    expect(ot.label).toMatch(/@ 4000 nit/);
+    // SDR stays at 100 nit; DCDM theatrical stays at 48 nit regardless.
+    expect(g.nodes.find((n) => n.id === "sdr")!.peakNits).toBe("100");
+    expect(g.nodes.find((n) => n.id === "dcdm4k")!.peakNits).toBe("48");
+  });
+
+  it("attaches colourist notes to the HDR / SDR / DCDM masters", () => {
+    const g = buildMasterGraph("hdr-first", "2.0");
+    expect(g.nodes.find((n) => n.id === "sdr")!.note).toMatch(/manual/i);
+    expect(g.nodes.find((n) => n.id === "dcdm4k")!.note).toMatch(/dedicated/i);
+  });
+
   it("flags theatrical-first HDR derivation as an up-volume regrade", () => {
     const g = buildMasterGraph("theatrical-first", "2.0");
     const up = g.edges.find((e) => e.direction === "up-volume");

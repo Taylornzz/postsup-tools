@@ -5,6 +5,7 @@ import {
 import {
   MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META,
   buildMasterGraph, MNode, Lane, DeliverableRole, EdgeOp,
+  MASTER_NITS, MasterNits,
 } from "@/lib/mastering";
 import { cn } from "@/lib/utils";
 import { Crown, AlertTriangle, X, Plus, Minus, Maximize } from "lucide-react";
@@ -54,9 +55,10 @@ const ROLE_ACCENT: Record<DeliverableRole, string> = {
 
 export function MasteringWorkflow({ version, onVersionChange }: Props) {
   const [strategy, setStrategy] = useState<MasteringStrategy>("hdr-first");
+  const [masterNits, setMasterNits] = useState<MasterNits>(1000);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const graph = useMemo(() => buildMasterGraph(strategy, version), [strategy, version]);
+  const graph = useMemo(() => buildMasterGraph(strategy, version, masterNits), [strategy, version, masterNits]);
   const strat = STRATEGIES.find((s) => s.id === strategy)!;
 
   // --- Deterministic layered layout (lanes = X columns) --------------------
@@ -174,6 +176,19 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
                   className="size-6 grid place-items-center rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong transition-colors">
                   <Maximize className="size-3" strokeWidth={1.8} />
                 </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted" title="Mastering-display peak luminance the HDR hero is graded to">Peak</span>
+                <div className="flex gap-1">
+                  {MASTER_NITS.map((n) => (
+                    <button key={n} onClick={() => setMasterNits(n)}
+                      className={cn("px-2 py-0.5 text-[10px] font-mono tabular rounded-sm border transition-colors",
+                        masterNits === n ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>
+                      {n >= 1000 ? `${n / 1000}k` : n}
+                    </button>
+                  ))}
+                  <span className="text-[9px] text-suite-text-dim self-center ml-0.5">nit</span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">ACES</span>
@@ -325,6 +340,12 @@ export function MasteringWorkflow({ version, onVersionChange }: Props) {
               <Row k="Role" v={sel.role} />
               <Row k="ACES" v={sel.acesManaged ? "managed (≤ OT)" : "downstream"} />
             </dl>
+            {sel.note && (
+              <div className="border-t border-suite-border pt-3 flex gap-2">
+                <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
+                <p className="text-[10.5px] text-suite-text-dim font-mono leading-relaxed">{sel.note}</p>
+              </div>
+            )}
             <div className="border-t border-suite-border pt-3">
               <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">How it's produced</span>
               {inbound.length === 0 ? (

@@ -99,8 +99,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.39";
+const VERSION = "v1.9.40";
 const CHANGELOG = [
+  "v1.9.40 — Mastering Workflow, colourist notes: the mastering-display peak is now selectable (1000 / 2000 / 4000 nit; 1000 default) and flows through the HDR hero, HDR10 and IMF masters and the PQ Output-Transform edge. Node side-panels now carry the caveats a reviewing colourist would raise — the theatrical DCDM is a DEDICATED 48-nit trim (not a tone-map down), the SDR is a DV auto-map + manual per-shot trims, and HDR10+ needs its own pass.",
   "v1.9.39 — Mastering Workflow is now navigable: mouse-wheel zoom toward the cursor, drag-to-pan the canvas, shift+wheel horizontal scroll, and −/＋/Fit zoom controls so you can move across all the lanes (Deliverables / Viewing were off-screen on smaller windows).",
   "v1.9.38 — Mastering Workflow legibility: wider lane spacing; edges now show a compact op token (OT / trim / wrap / REGRADE…) by default instead of overlapping full-sentence labels, with the full transform on hover and when you click a node; metadata sidecars get a dashed pill so they read as 'not a picture master'.",
   "v1.9.37 — new Mastering Workflow tab: a deliverables node-tree (DAG) showing how the grade flows into the ACES archive, a chosen hero master, and down through trim/derive/wrap edges to each deliverable and viewing copy. Pick a strategy — HDR-First, Theatrical-First or Dual-Hero — and the tree re-derives, flagging up-volume re-grades (e.g. theatrical → HDR) in red because they're a fresh grade off the archive, not a clean transform. Output-Transform edges read from the same ACES fixtures as the Optics/ACES tab (2.0/1.3). Research-driven and verified vs Netflix/Dolby/SMPTE.",

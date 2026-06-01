@@ -34,6 +34,8 @@ export interface MNode {
   isHero?: boolean;
   /** True up to & including the Output Transform; false downstream (DV/encode). */
   acesManaged?: boolean;
+  /** Colourist-facing caveat, shown in the node side panel. */
+  note?: string;
 }
 
 export interface MEdge {
@@ -138,7 +140,7 @@ function hdrDeriveEdges(heroId: string): MEdge[] {
     { from: heroId, to: "dvxml", op: "trim", label: "TID1 trim → SDR Rec.709 100 nit (first), +600 nit", direction: "down-volume", acesManaged: false },
     { from: heroId, to: "hdr10", op: "cm-derive", label: "Content-map → HDR10 (L1 + L6 static)", direction: "lateral", acesManaged: false },
     { from: "dvxml", to: "hdr10", op: "embed", label: "L6 MaxCLL/MaxFALL drives HDR10", direction: "lateral", acesManaged: false },
-    { from: heroId, to: "sdr", op: "cm-derive", label: "DV TID1 metadata map → SDR Rec.709 100 nit", direction: "down-volume", acesManaged: false },
+    { from: heroId, to: "sdr", op: "cm-derive", label: "DV TID1 map → SDR Rec.709 100 nit (+ manual per-shot trims)", direction: "down-volume", acesManaged: false },
     { from: "dvxml", to: "sdr", op: "trim", label: "L8/L2 TID1 trim drives the SDR derive", direction: "down-volume", acesManaged: false },
     { from: heroId, to: "imf2e", op: "wrap", label: "Wrap PQ essence → IMF App 2E CPL (J2K/MXF)", direction: "lateral", acesManaged: false },
     { from: "dvxml", to: "imf2e", op: "embed", label: "Embed DV metadata, CMVersion [4 1]", direction: "lateral", acesManaged: false },
@@ -158,7 +160,7 @@ function buildHdrFirst(): { nodes: MNode[]; edges: MEdge[] } {
     { from: "grade", to: "arch", op: "render-archive", label: "Bake graded ACEScct → AP0 EXR (App 5)", direction: "lateral", acesManaged: true },
     { from: "grade", to: "hdrHero", op: "output-transform", label: "", direction: "lateral", acesManaged: true, ot: OT_PQ },
     ...hdrDeriveEdges("hdrHero"),
-    { from: "arch", to: "dcdm4k", op: "regrade", label: "Theatrical REGRADE off archive → P3-D65 48 nit γ2.6 (fresh grade, not math)", direction: "down-volume", acesManaged: false },
+    { from: "arch", to: "dcdm4k", op: "regrade", label: "Dedicated theatrical trim off archive → P3-D65 48 nit γ2.6 (fresh grade, not math)", direction: "down-volume", acesManaged: false },
     { from: "dcdm4k", to: "dcdm2k", op: "downscale", label: "4K → 2K DCI", direction: "lateral", acesManaged: false },
     { from: "dcdm4k", to: "dcp4k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 4K (ST 429)", direction: "lateral", acesManaged: false },
     { from: "dcdm2k", to: "dcp2k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 2K", direction: "lateral", acesManaged: false },
@@ -203,21 +205,44 @@ function buildDualHero(): { nodes: MNode[]; edges: MEdge[] } {
   return { nodes, edges };
 }
 
+export const MASTER_NITS = [1000, 2000, 4000] as const;
+export type MasterNits = (typeof MASTER_NITS)[number];
+
+// Colourist-facing notes (the points a reviewing colourist would raise).
+const NODE_NOTES: Record<string, string> = {
+  hdrHero: "Master to your grading display's peak. 1000 nit is the common house standard; 2000/4000 are used for premium HDR. Pick the value that matches the actual mastering monitor.",
+  hdr10: "Same ACES Output Transform as Dolby Vision; carries +L6 MaxCLL/MaxFALL static metadata. HDR10+ is NOT free — it needs its own analysis/trim pass.",
+  sdr: "Not a pure conversion: the Dolby Vision TID1 (Rec.709 100-nit) auto-map gets manual L2/L8 per-shot trims for key scenes. Budget a colourist QC pass.",
+  dcdm4k: "Cinema wants a DEDICATED 48-nit theatrical trim (especially for laser projectors) graded off the ACES archive — not a tone-map down from the HDR master. Confirm with your post house / Dolby CMU.",
+};
+// HDR streaming masters whose peak follows the chosen mastering-display nits.
+const NITS_NODES = new Set(["hdrHero", "hdr10", "imf2e"]);
+
 /** Build the mastering DAG for a strategy, resolving OT edge labels from the
- *  ACES fixtures for the chosen ACES version. */
-export function buildMasterGraph(strategy: MasteringStrategy, version: AcesVersion): MasterGraph {
+ *  ACES fixtures for the chosen ACES version and the mastering-display peak. */
+export function buildMasterGraph(
+  strategy: MasteringStrategy,
+  version: AcesVersion,
+  masterNits: MasterNits = 1000,
+): MasterGraph {
   const base =
     strategy === "hdr-first" ? buildHdrFirst()
     : strategy === "theatrical-first" ? buildTheatricalFirst()
     : buildDualHero();
+  const nodes = base.nodes.map((n) => ({
+    ...n,
+    peakNits: NITS_NODES.has(n.id) && n.role === "streaming-hdr" ? String(masterNits) : n.peakNits,
+    note: NODE_NOTES[n.id] ?? n.note,
+  }));
   const edges = base.edges.map((e) => {
     if (!e.ot) return e;
     const odt = acesOdtFor(e.ot.hdrVariant, e.ot.targetName);
+    const isPq = e.ot.hdrVariant.toLowerCase().includes("dolby");
     return {
       ...e,
-      label: `ACES OT → ${version === "2.0" ? odt.label2 : odt.label13}`,
+      label: `ACES OT → ${version === "2.0" ? odt.label2 : odt.label13}${isPq ? ` @ ${masterNits} nit` : ""}`,
       warning: ACES_INTEROP_WARNING,
     };
   });
-  return { strategy, version, nodes: base.nodes, edges };
+  return { strategy, version, nodes, edges };
 }
