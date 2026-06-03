@@ -148,30 +148,32 @@ export function WorkflowPipeline({ onOpenMastering, config }: Props) {
                   return <path key={i} d={path(a, b)} fill="none" stroke={stroke} strokeWidth={active ? 2.4 : back ? 1.6 : 1.3} strokeDasharray={dash} opacity={active ? 1 : sel ? 0.18 : 0.6} />;
                 })}
               </svg>
-              {/* edge chips */}
+              {/* edge chips — always the compact op token (full label is on hover +
+                  in the side panel). Lateral chips raise above the row; chips for
+                  edges that span an intermediate band are suppressed so nothing
+                  lands on the nodes in between. */}
               {edges.map((e, i) => {
                 const a = pos.get(e.from), b = pos.get(e.to); if (!a || !b) return null;
-                const active = !!(sel && (e.from === sel.id || e.to === sel.id));
                 const meta = P_EDGE_META[e.op];
                 const back = meta.back;
-                // Same-band (lateral) edges sit in a tight inter-node gap — keep them
-                // compact and raise them into the header gap above the node row so
-                // they never cover the cards. Only vertical edges expand to the full label.
-                const lateral = !back && Math.abs(a.y - b.y) <= 4;
-                const full = active && !lateral;
+                const span = b.y - a.y;
+                const lateral = !back && Math.abs(span) <= 4;
+                // A single-band downward hop is ~126px; anything much larger crosses
+                // an intermediate band → no midpoint chip (detail lives in the panel).
+                if (!back && !lateral && Math.abs(span) > 170) return null;
+                const active = !!(sel && (e.from === sel.id || e.to === sel.id));
                 const mx = back ? railX
                   : lateral ? (Math.min(a.x, b.x) + NODE_W + Math.max(a.x, b.x)) / 2
                   : (a.x + b.x) / 2 + NODE_W / 2;
                 const my = lateral ? a.y - 8 : (a.y + b.y) / 2 + NODE_H / 2;
                 return (
                   <div key={i} title={e.label}
-                    className={cn("absolute -translate-x-1/2 -translate-y-1/2 px-1 py-0.5 rounded-[3px] border font-mono text-center pointer-events-auto transition-opacity",
-                      full ? "max-w-[150px] text-[8.5px] leading-tight z-30" : "text-[8px] leading-none whitespace-nowrap",
+                    className={cn("absolute -translate-x-1/2 -translate-y-1/2 px-1 py-0.5 rounded-[3px] border font-mono text-center pointer-events-auto transition-opacity text-[8px] leading-none whitespace-nowrap",
                       sel && !active ? "opacity-0" : "opacity-100",
                       back ? "bg-red-950/85 border-red-500/50 text-red-200" : meta.approve ? "bg-suite-bg border-green-400/40 text-green-300" : meta.data ? "bg-suite-bg border-violet-400/40 text-violet-200" : e.dashed ? "bg-suite-bg border-suite-border text-suite-text-dim" : "bg-suite-bg border-guide-target/40 text-guide-target")}
                     style={{ left: mx, top: my, zIndex: active ? 30 : 3 }}>
                     {back && <AlertTriangle className="inline size-2.5 mr-0.5 -mt-0.5" strokeWidth={2} />}
-                    {full ? e.label : meta.token}
+                    {meta.token}
                   </div>
                 );
               })}

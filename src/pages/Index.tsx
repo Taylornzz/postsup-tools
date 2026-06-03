@@ -103,8 +103,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.49";
+const VERSION = "v1.9.50";
 const CHANGELOG = [
+  "v1.9.50 — Workflow: fixed edge labels overlapping nodes across bands. Canvas chips now always show the compact op token (full text on hover + in the side panel's Produced-by/Feeds), and chips for edges that jump over an intermediate stage (e.g. Mastering → Delivery skipping QC) are suppressed so nothing lands on the in-between nodes.",
   "v1.9.49 — Workflow: filled out the online & the tail. Online/Conform now assembles Main & End Titles, the Graphics package and licensed Archive/Stock footage (clip licence + IDT + frame-rate match) into the online master. New 'Deliverables & Paperwork' stage covers the bundle that ships with the masters: textless/clean, subtitles · SDH · captions, the music cue sheet + returns (APRA AMCOS), conform EDLs + change lists, transcript / as-broadcast script, graphics/titles package, trailers/promos/key art, and the chain-of-title + E&O binder (no binder, no acceptance). Key paperwork is archived with the master.",
   "v1.9.48 — Workflow: fixed edge labels overlapping the cards in tightly-packed stages (the cut ladder, VFX, audio). Same-band edge labels now stay compact and sit in the gap above the node row instead of expanding to a full sentence on top of the nodes; full text is still on hover and in the side panel.",
   "v1.9.47 — mined the NZ post-super reference hard: audio now has a Spotting Session → DME (with mixers/owners), the Loudness node carries every platform target (−27 LKFS Netflix · −23 R128 TVNZ · −24 ATSC Amazon), QC carries the real automated flag categories + NZ-specific issues + the signed QC-report fields, Delivery carries the actual Netflix/Amazon/TVNZ specs + the 9-step DI→DCP with ISDCF naming/KDM, a new Screeners node covers forensic watermarking governance, and Archive covers mezzanine formats + LTO-8/9/LTFS + geo-redundant + checksums. Most nodes now name their owner.",
