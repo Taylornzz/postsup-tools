@@ -79,6 +79,7 @@ import {
   GitBranch,
   CalendarClock,
   BookText,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -88,6 +89,7 @@ import { MasteringWorkflow } from "@/components/MasteringWorkflow";
 import { WorkflowPipeline } from "@/components/WorkflowPipeline";
 import { PostSchedule } from "@/components/PostSchedule";
 import { Glossary } from "@/components/Glossary";
+import { Tools } from "@/components/Tools";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 // Uploaded reference plate is persisted to localStorage (as a downscaled data
@@ -107,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.66";
+const VERSION = "v1.9.67";
 const CHANGELOG = [
+  "v1.9.67 — New Tools tab: post-production calculators + an EDL converter. Timecode (TC↔frames↔seconds and add/subtract, with proper SMPTE drop-frame for 29.97/59.94), Frame Rate / conform (re-time a duration to a new rate with speed %, audio pull and pitch-shift — the 24→25 PAL speed-up, NTSC 0.1% pull, etc.), Aspect Ratio (W×H → ratio/standard name, and solve a dimension for a target ratio), and an EDL Converter (paste/load a CMX3600 EDL → clean event table → copy/export CSV). Timecode and EDL maths are unit-tested.",
   "v1.9.66 — Glossary: larger, bolder term headings for easier scanning.",
   "v1.9.65 — Planner: the Seed button is now Template — it lays the standard post phases down starting from the current week (not week zero). New Save button keeps named version snapshots in the browser that you can reload or delete anytime. New Export menu: PDF (a proper drawn Gantt chart), PNG image, Calendar (.ics — drop every phase and milestone straight into Google/Apple/Outlook calendar), CSV spreadsheet, and JSON backup.",
   "v1.9.64 — Planner: group-move now works. The date editor was popping up on the first selection and covering the rows below it, so shift-clicks meant for the next bars hit the popover instead. Editing a date (plain click) is now separate from building a multi-selection (shift-click) — shift-click as many bars as you like with nothing in the way, then drag any one to move them all together.",
@@ -189,7 +192,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary";
+type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -278,7 +281,7 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" ? t : "frame";
   });
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
@@ -1020,7 +1023,7 @@ const Index = () => {
             <span className="text-suite-text-muted">POSTSUP TOOLS</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
@@ -1033,12 +1036,17 @@ const Index = () => {
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
           <PlannerTabButton active={appTab === "planner"} onClick={() => setAppTab("planner")} />
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
+          <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
         {/* Reserved for user login / account (future). */}
         <div className="flex items-center gap-3" />
       </header>
 
-      {appTab === "glossary" ? (
+      {appTab === "tools" ? (
+        <main className="flex-1 flex min-h-0 min-w-0">
+          <Tools />
+        </main>
+      ) : appTab === "glossary" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <Glossary />
         </main>
@@ -2247,6 +2255,25 @@ function MasteringTabButton({ active, onClick }: { active: boolean; onClick: () 
     >
       <Share2 className="size-3" strokeWidth={1.5} />
       Mastering
+    </button>
+  );
+}
+
+function ToolsTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Post Tools — timecode, frame-rate, aspect-ratio calculators + EDL converter"
+    >
+      <Calculator className="size-3" strokeWidth={1.5} />
+      Tools
     </button>
   );
 }
