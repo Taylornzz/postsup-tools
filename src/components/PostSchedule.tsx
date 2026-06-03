@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut } from "lucide-react";
+import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Post Schedule — a drag-and-drop weekly Gantt. Each row is a phase bar with a start
  *  (week offset) and a duration (weeks); drag the body to move, drag an edge to resize,
- *  drag the grip to reorder. Duration 0 = a milestone / keyframe diamond (e.g. Lock).
- *  Mouse-wheel zooms the week scale; shift-wheel scrolls sideways. Saves to the browser. */
+ *  drag the grip to reorder, click to set an exact date. Duration 0 = a milestone /
+ *  keyframe diamond (e.g. Lock). Wheel scrolls; ⌘/Ctrl/Alt-wheel zooms. Saves locally. */
 
 type Bar = { id: string; name: string; color: string; start: number; dur: number };
 
@@ -17,6 +17,7 @@ const HEAD_H = MONTH_H + WEEK_H;
 const WEEK_W_DEFAULT = 44;
 const WEEK_W_MIN = 16;
 const WEEK_W_MAX = 130;
+const POP_W = 216;
 
 const SEED: Omit<Bar, "id">[] = [
   { name: "Prep", color: "#94a3b8", start: 0, dur: 2 },
@@ -51,8 +52,18 @@ function mondayOf(iso: string): string {
 }
 function addWeeks(iso: string, n: number): Date {
   const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + n * 7);
+  d.setDate(d.getDate() + Math.round(n * 7));
   return d;
+}
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return localISO(d);
+}
+function daysBetween(aIso: string, bIso: string): number {
+  const a = new Date(aIso + "T00:00:00").getTime();
+  const b = new Date(bIso + "T00:00:00").getTime();
+  return Math.round((b - a) / 86400000);
 }
 function isoWeekNum(d: Date): number {
   const date = new Date(d.getTime());
@@ -81,6 +92,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const [bars, setBars] = useState<Bar[]>(loadBars);
   const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(KEY_START) || mondayOf(localISO(new Date())));
   const [weekW, setWeekW] = useState<number>(WEEK_W_DEFAULT);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekWRef = useRef(weekW);
@@ -91,7 +103,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   const anchor = useMemo(() => mondayOf(startDate || localISO(new Date())), [startDate]);
   const maxEnd = bars.reduce((m, b) => Math.max(m, b.start + Math.max(b.dur, 1)), 0);
-  const weeksToShow = Math.min(Math.max(maxEnd + 6, 24), 80);
+  const weeksToShow = Math.min(Math.max(Math.ceil(maxEnd) + 6, 24), 80);
 
   const weeks = useMemo(() => {
     const out: { i: number; date: Date; wk: number }[] = [];
@@ -119,8 +131,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   }, [anchor]);
   const todayInRange = todayWeeks >= 0 && todayWeeks <= weeksToShow;
 
-  // ---- bar drag (move / resize) ----
-  const drag = useRef<{ id: string; mode: "move" | "l" | "r"; x0: number; s0: number; d0: number } | null>(null);
+  // ---- bar drag (move / resize) + click-to-select ----
+  const drag = useRef<{ id: string; mode: "move" | "l" | "r"; x0: number; y0: number; s0: number; d0: number } | null>(null);
   const onMove = useCallback((e: MouseEvent) => {
     const d = drag.current;
     if (!d) return;
@@ -133,7 +145,9 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
       return { ...b, start: ns, dur: d.d0 - (ns - d.s0) };
     }));
   }, []);
-  const onUp = useCallback(() => {
+  const onUp = useCallback((e: MouseEvent) => {
+    const d = drag.current;
+    if (d && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) setSelectedId(d.id); // a click, not a drag
     drag.current = null;
     window.removeEventListener("mousemove", onMove);
     window.removeEventListener("mouseup", onUp);
@@ -144,7 +158,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     e.stopPropagation();
     const b = bars.find((x) => x.id === id);
     if (!b) return;
-    drag.current = { id, mode, x0: e.clientX, s0: b.start, d0: b.dur };
+    drag.current = { id, mode, x0: e.clientX, y0: e.clientY, s0: b.start, d0: b.dur };
     document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
@@ -186,29 +200,33 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     window.addEventListener("mouseup", onRowUp);
   }, [bars, onRowMove, onRowUp]);
 
-  // ---- wheel: zoom (centred on cursor) · shift-wheel: scroll sideways ----
+  // ---- wheel: scroll sideways · ⌘/Ctrl/Alt-wheel zooms (centred on cursor) ----
   const pendingZoom = useRef<{ wk: number; offX: number } | null>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.shiftKey) { el.scrollLeft += e.deltaY; e.preventDefault(); return; }
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // trackpad horizontal → native scroll
-      e.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const offX = e.clientX - rect.left - LABEL_W;          // px from start of timeline viewport
-      const wk = (offX + el.scrollLeft) / weekWRef.current;  // week under cursor
-      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-      const next = clamp(weekWRef.current * factor, WEEK_W_MIN, WEEK_W_MAX);
-      if (next === weekWRef.current) return;
-      pendingZoom.current = { wk, offX };
-      setWeekW(next);
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const offX = e.clientX - rect.left - LABEL_W;
+        const wk = (offX + el.scrollLeft) / weekWRef.current;
+        const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+        const next = clamp(weekWRef.current * factor, WEEK_W_MIN, WEEK_W_MAX);
+        if (next === weekWRef.current) return;
+        pendingZoom.current = { wk, offX };
+        setWeekW(next);
+        return;
+      }
+      if (el.scrollWidth > el.clientWidth) {
+        el.scrollLeft += e.deltaY + e.deltaX;
+        e.preventDefault();
+      }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [bars.length]);
 
-  // keep the week under the cursor fixed after a zoom
   useEffect(() => {
     const p = pendingZoom.current;
     const el = scrollRef.current;
@@ -218,14 +236,24 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     }
   }, [weekW]);
 
+  // Escape closes the editor
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedId(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
+
   function patch(id: string, p: Partial<Bar>) { setBars((bs) => bs.map((b) => (b.id === id ? { ...b, ...p } : b))); }
-  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); }
+  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); if (selectedId === id) setSelectedId(null); }
   const newStart = () => Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
   function addRow() {
-    setBars((bs) => [...bs, { id: uid(), name: "New phase", color: PALETTE[bs.length % PALETTE.length], start: newStart(), dur: 2 }]);
+    const b = { id: uid(), name: "New phase", color: PALETTE[bars.length % PALETTE.length], start: newStart(), dur: 2 };
+    setBars((bs) => [...bs, b]); setSelectedId(b.id);
   }
   function addMilestone() {
-    setBars((bs) => [...bs, { id: uid(), name: "Milestone", color: "#facc15", start: newStart(), dur: 0 }]);
+    const b = { id: uid(), name: "Milestone", color: "#facc15", start: newStart(), dur: 0 };
+    setBars((bs) => [...bs, b]); setSelectedId(b.id);
   }
   function seed() {
     if (bars.length && !window.confirm("Replace the schedule with the standard post phases?")) return;
@@ -233,7 +261,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   }
   function clearAll() {
     if (bars.length && !window.confirm("Clear all phases?")) return;
-    setBars([]);
+    setBars([]); setSelectedId(null);
   }
   function zoom(factor: number) { setWeekW((w) => clamp(w * factor, WEEK_W_MIN, WEEK_W_MAX)); }
   function scrollToToday() {
@@ -245,6 +273,9 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const timelineW = weeksToShow * weekW;
   const bodyH = bars.length * ROW_H;
 
+  const selected = bars.find((b) => b.id === selectedId) || null;
+  const selIdx = selected ? bars.findIndex((b) => b.id === selected.id) : -1;
+
   const btn = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors";
   const btnGhost = "text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg";
 
@@ -255,8 +286,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
         <div className="flex items-center gap-2 min-w-0">
           <CalendarClock className="size-4 text-guide-target" strokeWidth={1.6} />
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Post Schedule</span>
-          {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[22ch]">· {projectName.trim()}</span>}
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to move · edges resize · grip reorders · wheel zooms</span>
+          {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[20ch]">· {projectName.trim()}</span>}
+          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to move · edges resize · grip reorders · click to set a date · wheel scrolls · ⌘-wheel zooms</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-suite-text-muted">
@@ -345,10 +376,11 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
               const isMs = b.dur === 0;
               const left = b.start * weekW;
               const width = Math.max(b.dur, 0) * weekW;
+              const isSel = b.id === selectedId;
               return (
                 <div key={b.id} className={cn("group flex border-b border-suite-border/40", dragRowId === b.id && "opacity-80")} style={{ height: ROW_H }}>
                   {/* Name cell (frozen) */}
-                  <div className="sticky left-0 z-30 shrink-0 flex items-center gap-1 px-2 bg-suite-panel border-r border-suite-border" style={{ width: LABEL_W }}>
+                  <div className={cn("sticky left-0 z-30 shrink-0 flex items-center gap-1 px-2 border-r border-suite-border", isSel ? "bg-suite-panel-elevated" : "bg-suite-panel")} style={{ width: LABEL_W }}>
                     <button type="button" onMouseDown={(e) => onRowDown(e, b.id)} title="Drag to reorder"
                       className="shrink-0 text-suite-text-dim hover:text-suite-text cursor-grab active:cursor-grabbing">
                       <GripVertical className="size-3.5" strokeWidth={1.6} />
@@ -369,15 +401,15 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                     {isMs ? (
                       <div
                         onMouseDown={(e) => onDown(e, b.id, "move")}
-                        title={`${b.name} — ${fmtDate(startD)} (milestone)`}
+                        title={`${b.name} — ${fmtDate(startD)} (milestone) · click to set a date`}
                         className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
                         style={{ left }}
                       >
-                        <div className="size-3.5 rotate-45 border" style={{ backgroundColor: b.color, borderColor: "rgba(0,0,0,0.3)" }} />
+                        <div className={cn("size-3.5 rotate-45 border", isSel && "ring-2 ring-white/70")} style={{ backgroundColor: b.color, borderColor: "rgba(0,0,0,0.3)" }} />
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">{b.name} <span className="text-suite-text-dim/60">· {fmtDate(startD)}</span></span>
                       </div>
                     ) : (
-                      <div className="absolute top-1/2 -translate-y-1/2 h-5 rounded-[3px] flex items-center"
+                      <div className={cn("absolute top-1/2 -translate-y-1/2 h-5 rounded-[3px] flex items-center", isSel && "ring-2 ring-white/70")}
                         style={{ left, width, backgroundColor: b.color }}>
                         <div onMouseDown={(e) => onDown(e, b.id, "l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
                         <div onMouseDown={(e) => onDown(e, b.id, "move")} className="flex-1 h-full cursor-grab active:cursor-grabbing flex items-center justify-center overflow-hidden">
@@ -393,6 +425,57 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                 </div>
               );
             })}
+
+            {/* Date editor popover */}
+            {selected && (
+              <div
+                className="absolute z-50 w-[216px] rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-3 flex flex-col gap-2"
+                style={{ left: clamp(LABEL_W + selected.start * weekW - 8, LABEL_W + 4, Math.max(LABEL_W + 4, LABEL_W + timelineW - POP_W)), top: HEAD_H + selIdx * ROW_H + ROW_H + 6 }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-suite-text-muted">
+                    <span className="size-2 rounded-full" style={{ backgroundColor: selected.color }} />
+                    {selected.dur === 0 ? "Keyframe" : "Phase"}
+                  </span>
+                  <button type="button" onClick={() => setSelectedId(null)} className="text-suite-text-dim hover:text-suite-text"><X className="size-3.5" strokeWidth={2} /></button>
+                </div>
+                <input
+                  value={selected.name}
+                  onChange={(e) => patch(selected.id, { name: e.target.value })}
+                  className="w-full bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target"
+                />
+                <label className="flex flex-col gap-1">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim">{selected.dur === 0 ? "Date" : "Start date"}</span>
+                  <input
+                    type="date"
+                    value={addDaysISO(anchor, Math.round(selected.start * 7))}
+                    onChange={(e) => { if (e.target.value) patch(selected.id, { start: Math.max(0, daysBetween(anchor, e.target.value) / 7) }); }}
+                    className="w-full bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]"
+                  />
+                </label>
+                {selected.dur > 0 && (
+                  <label className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim">Duration</span>
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="number" min={1} max={104}
+                        value={selected.dur}
+                        onChange={(e) => patch(selected.id, { dur: clamp(parseInt(e.target.value || "1", 10) || 1, 1, 104) })}
+                        className="w-16 bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target"
+                      />
+                      <span className="font-mono text-[10px] text-suite-text-dim">weeks</span>
+                    </span>
+                  </label>
+                )}
+                <button
+                  type="button"
+                  onClick={() => patch(selected.id, selected.dur === 0 ? { dur: 2 } : { dur: 0 })}
+                  className="self-start font-mono text-[9px] uppercase tracking-[0.1em] text-guide-target/80 hover:text-guide-target"
+                >
+                  {selected.dur === 0 ? "→ make phase" : "→ make keyframe"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

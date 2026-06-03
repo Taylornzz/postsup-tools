@@ -107,8 +107,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.60";
+const VERSION = "v1.9.61";
 const CHANGELOG = [
+  "v1.9.61 — Planner: click any bar or keyframe to open a small editor and type an exact date (day-level precision) — plus rename, set duration in weeks, or convert between phase and keyframe. Scrolling fixed: the plain mouse wheel now scrolls the timeline left/right, and ⌘/Ctrl/Alt-wheel zooms (the +/− buttons still zoom too).",
   "v1.9.60 — Planner: rows now reorder (drag the grip handle), you can add your own Keyframes (milestone diamonds) as well as phases, the mouse wheel zooms the week scale (centred on the cursor) with +/− buttons too, and shift-wheel scrolls sideways. Glossary: search is now relevance-ranked — an exact term match jumps to the top (e.g. 'DCP' shows the DCP entry first), then starts-with, then alternate names, then definition hits; A–Z browse stays when the box is empty.",
   "v1.9.59 — Planner reworked into a drag-and-drop weekly Gantt. Each phase is a bar on a week/month timeline — drag the body to move it, drag an edge to resize the duration; Lock shows as a milestone diamond. Set a project start date, hit Seed for the standard phases (Prep · Shoot · Offload · Offline · Lock · Grade · Online · QC · Delivery), and read durations at a glance. Frozen phase column + month/week headers, a Today line, and Today/Add-row controls. Saves to the browser.",
   "v1.9.58 — New Glossary tab: 585 post-production terms, abbreviations and standards — camera & capture, colour & HDR, ACES, editorial, VFX, audio, mastering & delivery, QC, security and NZ industry. Live search (matches term, alternate names and definition), category filters, an A–Z jump rail, and clickable 'see also' cross-links. Built from the NZ post-super reference plus web research and fact-checked.",
