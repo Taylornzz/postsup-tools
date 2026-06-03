@@ -98,14 +98,14 @@ export const NODES: PNode[] = [
   n("t-cdl", "test", "picture", "look", "ASC-CDL", "10 numbers: Slope/Offset/Power per RGB + Saturation. out = ((in·slope)+offset)^power; a live parametric trim."),
   n("t-lut", "test", "picture", "look", "Creative Show LUT (.cube)", "Bakes the creative look + output transform; fixed in/out colourspace. The shared 'film' look."),
   // 2 — On-set
-  n("p-orig", "production", "picture", "camera-original", "Camera Original (RAW/Log)", "Recorded clips on mag/card — the hero negative. NEVER has the look baked in."),
+  n("p-orig", "production", "picture", "camera-original", "Camera Original (RAW/Log)", "Recorded clips on mag/card — the hero negative. NEVER has the look baked in.", "Camera / DIT"),
   n("p-monitor", "production", "picture", "look", "Monitoring Look Chain", "CDL+LUT in a LUT box / live-grade between camera and monitor — VIEW only, non-destructive."),
   n("p-report", "production", "picture", "report", "Camera Report / Circle Takes", "Per-clip lens, T-stop, EI, ND, circle-take flags, scene/take. Sidecar metadata."),
   // A1 — Production sound
   n("a-prod", "audio-prod", "audio", "audio", "Production Sound", "Lav + boom multitrack, iso + mono/LR guide, TC jam-synced. Polyphonic BWF/iXML."),
   n("a-sync", "audio-prod", "audio", "audio", "Audio Sync / Ingest", "Marry field audio to dailies by TC or waveform; AAF/OMF reference; guide track follows offline."),
   // 3 — Offload
-  n("o-verified", "offload", "data", "camera-original", "Verified Camera Original", "The hero negative after a hash-verified offload — 'recorded' becomes 'safe'."),
+  n("o-verified", "offload", "data", "camera-original", "Verified Camera Original", "The hero negative after a hash-verified offload — 'recorded' becomes 'safe'.", "DIT / Data Manager"),
   n("o-mhl", "offload", "data", "manifest", "ASC-MHL Manifest", "Path + checksum per file; generational Gen1/Gen2+ across backups. MD5/SHA1/xxHash."),
   n("o-backup", "offload", "data", "manifest", "Backup Sets (3-2-1)", "3 copies, 2 media, 1 off-site: typically 2 shuttle drives + 1 LTO/LTFS."),
   n("o-qc", "offload", "data", "qc", "Ingest / Technical QC", "All clips offloaded + verified, no dropped frames/corruption, metadata complete."),
@@ -120,11 +120,12 @@ export const NODES: PNode[] = [
   n("e-netcut", "editorial", "picture", "dailies", "Network / Studio Cut", "Per the notes cycle — network/studio sign-off rounds.", "Network / Studio"),
   n("e-lock", "editorial", "picture", "turnover", "Picture Lock", "Date agreed in the schedule — NO further picture changes. Triggers the turnover, the VFX pull and audio editorial.", "Post Supervisor"),
   n("e-turnover", "editorial", "picture", "turnover", "Turnover Package", "Locked AAF/XML/EDL (File_129 preserves long source names) · reference H.264 w/ burn-ins (TC, reel, scene, take) · change lists vs previous turnover (per reel/episode) · VFX / music / sound cue sheets · audio OMF/AAF w/ embedded media · subtitle scripts.", "1st Assistant Editor"),
-  // A2 — Sound editorial
-  n("a-dx", "audio-edit", "audio", "audio", "Dialogue / ADR", "Dialogue clean-up + edit and re-recorded ADR lines → the D predub."),
-  n("a-fx", "audio-edit", "audio", "audio", "Foley / SFX / Design", "Foley to picture + sound design/SFX → the E predub."),
-  n("a-music", "audio-edit", "audio", "audio", "Music", "Score + source/licensed cues → the M predub."),
-  n("a-premix", "audio-edit", "audio", "audio", "Premix D/M/E (stems)", "Three predubs D/M/E on a calibrated dub stage at reference SPL."),
+  // A2 — Sound editorial (DME)
+  n("a-spot", "audio-edit", "audio", "audio", "Spotting Session", "Director + editor + sound designer walk the locked cut to spot every sound need — the brief for all of audio post.", "Director + Sound Designer"),
+  n("a-dx", "audio-edit", "audio", "audio", "Dialogue / ADR", "Dialogue clean-up + edit; ADR cued and recorded where production sound is unusable → the D predub.", "Dialogue Editor"),
+  n("a-fx", "audio-edit", "audio", "audio", "Foley / SFX / Design", "Performed foley (footsteps, cloth, props) + designed FX + hard-effects edit → the E predub.", "Sound Designer / Foley"),
+  n("a-music", "audio-edit", "audio", "audio", "Music", "Score + source/licensed cues; clearance and delivery from composer / music supervisor → the M predub.", "Composer / Music Sup"),
+  n("a-premix", "audio-edit", "audio", "audio", "Premix D/M/E (stems)", "Split and rough-mix each stem (Dialogue / Music / Effects) on a calibrated dub stage at reference SPL.", "Re-recording Mixer"),
   // 6 — VFX Pull → Comp → Approve → Master (8-step process, with owners)
   n("v-shotlist", "vfx", "picture", "turnover", "VFX Shot List", "Compiled from the locked-edit offline — per-shot IDs, methodology, frame ranges, difficulty. The master line-up.", "VFX Editor"),
   n("v-edl", "vfx", "picture", "turnover", "EDL / XML Export", "Pulled from Avid/Premiere — the exact events to pull plates for, with source reels.", "1st Assistant Editor"),
@@ -136,28 +137,29 @@ export const NODES: PNode[] = [
   n("v-master", "vfx", "picture", "vfx-master", "Final EXR → Conform", "Approved locked EXR sequence — UNGRADED, same colourspace/res/handles as plate. Overrides the original plate at conform (full res).", "Online / Finishing"),
   // 7 — Conform
   n("c-timeline", "conform", "picture", "conform", "Conformed Timeline", "Match the offline back to camera masters at full res — a DNxHR-proxy decision becomes a pixel-perfect cut on the original ARRIRAW. Checklist: EDL matches the locked reference exactly · all reel names map to camera-master filenames (no orphans) · tracks colour-coded (VFX/stock/captures/archive/primary) · opticals & speed ramps flagged · handles preserved for the colourist · output res = grade working res. Watch for: missing reels, unresolved speed ramps (need original not transcode), archive in wrong gamma (needs IDT), mixed frame rates (29.97 stock in a 25p show).", "Online / Finishing"),
-  // A3 — Final mix
-  n("a-final", "audio-mix", "audio", "audio", "Final Mix", "D+M+E balanced to picture @ reference SPL. The branch point for all downstream masters."),
-  n("a-atmos", "audio-mix", "audio", "audio", "Atmos Master", "Objects + bed (7.1.4 min). Rides the IMF as an IAB track (ST 2067-201); ADM BWAV is the alt printmaster."),
-  n("a-print", "audio-mix", "audio", "audio", "Printmaster / M&E", "Native printmaster is the delivered master; 5.1/2.0 auto-derived (no upmix). M&E for foreign dubs."),
-  n("a-loud", "audio-mix", "audio", "qc", "Loudness QC", "BS.1770: Netflix near-field −27 LKFS dialog-gated · −2 dBTP. Broadcast = R128/A85 (different domain)."),
-  n("a-conform", "audio-mix", "audio", "audio", "Audio Conform", "Re-sync to the FINAL graded picture (not offline): frame-exact length, project frame rate."),
+  // A3 — Final mix · masters · loudness
+  n("a-final", "audio-mix", "audio", "audio", "Final Mix", "Dialogue + music + effects balanced to picture in the room @ reference SPL. The branch point for all downstream masters.", "Re-recording Mixer"),
+  n("a-atmos", "audio-mix", "audio", "audio", "Atmos / Object Mix", "Object-based re-render from the stem bed (7.1.4 min). Rides the IMF as an IAB track (ST 2067-201); ADM BWAV is the alt printmaster.", "Atmos Mixer"),
+  n("a-print", "audio-mix", "audio", "audio", "Printmasters / M&E", "Final deliverable files per spec. Native printmaster is the master; 5.1 / 2.0 auto-derived (no upmix). M&E (music & effects) for foreign dubs.", "Re-recording Mixer"),
+  n("a-loud", "audio-mix", "audio", "qc", "Loudness QC", "Measure per delivery domain (BS.1770) and file a LUFS report: Netflix −27 LKFS dialog-gated · −2 dBTP. TVNZ / EBU R128 −23 LUFS · TP −1 dBTP. Amazon / ATSC A/85 −24 LUFS · −2 dBTP. Different targets = different masters.", "Mixer + QC"),
+  n("a-conform", "audio-mix", "audio", "audio", "Audio Conform", "Re-sync to the FINAL graded picture (not the offline): frame-exact length, project frame rate, long-form sync check.", "Re-recording Mixer"),
   // 8 — Grade & Mastering
-  n("m-grade", "mastering", "picture", "grade", "ACES Grade (hero)", "ACEScct working, AP1, mid-grey 15.0. The single creative master. HDR Originals master in Dolby Vision."),
+  n("m-grade", "mastering", "picture", "grade", "ACES Grade (hero)", "ACEScct working, AP1, mid-grey 15.0. The single creative master. HDR Originals master in Dolby Vision. Grade order: colour test → pre-grade → attended grade (director + DOP) → client review → HDR pass (trim SDR) → finals.", "Colourist (DI)"),
   n("m-master", "mastering", "picture", "master", "Mastering DAG ▸", "The existing Mastering deliverables DAG — hero master, trims, NAM, deliverable masters. Open it to expand."),
-  // 9 — QC
-  n("q-auto", "qc", "picture", "qc", "Automated Package QC", "Photon (IMF XML) → IMF validation → automated QC (channels, levels). Hard gate; a fail blocks upload."),
-  n("q-content", "qc", "picture", "qc", "Content / Eyeball QC", "Manual QC: Spot 5-point or Full for Originals. Production-Will-Fix vs Creative-Intent."),
-  n("q-review", "qc", "picture", "qc", "Near-field / Creative Review", "Director/DP creative sign-off in a calibrated reference environment. Change notes → regrade."),
-  // 10 — Delivery
-  n("del-imf", "delivery", "picture", "deliverable", "IMF Package (App 2E)", "CPL + PKL + ASSETMAP. Picture JPEG2000 (App 2E ST 2067-21); audio IAB/PCM track files. Timed text delivered separately (Netflix path)."),
-  n("del-dcp", "delivery", "picture", "deliverable", "DCP (theatrical)", "From DCDM (12-bit X′Y′Z′, γ2.6, ST 428-1) → JPEG2000 12-bit + KDM (ST 429)."),
-  n("del-bcast", "delivery", "picture", "deliverable", "Broadcast File (optional)", "OP1a MXF/ProRes, Rec.709 SDR or PQ/HLG, loudness-normalised R128/A85 per region."),
-  // 11 — Archive
-  n("arc-nam", "archive", "data", "archive", "NAM (Non-Graded)", "Texted, fully conformed, final VFX, scene-referred ACES2065-1/AP0, NO output transform. 16-bit EXR."),
-  n("arc-gam", "archive", "data", "archive", "GAM / App 5 IMF", "Graded uncompressed ACES essence wrapped MXF in IMF App 5 (ST 2067-50)."),
-  n("arc-cam", "archive", "data", "archive", "Camera-Original + Project", "RAW pre-debayer native gamut, no baked looks; + conform/EDL, CDL/LUTs, VFX masters, M&E, printmaster."),
-  n("arc-lto", "archive", "data", "manifest", "LTO + Cloud (3-2-1)", "LTO-8/9 two geo-separated copies + cloud cold storage; checksum manifest per file."),
+  // 9 — QC (three layers + fix-loops)
+  n("q-auto", "qc", "picture", "qc", "Automated Package QC", "Photon (IMF XML) → IMF validation → automated QC. Flags: video (black/frozen frames, interlacing, macroblocking) · audio (silence, clipping, phase, mono-sum, loudness out-of-spec) · subtitles (timing overlap, line overrun, unreadable chars) · metadata (missing Dolby Vision XML, wrong CPL hash, missing CPL/PKL) · structural (CPL references missing assets, OPL/audio-track mismatch). Hard gate — a fail blocks upload.", "QC House"),
+  n("q-content", "qc", "picture", "qc", "Content / Eyeball QC", "Manual QC: Spot 5-point or Full for Originals. NZ-specific watch-list: frame-rate mismatch (25p show with 23.976 co-pro elements), legal vs full range (broadcast = legal), te reo Māori subtitle macrons (TTML Unicode), archive in wrong colour space (Rec.601 SD in a Rec.709 show). Production-Will-Fix vs Creative-Intent.", "QC House"),
+  n("q-review", "qc", "picture", "qc", "Near-field / Creative Review + QC Report", "Director/DP creative sign-off in a calibrated reference environment. A QC report (format, TC, fps, aspect, colour/transfer, MaxCLL/MaxFALL, integrated LUFS, true peak, result: Pass/Fail/Conditional) is signed by the QC house AND the Post Super before any copies distribute. Change notes → regrade.", "Post Supervisor"),
+  // 10 — Delivery & Wrap
+  n("del-imf", "delivery", "picture", "deliverable", "IMF Package (App 2E)", "Netflix/Amazon mezzanine. UHD 3840×2160 or HD 1920×1080; JPEG2000 (or ProRes 4444 XQ). SDR Rec.709/BT.1886 limited 10-bit · HDR Rec.2020 PQ (HDR10 static + optional Dolby Vision P8.1). Audio 48 kHz/24-bit PCM, 5.1 + 2.0 + Atmos, −27 LUFS. Deliverables bundle: textless, proxy, M&E, stems, NAM, end-cards, TTML subs, QC report. (Amazon: per-title in Video Central, IMSC1 captions, −24 LUFS.)", "Mastering House"),
+  n("del-dcp", "delivery", "picture", "deliverable", "DCP (theatrical)", "DI master → theatrical P3-D65 trim (often a separate DCP grade on a DCI projector) → XYZ γ2.6 12-bit → JPEG2000 (avg bitrate, 250 Mbit/s hard ceiling) → Op1a MXF per reel → SMPTE-TT subs + Atmos IAB → CPL+PKL+ASSETMAP (hashed, signed) → AES-128 + KDM. ISDCF name e.g. TITLE_FTR-1_F-178_EN-XX_INT-TD_51_4K_STUDIO_DATE_FACILITY_OV. Full-pass screen on a calibrated DCI projector before sign-off.", "DCP Mastering House"),
+  n("del-bcast", "delivery", "picture", "deliverable", "Broadcast File (TVNZ)", "TVNZ on-air: 1080i50 XDCAM HD422 50 Mbps MXF OP1a (ProRes for TVNZ+). 48 kHz/24-bit, EBU R128 −23 LUFS, TP −1 dBTP, 4ch (stereo + M&E). CC = Teletext page 801 or MXF sidecar. Delivery slate + countdown clock per format spec.", "Mastering House"),
+  n("del-screener", "delivery", "picture", "deliverable", "Screeners (forensic WM)", "Per-user forensic watermark (NAGRA NexGuard, Irdeto TraceMark) on every review/screener copy — identifies the exact recipient if leaked. Governance: never an unwatermarked link, never a shared login, revoke after the window, audit every screener issued, click-through NDA. The post super owns this.", "Post Supervisor"),
+  // 11 — Long-Term Archive
+  n("arc-nam", "archive", "data", "archive", "NAM (Non-Graded)", "Texted, fully conformed, final VFX, scene-referred ACES2065-1/AP0, NO output transform. 16-bit EXR (10-bit DPX only if ≥50% of capture was 10-bit).", "Mastering House"),
+  n("arc-gam", "archive", "data", "archive", "GAM / App 5 IMF", "Graded uncompressed ACES essence wrapped MXF in IMF App 5 (ST 2067-50). Other mezzanines: ProRes 4444 XQ, DNxHR 444/HQX, J2K MXF OP1a, DPX, EXR.", "Mastering House"),
+  n("arc-cam", "archive", "data", "archive", "Camera-Original + Project", "RAW pre-debayer, native gamut, no baked looks; + conform/EDL, CDL/LUTs, VFX masters, M&E, printmaster, cue sheets.", "Post Supervisor"),
+  n("arc-lto", "archive", "data", "manifest", "LTO + Cloud (3-2-1)", "LTO-8 (12 TB) / LTO-9 (18 TB) with LTFS, written to TWO geo-separated physical locations (a hard requirement for Netflix/Amazon originals) + cloud cold storage. Checksums (MD5 / xxHash / SHA-256) generated at creation and verified on restore. MovieLabs 2030 pushes toward cloud-native masters.", "Data Manager / Vault"),
 ];
 
 export const EDGES: PEdge[] = [
@@ -190,7 +192,10 @@ export const EDGES: PEdge[] = [
   { from: "e-netcut", to: "e-lock", op: "approve", label: "Final sign-off → PICTURE LOCK" },
   { from: "e-lock", to: "e-turnover", op: "turnover", label: "Lock triggers the turnover package" },
   // A2
-  { from: "e-turnover", to: "a-dx", op: "turnover", label: "Locked-picture AAF/OMF turnover" },
+  { from: "e-turnover", to: "a-spot", op: "turnover", label: "Locked-picture turnover → spotting session" },
+  { from: "a-spot", to: "a-dx", op: "transform", label: "Spot dialogue / ADR needs" },
+  { from: "a-spot", to: "a-fx", op: "transform", label: "Spot FX / foley / design needs" },
+  { from: "a-spot", to: "a-music", op: "transform", label: "Spot music needs" },
   { from: "a-sync", to: "a-dx", op: "transform", label: "Synced field tracks into dialogue edit" },
   { from: "a-dx", to: "a-premix", op: "mix", label: "Predub D" },
   { from: "a-fx", to: "a-premix", op: "mix", label: "Predub E" },
@@ -234,6 +239,7 @@ export const EDGES: PEdge[] = [
   { from: "m-master", to: "del-dcp", op: "transform", label: "DCDM X′Y′Z′ bake → JPEG2000 12-bit + KDM" },
   { from: "a-conform", to: "del-dcp", op: "rejoin", label: "5.1/7.1 PCM + Atmos aux reels — theatrical sound" },
   { from: "m-master", to: "del-bcast", op: "transform", label: "Rec.709/HDR + loudness-normalise + OP1a wrap" },
+  { from: "m-master", to: "del-screener", op: "transcode", label: "Per-user forensic watermark on every screener" },
   // 11
   { from: "del-imf", to: "arc-gam", op: "retain", label: "Graded App 5 ACES archive" },
   { from: "arc-nam", to: "arc-cam", op: "validate", label: "Colour-check NAM against the original camera files" },
