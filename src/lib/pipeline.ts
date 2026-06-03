@@ -78,12 +78,13 @@ export const STAGES: PStage[] = [
   { id: "editorial", order: 5, track: "picture", label: "5 · Offline Editorial → Lock", summary: "The cut-approval ladder on look-baked proxies: Editor's Assembly → Director's Cut → Producer's Cut → Network/Studio Cut → Picture Lock. Lock triggers the turnover (AAF/XML/EDL + ref + change lists + cue sheets) that drives VFX, audio and conform." },
   { id: "audio-edit", order: 5, track: "audio", label: "A2 · Sound Editorial (DME)", summary: "At lock the turnover feeds five disciplines — Dialogue, ADR, Foley, SFX/design, Music — routing into D/M/E predubs." },
   { id: "vfx", order: 6, track: "picture", label: "6 · VFX Pull → Comp → Approve → Master", summary: "The 8-step pull & approval process: shot list → EDL → plate pull (handles agreed in writing) → reference → ingest confirm → comp → ShotGrid/Ftrack version review (the approval gate, with a notes loop) → approved final EXR. Each step has an owner." },
-  { id: "conform", order: 7, track: "picture", label: "7 · Online / Conform", summary: "Relink every event proxy → camera-original at full res, VFX masters override their plates; apply cuts/retimes/repos/FDL. Output: the conformed master timeline for the grade." },
+  { id: "conform", order: 7, track: "picture", label: "7 · Online / Conform / Assembly", summary: "Relink every event proxy → camera-original at full res; VFX masters override their plates. Assemble the finished online: main + end titles, the graphics package, and licensed archive/stock (each needs a clip licence, an IDT and a frame-rate match). Output: the conformed master for the grade." },
   { id: "audio-mix", order: 7, track: "audio", label: "A3 · Final Mix · Masters · Loudness", summary: "D+M+E balanced to picture = creative master → Atmos (objects+bed), channel re-renders, printmaster, M&E. Loudness QC gates each master, then conform to final graded picture." },
   { id: "mastering", order: 8, track: "picture", label: "8 · Grade & Mastering", summary: "Conformed timeline → ACES hero grade → the Output Transform splits to deliverables. This stage is the existing Mastering DAG, folded in." },
   { id: "qc", order: 9, track: "picture", label: "9 · QC (three layers + fix-loops)", summary: "Automated package QC (hard gate) → content/eyeball QC → near-field creative review. Fails loop back upstream on a right-side rail." },
   { id: "delivery", order: 10, track: "picture", label: "10 · Delivery & Wrap", summary: "Picture + audio + subs compose into the IMF CPL and the DCP. The parallel audio column rejoins picture here — its track files are laid into the same IMF." },
-  { id: "archive", order: 11, track: "data", label: "11 · Long-Term Archive", summary: "Future-proof masters retained for decades: NAM (scene-referred AP0, no output transform), graded App 5 ACES, camera-original retention, LTO + cloud." },
+  { id: "del-paper", order: 11, track: "data", label: "11 · Deliverables & Paperwork", summary: "The asset + paperwork bundle that ships with the masters: textless/clean, subtitles & access, music cue sheet + returns, conform EDLs, transcripts/as-broadcast script, graphics package, trailers/promos, and the chain-of-title / E&O binder (no binder, no acceptance)." },
+  { id: "archive", order: 12, track: "data", label: "12 · Long-Term Archive", summary: "Future-proof masters retained for decades: NAM (scene-referred AP0, no output transform), graded App 5 ACES, camera-original retention, LTO + cloud." },
 ];
 
 const n = (id: string, stage: string, track: Track, kind: PNodeKind, label: string, detail: string, owner?: string): PNode =>
@@ -136,7 +137,10 @@ export const NODES: PNode[] = [
   n("v-review", "vfx", "picture", "qc", "Version Review (ShotGrid/Ftrack)", "Daily/weekly WIP review. Notes → revisions loop. The creative + technical APPROVAL gate before a shot can go final.", "VFX Producer + Post Super"),
   n("v-master", "vfx", "picture", "vfx-master", "Final EXR → Conform", "Approved locked EXR sequence — UNGRADED, same colourspace/res/handles as plate. Overrides the original plate at conform (full res).", "Online / Finishing"),
   // 7 — Conform
-  n("c-timeline", "conform", "picture", "conform", "Conformed Timeline", "Match the offline back to camera masters at full res — a DNxHR-proxy decision becomes a pixel-perfect cut on the original ARRIRAW. Checklist: EDL matches the locked reference exactly · all reel names map to camera-master filenames (no orphans) · tracks colour-coded (VFX/stock/captures/archive/primary) · opticals & speed ramps flagged · handles preserved for the colourist · output res = grade working res. Watch for: missing reels, unresolved speed ramps (need original not transcode), archive in wrong gamma (needs IDT), mixed frame rates (29.97 stock in a 25p show).", "Online / Finishing"),
+  n("on-titles", "conform", "picture", "conform", "Main & End Titles", "Main-title sequence + end credit crawl / cards built and inserted at online. The credit list is legal-checked and matched to contracts; textless versions are kept for the delivery bundle.", "Online Editor"),
+  n("on-graphics", "conform", "picture", "conform", "Graphics Package (GFX)", "Lower-thirds, motion graphics, screen comps / device inserts, captions — built to the online master. Source GFX project + textless versions retained.", "GFX Artist"),
+  n("on-archive", "conform", "picture", "vfx-plate", "Archive / Stock Footage", "Licensed archive / stock clips. Each needs a CLIP LICENCE (chain of title), an IDT to ACES, and a frame-rate match — Rec.601 SD or 29.97 stock in a 25p Rec.709 show flags at QC.", "Online + Clearances"),
+  n("c-timeline", "conform", "picture", "conform", "Conformed Online Master", "Match the offline back to camera masters at full res — a DNxHR-proxy decision becomes a pixel-perfect cut on the original ARRIRAW — then assemble VFX, titles, graphics & archive. Checklist: EDL matches the locked reference exactly · all reel names map to camera-master filenames (no orphans) · tracks colour-coded (VFX/stock/captures/archive/primary) · opticals & speed ramps flagged · handles preserved for the colourist · output res = grade working res. Watch for: missing reels, unresolved speed ramps (need original not transcode), archive in wrong gamma (needs IDT), mixed frame rates.", "Online / Finishing"),
   // A3 — Final mix · masters · loudness
   n("a-final", "audio-mix", "audio", "audio", "Final Mix", "Dialogue + music + effects balanced to picture in the room @ reference SPL. The branch point for all downstream masters.", "Re-recording Mixer"),
   n("a-atmos", "audio-mix", "audio", "audio", "Atmos / Object Mix", "Object-based re-render from the stem bed (7.1.4 min). Rides the IMF as an IAB track (ST 2067-201); ADM BWAV is the alt printmaster.", "Atmos Mixer"),
@@ -155,6 +159,15 @@ export const NODES: PNode[] = [
   n("del-dcp", "delivery", "picture", "deliverable", "DCP (theatrical)", "DI master → theatrical P3-D65 trim (often a separate DCP grade on a DCI projector) → XYZ γ2.6 12-bit → JPEG2000 (avg bitrate, 250 Mbit/s hard ceiling) → Op1a MXF per reel → SMPTE-TT subs + Atmos IAB → CPL+PKL+ASSETMAP (hashed, signed) → AES-128 + KDM. ISDCF name e.g. TITLE_FTR-1_F-178_EN-XX_INT-TD_51_4K_STUDIO_DATE_FACILITY_OV. Full-pass screen on a calibrated DCI projector before sign-off.", "DCP Mastering House"),
   n("del-bcast", "delivery", "picture", "deliverable", "Broadcast File (TVNZ)", "TVNZ on-air: 1080i50 XDCAM HD422 50 Mbps MXF OP1a (ProRes for TVNZ+). 48 kHz/24-bit, EBU R128 −23 LUFS, TP −1 dBTP, 4ch (stereo + M&E). CC = Teletext page 801 or MXF sidecar. Delivery slate + countdown clock per format spec.", "Mastering House"),
   n("del-screener", "delivery", "picture", "deliverable", "Screeners (forensic WM)", "Per-user forensic watermark (NAGRA NexGuard, Irdeto TraceMark) on every review/screener copy — identifies the exact recipient if leaked. Governance: never an unwatermarked link, never a shared login, revoke after the window, audit every screener issued, click-through NDA. The post super owns this.", "Post Supervisor"),
+  // 11 — Deliverables & Paperwork (the bundle that ships with the masters)
+  n("dp-textless", "del-paper", "data", "deliverable", "Textless / Clean Master", "The picture with NO titles or graphics burned in — a delivery requirement so the platform can localise. Plus clean backgrounds behind every title/lower-third.", "Online / Mastering"),
+  n("dp-subs", "del-paper", "data", "deliverable", "Subtitles · SDH · Captions", "Subtitles (TTML / IMSC1), SDH (subtitles for deaf/hard-of-hearing), closed captions, and audio description where required. Conformed to the MASTER, not the offline. te reo Māori needs correct macron (Unicode) handling.", "Subtitling Vendor"),
+  n("dp-cue", "del-paper", "data", "report", "Music Cue Sheet + Returns", "APRA AMCOS cue sheet: per-cue title, composer + publisher share %, PRO, usage (BG instrumental / visual vocal / theme), duration, TC in/out. Filed via APRA AMCOS OR the broadcaster — not both. Late/incorrect = blocked composer royalties (the super's reputational issue). + sync & master licences.", "Music Sup + Post Super"),
+  n("dp-edl", "del-paper", "data", "turnover", "Conform EDL / AAF + Change Lists", "The conform EDL/AAF/XML, change lists per reel/episode, and the online project — delivered for future re-versioning and archived with the master.", "1st AE / Online"),
+  n("dp-transcript", "del-paper", "data", "report", "Transcript / As-Broadcast Script", "Dialogue transcript and the as-broadcast script — feeds subtitling, access, legal clearance and library metadata.", "Post Coordinator"),
+  n("dp-gfx", "del-paper", "data", "deliverable", "Graphics / Titles Package", "Source GFX & title project files, fonts, end-card templates and the credit list — delivered for localisation and re-versioning.", "GFX / Online"),
+  n("dp-trailer", "del-paper", "data", "deliverable", "Trailers · Promos · Key Art", "Trailer / teaser cut-downs, promo versions, and marketing/key-art deliverables produced from the approved master.", "Marketing / Editorial"),
+  n("dp-coc", "del-paper", "data", "report", "Chain of Title + E&O Binder", "The legal deliverable: writer/director/cast agreements, music sync+master licences, clip/archive licences, location & talent releases, script-clearance report, clearance log + E&O insurance proof. NO binder, NO delivery acceptance — the #1 cause of failed broadcaster acceptance. Escalate any unclear rights to the producer + lawyer.", "Producer + Lawyer"),
   // 11 — Long-Term Archive
   n("arc-nam", "archive", "data", "archive", "NAM (Non-Graded)", "Texted, fully conformed, final VFX, scene-referred ACES2065-1/AP0, NO output transform. 16-bit EXR (10-bit DPX only if ≥50% of capture was 10-bit).", "Mastering House"),
   n("arc-gam", "archive", "data", "archive", "GAM / App 5 IMF", "Graded uncompressed ACES essence wrapped MXF in IMF App 5 (ST 2067-50). Other mezzanines: ProRes 4444 XQ, DNxHR 444/HQX, J2K MXF OP1a, DPX, EXR.", "Mastering House"),
@@ -212,9 +225,12 @@ export const EDGES: PEdge[] = [
   { from: "v-review", to: "v-comp", op: "notes", label: "Notes → revisions (back to vendor)" },
   { from: "v-review", to: "v-master", op: "approve", label: "Creative + technical sign-off → publish final EXR" },
   { from: "v-master", to: "e-netcut", op: "trim", label: "Final comps slapped back into the cut" },
-  // 7
+  // 7 — conform + online assembly
   { from: "e-turnover", to: "c-timeline", op: "conform", label: "Relink proxy → camera-original full-res; cuts/retimes/FDL" },
   { from: "v-master", to: "c-timeline", op: "transform", label: "VFX master EXR overrides the original plate at its event" },
+  { from: "on-titles", to: "c-timeline", op: "comp", label: "Insert main + end titles into the online" },
+  { from: "on-graphics", to: "c-timeline", op: "comp", label: "Composite the graphics package into the online" },
+  { from: "on-archive", to: "c-timeline", op: "transform", label: "Conform archive/stock — IDT to ACES, frame-rate match" },
   // A3
   { from: "a-premix", to: "a-final", op: "mix", label: "D + M + E balance @ reference SPL" },
   { from: "a-final", to: "a-atmos", op: "mix", label: "Objects + bed" },
@@ -240,7 +256,20 @@ export const EDGES: PEdge[] = [
   { from: "a-conform", to: "del-dcp", op: "rejoin", label: "5.1/7.1 PCM + Atmos aux reels — theatrical sound" },
   { from: "m-master", to: "del-bcast", op: "transform", label: "Rec.709/HDR + loudness-normalise + OP1a wrap" },
   { from: "m-master", to: "del-screener", op: "transcode", label: "Per-user forensic watermark on every screener" },
-  // 11
+  // 11 — Deliverables & paperwork (ship alongside the IMF)
+  { from: "m-master", to: "dp-textless", op: "transform", label: "Render textless / clean master + clean backgrounds" },
+  { from: "del-imf", to: "dp-subs", op: "annotate", label: "Subtitles / SDH / CC conformed to the master" },
+  { from: "del-imf", to: "dp-cue", op: "annotate", label: "Music cue sheet + sync/master licences" },
+  { from: "del-imf", to: "dp-edl", op: "annotate", label: "Conform EDL/AAF + change lists + project" },
+  { from: "del-imf", to: "dp-transcript", op: "annotate", label: "Transcript / as-broadcast script" },
+  { from: "del-imf", to: "dp-gfx", op: "annotate", label: "Graphics / titles source package" },
+  { from: "del-imf", to: "dp-trailer", op: "transcode", label: "Trailers / promos / key art from the master" },
+  { from: "del-imf", to: "dp-coc", op: "annotate", label: "Chain of title + E&O binder (gates acceptance)" },
+  { from: "dp-edl", to: "arc-cam", op: "retain", label: "EDL/project archived with the camera-original set" },
+  { from: "dp-coc", to: "arc-cam", op: "retain", label: "Chain-of-title binder sits in the box with the master" },
+  { from: "dp-cue", to: "arc-lto", op: "retain", label: "Cue sheet + licences to the vault" },
+
+  // 12 — Archive
   { from: "del-imf", to: "arc-gam", op: "retain", label: "Graded App 5 ACES archive" },
   { from: "arc-nam", to: "arc-cam", op: "validate", label: "Colour-check NAM against the original camera files" },
   { from: "arc-nam", to: "arc-lto", op: "retain", label: "Write to LTO + cloud, checksum" },
