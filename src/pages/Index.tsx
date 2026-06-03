@@ -107,8 +107,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.62";
+const VERSION = "v1.9.63";
 const CHANGELOG = [
+  "v1.9.63 — Planner: fixed the layout bug where a zoomed-in (wide) timeline stretched the whole panel — pushing the toolbar (Start date, zoom, Seed…) off-screen and stopping drag-to-pan from working. The timeline now scrolls inside its own box, the toolbar always stays in frame, and you can drag anywhere on the canvas (including below the rows) to pan.",
   "v1.9.62 — Planner interaction fixes: the plain mouse wheel now zooms the schedule (no modifier — so it never triggers the browser's page zoom that was pushing the toolbar off-screen; the toolbar always stays in frame). Drag any empty part of the timeline to pan left/right and up/down. Shift-click bars to multi-select, then drag any of them to move the whole group together (relative spacing preserved). Shift-wheel still nudges sideways.",
   "v1.9.61 — Planner: click any bar or keyframe to open a small editor and type an exact date (day-level precision) — plus rename, set duration in weeks, or convert between phase and keyframe. Scrolling fixed: the plain mouse wheel now scrolls the timeline left/right, and ⌘/Ctrl/Alt-wheel zooms (the +/− buttons still zoom too).",
   "v1.9.60 — Planner: rows now reorder (drag the grip handle), you can add your own Keyframes (milestone diamonds) as well as phases, the mouse wheel zooms the week scale (centred on the cursor) with +/− buttons too, and shift-wheel scrolls sideways. Glossary: search is now relevance-ranked — an exact term match jumps to the top (e.g. 'DCP' shows the DCP entry first), then starts-with, then alternate names, then definition hits; A–Z browse stays when the box is empty.",
@@ -1035,11 +1036,11 @@ const Index = () => {
       </header>
 
       {appTab === "glossary" ? (
-        <main className="flex-1 flex min-h-0">
+        <main className="flex-1 flex min-h-0 min-w-0">
           <Glossary />
         </main>
       ) : appTab === "planner" ? (
-        <main className="flex-1 flex min-h-0">
+        <main className="flex-1 flex min-h-0 min-w-0">
           <PostSchedule projectName={projectName} />
         </main>
       ) : appTab === "workflow" ? (

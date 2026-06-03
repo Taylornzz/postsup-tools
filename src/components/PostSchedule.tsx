@@ -198,6 +198,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   }, [onPanMove]);
   const startPan = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    const t = e.target as HTMLElement;
+    if (t.closest("input, button, [data-no-pan]")) return; // don't pan from controls / name column / popover
     const el = scrollRef.current;
     if (!el) return;
     setSelectedIds([]); // clicking empty canvas clears selection
@@ -314,7 +316,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const btnGhost = "text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg";
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-suite-canvas select-none">
+    <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-suite-canvas select-none">
       {/* Toolbar (always in frame) */}
       <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -367,7 +369,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
           </div>
         </div>
       ) : (
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto">
+        <div ref={scrollRef} className="flex-1 min-h-0 min-w-0 overflow-auto cursor-grab active:cursor-grabbing" onMouseDown={startPan}>
           <div className="relative" style={{ width: LABEL_W + timelineW }}>
             {/* Month header */}
             <div className="sticky top-0 z-40 flex" style={{ height: MONTH_H }}>
@@ -414,7 +416,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
               return (
                 <div key={b.id} className={cn("group flex border-b border-suite-border/40", dragRowId === b.id && "opacity-80")} style={{ height: ROW_H }}>
                   {/* Name cell (frozen) */}
-                  <div className={cn("sticky left-0 z-30 shrink-0 flex items-center gap-1 px-2 border-r border-suite-border", isSel ? "bg-suite-panel-elevated" : "bg-suite-panel")} style={{ width: LABEL_W }}>
+                  <div data-no-pan className={cn("sticky left-0 z-30 shrink-0 flex items-center gap-1 px-2 border-r border-suite-border", isSel ? "bg-suite-panel-elevated" : "bg-suite-panel")} style={{ width: LABEL_W }}>
                     <button type="button" onMouseDown={(e) => onRowDown(e, b.id)} title="Drag to reorder"
                       className="shrink-0 text-suite-text-dim hover:text-suite-text cursor-grab active:cursor-grabbing">
                       <GripVertical className="size-3.5" strokeWidth={1.6} />
@@ -430,8 +432,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                       <Trash2 className="size-3" strokeWidth={1.6} />
                     </button>
                   </div>
-                  {/* Timeline cell — empty space pans the canvas */}
-                  <div className="relative cursor-grab active:cursor-grabbing" style={{ width: timelineW, backgroundImage: gridBg }} onMouseDown={startPan}>
+                  {/* Timeline cell — empty space pans the canvas (handled at container level) */}
+                  <div className="relative" style={{ width: timelineW, backgroundImage: gridBg }}>
                     {isMs ? (
                       <div
                         onMouseDown={(e) => onDown(e, b.id, "move")}
@@ -463,6 +465,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
             {/* Date editor popover (single selection) */}
             {selected && (
               <div
+                data-no-pan
                 className="absolute z-50 w-[216px] rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-3 flex flex-col gap-2"
                 style={{ left: clamp(LABEL_W + selected.start * weekW - 8, LABEL_W + 4, Math.max(LABEL_W + 4, LABEL_W + timelineW - POP_W)), top: HEAD_H + selIdx * ROW_H + ROW_H + 6 }}
               >
