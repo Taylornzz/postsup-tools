@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X } from "lucide-react";
+import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X, Save, Download, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { exportSchedule, type ExportFormat } from "@/lib/scheduleExport";
 
 /** Post Schedule — a drag-and-drop weekly Gantt. Each row is a phase bar with a start
  *  (week offset) and a duration (weeks); drag the body to move, drag an edge to resize,
@@ -34,6 +35,23 @@ const PALETTE = ["#94a3b8", "#38bdf8", "#22d3ee", "#a78bfa", "#facc15", "#f59e0b
 
 const KEY_BARS = "postsup-gantt-v1";
 const KEY_START = "postsup-gantt-start";
+const KEY_VERSIONS = "postsup-gantt-versions";
+
+type Version = { id: string; name: string; savedAt: string; startDate: string; bars: Bar[] };
+function loadVersions(): Version[] {
+  try {
+    const arr = JSON.parse(localStorage.getItem(KEY_VERSIONS) || "[]");
+    return Array.isArray(arr) ? arr.filter((v) => v && Array.isArray(v.bars)) : [];
+  } catch { return []; }
+}
+
+const EXPORTS: { fmt: ExportFormat; label: string }[] = [
+  { fmt: "pdf", label: "PDF — Gantt chart" },
+  { fmt: "png", label: "PNG — Gantt image" },
+  { fmt: "ics", label: "Calendar (.ics)" },
+  { fmt: "csv", label: "CSV — spreadsheet" },
+  { fmt: "json", label: "JSON — backup" },
+];
 
 let _seq = 0;
 const uid = () => `b${Date.now().toString(36)}${(_seq++).toString(36)}`;
@@ -94,6 +112,10 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const [weekW, setWeekW] = useState<number>(WEEK_W_DEFAULT);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null); // which bar's date editor is open (plain click only)
+  const [versions, setVersions] = useState<Version[]>(loadVersions);
+  const [verName, setVerName] = useState("");
+  const [showSave, setShowSave] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekWRef = useRef(weekW);
@@ -103,6 +125,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   useEffect(() => { try { localStorage.setItem(KEY_BARS, JSON.stringify(bars)); } catch { /* ignore */ } }, [bars]);
   useEffect(() => { try { localStorage.setItem(KEY_START, startDate); } catch { /* ignore */ } }, [startDate]);
+  useEffect(() => { try { localStorage.setItem(KEY_VERSIONS, JSON.stringify(versions)); } catch { /* ignore */ } }, [versions]);
 
   const anchor = useMemo(() => mondayOf(startDate || localISO(new Date())), [startDate]);
   const maxEnd = bars.reduce((m, b) => Math.max(m, b.start + Math.max(b.dur, 1)), 0);
@@ -294,13 +317,28 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     const b = { id: uid(), name: "Milestone", color: "#facc15", start: newStart(), dur: 0 };
     setBars((bs) => [...bs, b]); setSelectedIds([b.id]); setEditId(b.id);
   }
-  function seed() {
-    if (bars.length && !window.confirm("Replace the schedule with the standard post phases?")) return;
-    setBars(SEED.map((b) => ({ ...b, id: uid() }))); setSelectedIds([]); setEditId(null);
+  function applyTemplate() {
+    if (bars.length && !window.confirm("Replace the schedule with the standard post template (starting from the current week)?")) return;
+    const base = Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
+    setBars(SEED.map((b) => ({ ...b, id: uid(), start: b.start + base }))); setSelectedIds([]); setEditId(null);
   }
   function clearAll() {
     if (bars.length && !window.confirm("Clear all phases?")) return;
     setBars([]); setSelectedIds([]); setEditId(null);
+  }
+  function saveVersion() {
+    const name = verName.trim() || `${projectName?.trim() ? projectName.trim() + " " : ""}v${versions.length + 1} · ${new Date().toLocaleDateString()}`;
+    setVersions((vs) => [{ id: uid(), name, savedAt: new Date().toISOString(), startDate, bars: bars.map((b) => ({ ...b })) }, ...vs]);
+    setVerName("");
+  }
+  function loadVersion(v: Version) {
+    setBars(v.bars.map((b) => ({ ...b }))); setStartDate(v.startDate);
+    setSelectedIds([]); setEditId(null); setShowSave(false);
+  }
+  function deleteVersion(id: string) { setVersions((vs) => vs.filter((v) => v.id !== id)); }
+  function doExport(fmt: ExportFormat) {
+    exportSchedule(fmt, { startDate, anchor, bars, weeksToShow, title: projectName?.trim() || "", todayWeeks });
+    setShowExport(false);
   }
   function zoom(factor: number) { setWeekW((w) => clamp(w * factor, WEEK_W_MIN, WEEK_W_MAX)); }
   function scrollToToday() {
@@ -351,9 +389,75 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
           <button type="button" onClick={addMilestone} title="Add a milestone / keyframe" className={cn(btn, btnGhost)}>
             <Diamond className="size-3" strokeWidth={1.6} /> Keyframe
           </button>
-          <button type="button" onClick={seed} className={cn(btn, "text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20")}>
-            <Wand2 className="size-3" strokeWidth={1.6} /> Seed
+          <button type="button" onClick={applyTemplate} title="Lay down the standard post phases, starting from the current week" className={cn(btn, "text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20")}>
+            <Wand2 className="size-3" strokeWidth={1.6} /> Template
           </button>
+
+          {/* Save / versions */}
+          <div className="relative">
+            <button type="button" onClick={() => { setShowSave((s) => !s); setShowExport(false); }} className={cn(btn, btnGhost)}>
+              <Save className="size-3" strokeWidth={1.6} /> Save
+            </button>
+            {showSave && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSave(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-72 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-3 flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={verName}
+                      onChange={(e) => setVerName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveVersion(); }}
+                      placeholder="Version name (optional)"
+                      className="flex-1 min-w-0 bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target"
+                    />
+                    <button type="button" onClick={saveVersion} disabled={bars.length === 0}
+                      className="shrink-0 px-2 py-1 text-[10px] uppercase tracking-[0.1em] font-mono rounded-sm border border-guide-target/50 text-guide-target bg-guide-target/10 hover:bg-guide-target/20 disabled:opacity-40">
+                      Save
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto flex flex-col gap-1 -mx-1 px-1">
+                    {versions.length === 0 ? (
+                      <p className="font-mono text-[10px] text-suite-text-dim py-1">No saved versions yet. Save a snapshot you can restore anytime.</p>
+                    ) : versions.map((v) => (
+                      <div key={v.id} className="group/v flex items-center gap-2 rounded-sm hover:bg-suite-panel-elevated px-1.5 py-1">
+                        <button type="button" onClick={() => loadVersion(v)} title="Load this version" className="flex-1 min-w-0 text-left flex items-center gap-2">
+                          <FolderOpen className="size-3 shrink-0 text-suite-text-dim group-hover/v:text-guide-target" strokeWidth={1.6} />
+                          <span className="min-w-0">
+                            <span className="block truncate font-mono text-[11px] text-suite-text">{v.name}</span>
+                            <span className="block font-mono text-[9px] text-suite-text-dim">{new Date(v.savedAt).toLocaleString()} · {v.bars.length} rows</span>
+                          </span>
+                        </button>
+                        <button type="button" onClick={() => deleteVersion(v.id)} title="Delete" className="shrink-0 text-suite-text-dim hover:text-destructive opacity-0 group-hover/v:opacity-100">
+                          <Trash2 className="size-3" strokeWidth={1.6} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Export */}
+          <div className="relative">
+            <button type="button" onClick={() => { setShowExport((s) => !s); setShowSave(false); }} className={cn(btn, btnGhost)}>
+              <Download className="size-3" strokeWidth={1.6} /> Export
+            </button>
+            {showExport && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExport(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col">
+                  {EXPORTS.map((x) => (
+                    <button key={x.fmt} type="button" onClick={() => doExport(x.fmt)} disabled={bars.length === 0}
+                      className="text-left px-2.5 py-1.5 text-[11px] font-mono text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated rounded-sm disabled:opacity-40">
+                      {x.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           <button type="button" onClick={clearAll} className={cn(btn, btnGhost)}>Clear</button>
         </div>
       </div>
@@ -364,10 +468,10 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
           <div className="max-w-md text-center flex flex-col items-center gap-4">
             <CalendarClock className="size-10 text-suite-text-dim" strokeWidth={1.2} />
             <p className="font-mono text-[11px] text-suite-text-dim leading-relaxed">
-              Set a project start, then seed the standard post phases — Prep, Shoot, Offload, Offline, Lock, Grade, Online, QC, Delivery — and drag the bars to block out durations in weeks. Add your own phases and keyframes too.
+              Set a project start, then drop the standard post template — Prep, Shoot, Offload, Offline, Lock, Grade, Online, QC, Delivery (laid down from the current week) — and drag the bars to block out durations in weeks. Add your own phases and keyframes too.
             </p>
-            <button type="button" onClick={seed} className={cn(btn, "text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 px-3 py-2 text-[11px]")}>
-              <Wand2 className="size-3.5" strokeWidth={1.6} /> Seed standard phases
+            <button type="button" onClick={applyTemplate} className={cn(btn, "text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 px-3 py-2 text-[11px]")}>
+              <Wand2 className="size-3.5" strokeWidth={1.6} /> Use standard template
             </button>
           </div>
         </div>
