@@ -103,8 +103,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.52";
+const VERSION = "v1.9.53";
 const CHANGELOG = [
+  "v1.9.53 — Renamed the product from LuminaFox Frame Matrix to Northlight Guide, with the byline 'Capture · Framing · Delivery' in the header. Updated the wordmark, browser tab title + social meta, and every export brand mark (framing chart, spec sheet, Camera Report PDF, FDL creator). Saved-plate storage keys left unchanged so nothing local breaks.",
   "v1.9.52 — Workflow: the canvas no longer accidentally selects text when you drag to pan or click around — the whole pipeline view is now selection-proof.",
   "v1.9.51 — Workflow: finishing-detail pass. New KDM Key Creation node off the DCP — the full encrypted-DCP key lifecycle (distributor playdate/screen list → cinema projector cert → per-screen KDM tied to CPL UUID + cert thumbprint + validity window + forensic-mark flags → TMS import → auto-expire) plus the classic failures (wrong CPL UUID, UTC-vs-NZST timezone, wrong/expired cert, flag mismatch, InterOp-on-SMPTE). New Late VFX Drop-ins node — finals landing after picture lock are re-conformed shot-by-shot and re-QC'd. New Font Licences paperwork node — embedding rights for titles/subs fonts (desktop ≠ broadcast/streaming). Screeners node is now Security · TPN · Screeners: MPA TPN tiers (Blue/Silver/Gold/Gold Shield) + CSBP v5.3.1 controls + Netflix overlay + the post-super's vendor security register. Grade node notes the DI tool is Resolve OR Baselight — identical ACES→grade→IMF/DCP workflow, only nomenclature and where the IMF/DCP wrap happens differ.",
   "v1.9.50 — Workflow: fixed edge labels overlapping nodes across bands. Canvas chips now always show the compact op token (full text on hover + in the side panel's Produced-by/Feeds), and chips for edges that jump over an intermediate stage (e.g. Mastering → Delivery skipping QC) are suppressed so nothing lands on the in-between nodes.",
@@ -759,7 +760,7 @@ const Index = () => {
       ? `  Aspect     : Sensor ${sensorAspectName} (${sensorAspectDec}) · Image ${srcAspectName} (${srcAspectDec})`
       : `  Aspect     : ${srcAspectName} (${srcAspectDec})`;
     const lines = [
-      `LUMINAFOX FRAME MATRIX — SPEC SHEET ${VERSION}`,
+      `NORTHLIGHT GUIDE — SPEC SHEET ${VERSION}`,
       projectName.trim() ? `  Project    : ${projectName.trim()}` : "",
       authorName.trim() ? `  Author     : ${authorName.trim()}` : "",
       `  Date       : ${new Date().toISOString().slice(0, 10)}`,
@@ -829,7 +830,7 @@ const Index = () => {
         const proj = projectName.trim();
         const author = authorName.trim();
         // FDL/text creator string carries project + DP so the metadata travels.
-        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}LuminaFox Frame Matrix ${VERSION}`;
+        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}Northlight Guide ${VERSION}`;
         // The chart/FDL is the NEUTRAL delivery framing reference (ASC convention) —
         // live punch-in / reframe are shot-level previews and are not baked in. Warn
         // so the operator isn't misled into thinking the export captured them.
@@ -866,7 +867,7 @@ const Index = () => {
           protection,
           showThirds,
           showSafeArea,
-          creator: `LuminaFox Frame Matrix ${VERSION}`,
+          creator: `Northlight Guide ${VERSION}`,
           projectName: proj || undefined,
           authorName: author || undefined,
           referenceImage: refEl,
@@ -999,12 +1000,15 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
-            <span className="text-suite-text-muted">LUMINAFOX</span>
+            <span className="text-suite-text-muted">NORTHLIGHT GUIDE</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
               {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : "STORAGE"}
             </span>
           </h1>
+          <span className="hidden lg:inline pl-3 ml-1 border-l border-suite-border font-mono text-[9px] tracking-[0.18em] uppercase text-suite-text-dim">
+            Capture · Framing · Delivery
+          </span>
           <VersionBadge />
         </div>
         <div className="flex items-center gap-2">

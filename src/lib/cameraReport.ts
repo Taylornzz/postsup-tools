@@ -150,7 +150,7 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
   doc.setFont("courier", "bold");
   doc.setFontSize(15);
   doc.setTextColor(INK[0], INK[1], INK[2]);
-  doc.text("LUMINAFOX / FRAME MATRIX", M, y + 6);
+  doc.text("NORTHLIGHT GUIDE", M, y + 6);
   doc.setFont("courier", "normal");
   doc.setFontSize(9);
   doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
