@@ -44,7 +44,7 @@ export const KIND_ACCENT: Record<PNodeKind, string> = {
 export const P_EDGE_META: Record<PEdgeOp, { token: string; style: "solid" | "dashed" | "dotted"; back?: boolean; data?: boolean; approve?: boolean }> = {
   approve: { token: "approve ✓", style: "solid", approve: true },
   notes: { token: "notes ↺", style: "dashed", back: true },
-  transform: { token: "xform", style: "solid" },
+  transform: { token: "transform", style: "solid" },
   trim: { token: "slap", style: "solid" },
   wrap: { token: "wrap", style: "dashed" },
   regrade: { token: "grade", style: "solid" },
