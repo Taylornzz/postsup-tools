@@ -2,7 +2,7 @@ import { SourceFormat } from "./formats";
 
 // ACES reference layer — a READ-ONLY lookup that tells a DIT / colorist / post
 // supervisor which Input Transform (IDT), working space and Output Transform to
-// set in their actual app (Resolve / Baselight / Nuke). Southlight Tools does NOT
+// set in their actual app (Resolve / Baselight / Nuke). PostSup Tools does NOT
 // apply any of these transforms; it only reports the correct ones to configure.
 //
 // Data verified (web + adversarial fact-check) against ACES docs, the AMPAS
@@ -230,4 +230,4 @@ export const ACES_VERSION_NOTE: Record<AcesVersion, string> = {
 
 /** Cross-version warning every colourist will want surfaced. */
 export const ACES_INTEROP_WARNING =
-  "Reference only — Southlight Tools doesn't apply these; set them in your grading app. Exact menu names vary by app & version. A shot graded under 1.3 looks different under 2.0 — don't switch versions mid-project.";
+  "Reference only — PostSup Tools doesn't apply these; set them in your grading app. Exact menu names vary by app & version. A shot graded under 1.3 looks different under 2.0 — don't switch versions mid-project.";

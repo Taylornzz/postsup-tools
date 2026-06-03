@@ -103,8 +103,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.55";
+const VERSION = "v1.9.56";
 const CHANGELOG = [
+  "v1.9.56 — Renamed to PostSup Tools. Updated the wordmark, browser tab title and every export brand mark (framing chart, spec sheet, Camera Report PDF, FDL creator).",
   "v1.9.55 — Slate block now shows the same rotating chevron the other collapsible panels use, so it's clear it opens — replaced the faint text arrow with the standard ChevronRight on the right edge.",
   "v1.9.54 — Renamed to Southlight Tools — the southern-hemisphere take on the steady, even 'south light' shooters work by. Removed the header byline for a cleaner top bar; updated the wordmark, tab title and every export brand mark.",
   "v1.9.53 — Renamed the product from LuminaFox Frame Matrix to Northlight Guide, with the byline 'Capture · Framing · Delivery' in the header. Updated the wordmark, browser tab title + social meta, and every export brand mark (framing chart, spec sheet, Camera Report PDF, FDL creator). Saved-plate storage keys left unchanged so nothing local breaks.",
@@ -762,7 +763,7 @@ const Index = () => {
       ? `  Aspect     : Sensor ${sensorAspectName} (${sensorAspectDec}) · Image ${srcAspectName} (${srcAspectDec})`
       : `  Aspect     : ${srcAspectName} (${srcAspectDec})`;
     const lines = [
-      `SOUTHLIGHT TOOLS — SPEC SHEET ${VERSION}`,
+      `POSTSUP TOOLS — SPEC SHEET ${VERSION}`,
       projectName.trim() ? `  Project    : ${projectName.trim()}` : "",
       authorName.trim() ? `  Author     : ${authorName.trim()}` : "",
       `  Date       : ${new Date().toISOString().slice(0, 10)}`,
@@ -832,7 +833,7 @@ const Index = () => {
         const proj = projectName.trim();
         const author = authorName.trim();
         // FDL/text creator string carries project + DP so the metadata travels.
-        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}Southlight Tools ${VERSION}`;
+        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}PostSup Tools ${VERSION}`;
         // The chart/FDL is the NEUTRAL delivery framing reference (ASC convention) —
         // live punch-in / reframe are shot-level previews and are not baked in. Warn
         // so the operator isn't misled into thinking the export captured them.
@@ -869,7 +870,7 @@ const Index = () => {
           protection,
           showThirds,
           showSafeArea,
-          creator: `Southlight Tools ${VERSION}`,
+          creator: `PostSup Tools ${VERSION}`,
           projectName: proj || undefined,
           authorName: author || undefined,
           referenceImage: refEl,
@@ -1002,7 +1003,7 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
-            <span className="text-suite-text-muted">SOUTHLIGHT TOOLS</span>
+            <span className="text-suite-text-muted">POSTSUP TOOLS</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
               {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : "STORAGE"}
