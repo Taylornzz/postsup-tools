@@ -143,7 +143,7 @@ export function WorkflowPipeline({ onOpenMastering, config }: Props) {
                   const meta = P_EDGE_META[e.op];
                   const active = sel && (e.from === sel.id || e.to === sel.id);
                   const back = meta.back;
-                  const stroke = back ? "#ef4444" : meta.data ? "#a78bfa" : e.dashed ? "#64748b" : "#22d3ee";
+                  const stroke = back ? "#ef4444" : meta.approve ? "#4ade80" : meta.data ? "#a78bfa" : e.dashed ? "#64748b" : "#22d3ee";
                   const dash = meta.style === "dashed" || e.dashed ? "6 4" : meta.style === "dotted" ? "2 5" : undefined;
                   return <path key={i} d={path(a, b)} fill="none" stroke={stroke} strokeWidth={active ? 2.4 : back ? 1.6 : 1.3} strokeDasharray={dash} opacity={active ? 1 : sel ? 0.18 : 0.6} />;
                 })}
@@ -161,7 +161,7 @@ export function WorkflowPipeline({ onOpenMastering, config }: Props) {
                     className={cn("absolute -translate-x-1/2 -translate-y-1/2 px-1 py-0.5 rounded-[3px] border font-mono text-center pointer-events-auto transition-opacity",
                       active ? "max-w-[150px] text-[8.5px] leading-tight z-30" : "text-[8px] leading-none whitespace-nowrap",
                       sel && !active ? "opacity-0" : "opacity-100",
-                      back ? "bg-red-950/85 border-red-500/50 text-red-200" : meta.data ? "bg-suite-bg border-violet-400/40 text-violet-200" : e.dashed ? "bg-suite-bg border-suite-border text-suite-text-dim" : "bg-suite-bg border-guide-target/40 text-guide-target")}
+                      back ? "bg-red-950/85 border-red-500/50 text-red-200" : meta.approve ? "bg-suite-bg border-green-400/40 text-green-300" : meta.data ? "bg-suite-bg border-violet-400/40 text-violet-200" : e.dashed ? "bg-suite-bg border-suite-border text-suite-text-dim" : "bg-suite-bg border-guide-target/40 text-guide-target")}
                     style={{ left: mx, top: my, zIndex: active ? 30 : 3 }}>
                     {back && <AlertTriangle className="inline size-2.5 mr-0.5 -mt-0.5" strokeWidth={2} />}
                     {active ? e.label : meta.token}
@@ -181,14 +181,16 @@ export function WorkflowPipeline({ onOpenMastering, config }: Props) {
                     <span className="text-[10.5px] font-semibold text-suite-text leading-tight line-clamp-2 w-full flex items-center gap-1">
                       {nd.label}{isMaster && <ArrowUpRight className="size-3 shrink-0" style={{ color: accent }} strokeWidth={2} />}
                     </span>
-                    <span className="text-[8px] tracking-wide uppercase" style={{ color: accent, opacity: 0.8 }}>{nd.kind.replace("-", " ")}</span>
+                    <span className="text-[8px] tracking-wide uppercase truncate w-full" style={{ color: accent, opacity: 0.85 }}>
+                      {nd.owner ?? nd.kind.replace("-", " ")}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
           <p className="text-[10px] text-suite-text-dim font-mono mt-3 max-w-3xl leading-relaxed sticky left-4">
-            <span className="text-suite-text-muted">Planning view, not an automated pipeline.</span> Cyan = colour/pixel transform · violet = data-integrity · grey dashed = wrap / view / proxy · <span className="text-red-300">red = QC fail-loop (back to an upstream stage)</span>. The audio column (fuchsia, right) branches at lock and re-marries picture at delivery. Verify loudness, IMF/DCDM specs, archive policy and CMVersion with your post house.
+            <span className="text-suite-text-muted">Planning view, not an automated pipeline.</span> Cyan = colour/pixel transform · <span className="text-green-300">green = approval / sign-off</span> · violet = data-integrity · grey dashed = wrap / view / proxy · <span className="text-red-300">red = revisions / QC fail-loop (back upstream)</span>. Each node shows its OWNER. The audio column (fuchsia, right) branches at lock and re-marries picture at delivery. Verify loudness, IMF/DCDM specs, archive policy and CMVersion with your post house.
           </p>
         </div>
       </div>
@@ -205,6 +207,12 @@ export function WorkflowPipeline({ onOpenMastering, config }: Props) {
               <span className="size-2.5 rounded-full" style={{ background: KIND_ACCENT[sel.kind] }} />
               <h3 className="text-[13px] font-semibold text-suite-text">{sel.label}</h3>
             </div>
+            {sel.owner && (
+              <div className="flex items-center gap-2 text-[11px] font-mono">
+                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Owner</span>
+                <span className="text-suite-text px-1.5 py-0.5 rounded-sm bg-suite-bg border border-suite-border">{sel.owner}</span>
+              </div>
+            )}
             <p className="text-[11px] text-suite-text-dim font-mono leading-relaxed">{sel.detail}</p>
             {sel.kind === "master" && (
               <button onClick={onOpenMastering} className="flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] tracking-[0.14em] uppercase border border-guide-target/50 text-guide-target hover:bg-guide-target/10 rounded-sm transition-colors">

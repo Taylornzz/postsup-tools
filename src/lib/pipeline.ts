@@ -16,10 +16,10 @@ export type PEdgeOp =
   | "transform" | "trim" | "wrap" | "regrade" | "output-transform" | "render-archive"
   | "bake" | "checksum-verify" | "manifest" | "sync" | "stack" | "turnover"
   | "comp" | "conform" | "qc-gate" | "qc-fail-loop" | "mix" | "rejoin"
-  | "retain" | "validate" | "decide" | "annotate" | "transcode";
+  | "retain" | "validate" | "decide" | "annotate" | "transcode" | "approve" | "notes";
 
 export interface PStage { id: string; label: string; order: number; track: Track; summary: string; }
-export interface PNode { id: string; stage: string; kind: PNodeKind; label: string; detail: string; track: Track; }
+export interface PNode { id: string; stage: string; kind: PNodeKind; label: string; detail: string; track: Track; owner?: string; }
 export interface PEdge { from: string; to: string; op: PEdgeOp; label: string; dashed?: boolean; }
 export interface PipelineGraph { stages: PStage[]; nodes: PNode[]; edges: PEdge[]; }
 
@@ -41,7 +41,9 @@ export const KIND_ACCENT: Record<PNodeKind, string> = {
   turnover: "#facc15",          // yellow
 };
 
-export const P_EDGE_META: Record<PEdgeOp, { token: string; style: "solid" | "dashed" | "dotted"; back?: boolean; data?: boolean }> = {
+export const P_EDGE_META: Record<PEdgeOp, { token: string; style: "solid" | "dashed" | "dotted"; back?: boolean; data?: boolean; approve?: boolean }> = {
+  approve: { token: "approve ✓", style: "solid", approve: true },
+  notes: { token: "notes ↺", style: "dashed", back: true },
   transform: { token: "xform", style: "solid" },
   trim: { token: "slap", style: "solid" },
   wrap: { token: "wrap", style: "dashed" },
@@ -73,9 +75,9 @@ export const STAGES: PStage[] = [
   { id: "audio-prod", order: 2, track: "audio", label: "A1 · Production Sound & Sync", summary: "The audio column begins at the shoot — location multitrack (lav+boom, iso+guide, TC jam-synced), synced to dailies." },
   { id: "offload", order: 3, track: "data", label: "3 · DIT Cart — Offload · Verify · Backup", summary: "Verified multi-destination offload (xxHash/MD5/SHA1), ASC-MHL manifest, 3-2-1 backup incl LTO, and an ingest/technical QC gate before footage leaves the cart." },
   { id: "dailies", order: 4, track: "picture", label: "4 · Dailies & Proxies", summary: "Look-baked dailies (show LUT + per-setup CDL, primary only) and editorial proxies. Production sound syncs in — the first audio re-marry to picture." },
-  { id: "editorial", order: 5, track: "picture", label: "5 · Offline Editorial → Lock", summary: "Cut on look-baked proxies. At picture-lock, export a TURNOVER (EDL/AAF/XML) — the single source of truth driving both the VFX pull and the conform." },
+  { id: "editorial", order: 5, track: "picture", label: "5 · Offline Editorial → Lock", summary: "The cut-approval ladder on look-baked proxies: Editor's Assembly → Director's Cut → Producer's Cut → Network/Studio Cut → Picture Lock. Lock triggers the turnover (AAF/XML/EDL + ref + change lists + cue sheets) that drives VFX, audio and conform." },
   { id: "audio-edit", order: 5, track: "audio", label: "A2 · Sound Editorial (DME)", summary: "At lock the turnover feeds five disciplines — Dialogue, ADR, Foley, SFX/design, Music — routing into D/M/E predubs." },
-  { id: "vfx", order: 6, track: "picture", label: "6 · VFX Pull → Comp → Master", summary: "Pull plates from camera-original (not proxies) via IDT, deliver with look reference, vendor composites in scene-linear, QC with a revision loop, return ungraded VFX masters that override plates at conform." },
+  { id: "vfx", order: 6, track: "picture", label: "6 · VFX Pull → Comp → Approve → Master", summary: "The 8-step pull & approval process: shot list → EDL → plate pull (handles agreed in writing) → reference → ingest confirm → comp → ShotGrid/Ftrack version review (the approval gate, with a notes loop) → approved final EXR. Each step has an owner." },
   { id: "conform", order: 7, track: "picture", label: "7 · Online / Conform", summary: "Relink every event proxy → camera-original at full res, VFX masters override their plates; apply cuts/retimes/repos/FDL. Output: the conformed master timeline for the grade." },
   { id: "audio-mix", order: 7, track: "audio", label: "A3 · Final Mix · Masters · Loudness", summary: "D+M+E balanced to picture = creative master → Atmos (objects+bed), channel re-renders, printmaster, M&E. Loudness QC gates each master, then conform to final graded picture." },
   { id: "mastering", order: 8, track: "picture", label: "8 · Grade & Mastering", summary: "Conformed timeline → ACES hero grade → the Output Transform splits to deliverables. This stage is the existing Mastering DAG, folded in." },
@@ -84,8 +86,8 @@ export const STAGES: PStage[] = [
   { id: "archive", order: 11, track: "data", label: "11 · Long-Term Archive", summary: "Future-proof masters retained for decades: NAM (scene-referred AP0, no output transform), graded App 5 ACES, camera-original retention, LTO + cloud." },
 ];
 
-const n = (id: string, stage: string, track: Track, kind: PNodeKind, label: string, detail: string): PNode =>
-  ({ id, stage, track, kind, label, detail });
+const n = (id: string, stage: string, track: Track, kind: PNodeKind, label: string, detail: string, owner?: string): PNode =>
+  ({ id, stage, track, kind, label, detail, owner });
 
 export const NODES: PNode[] = [
   // 1 — Camera Test & Look Dev
@@ -111,22 +113,29 @@ export const NODES: PNode[] = [
   n("d-dailies", "dailies", "picture", "dailies", "Dailies (look baked)", "Transcodes with show LUT + CDL baked, Rec.709 default (PQ only on HDR pipelines)."),
   n("d-proxy", "dailies", "picture", "dailies", "Editorial Proxies", "ProRes Proxy / DNxHR LB / H.264, look baked, matching TC/reel for conform."),
   n("d-synced", "dailies", "picture", "dailies", "Synced Dailies", "Dailies/proxies married to production sound by TC/clap."),
-  // 5 — Editorial
-  n("e-cut", "editorial", "picture", "dailies", "Offline Cut (proxy)", "ProRes/DNx sequence, show-LUT + CDL baked — looks right, not colour-accurate."),
-  n("e-turnover", "editorial", "picture", "turnover", "Turnover (EDL/AAF/XML)", "EDL File_129 (preserves long source names) / AAF / FCPXML — source names + VFX locators + retimes."),
+  // 5 — Offline Editorial → Lock (the cut-approval ladder)
+  n("e-assembly", "editorial", "picture", "dailies", "Editor's Assembly", "Built continuously through principal photography on look-baked proxies — first string-out → assembly.", "Editor"),
+  n("e-dircut", "editorial", "picture", "dailies", "Director's Cut", "~10 weeks after wrap (feature) or per-episode (TV). The director's vision of the cut.", "Editor + Director"),
+  n("e-prodcut", "editorial", "picture", "dailies", "Producer's Cut", "1–3 weeks after the director's cut — producer notes addressed.", "Producer"),
+  n("e-netcut", "editorial", "picture", "dailies", "Network / Studio Cut", "Per the notes cycle — network/studio sign-off rounds.", "Network / Studio"),
+  n("e-lock", "editorial", "picture", "turnover", "Picture Lock", "Date agreed in the schedule — NO further picture changes. Triggers the turnover, the VFX pull and audio editorial.", "Post Supervisor"),
+  n("e-turnover", "editorial", "picture", "turnover", "Turnover Package", "Locked AAF/XML/EDL (File_129 preserves long source names) · reference H.264 w/ burn-ins (TC, reel, scene, take) · change lists vs previous turnover (per reel/episode) · VFX / music / sound cue sheets · audio OMF/AAF w/ embedded media · subtitle scripts.", "1st Assistant Editor"),
   // A2 — Sound editorial
   n("a-dx", "audio-edit", "audio", "audio", "Dialogue / ADR", "Dialogue clean-up + edit and re-recorded ADR lines → the D predub."),
   n("a-fx", "audio-edit", "audio", "audio", "Foley / SFX / Design", "Foley to picture + sound design/SFX → the E predub."),
   n("a-music", "audio-edit", "audio", "audio", "Music", "Score + source/licensed cues → the M predub."),
   n("a-premix", "audio-edit", "audio", "audio", "Premix D/M/E (stems)", "Three predubs D/M/E on a calibrated dub stage at reference SPL."),
-  // 6 — VFX
-  n("v-plate", "vfx", "picture", "vfx-plate", "VFX Plate (pulled)", "Camera-original → IDT → AP0 ACES2065-1 16-bit EXR (or Camera-Linear EXR / Camera-Log DPX). Handles, ≥UHD, lens/tracking metadata."),
-  n("v-ref", "vfx", "picture", "look", "Reference Bundle", "Graded ref frames + CDL + show-LUT must accompany the plate (supplied alongside, not baked)."),
-  n("v-comp", "vfx", "picture", "vfx-master", "VFX Comp (versions)", "Vendor composite in scene-linear ACES; per-shot versions named per the spec."),
-  n("v-qc", "vfx", "picture", "qc", "VFX Media Review QC", "Colour round-trip, handles, naming, creative slap-in. Fail loops back to vendor."),
-  n("v-master", "vfx", "picture", "vfx-master", "VFX Master (final)", "Final EXR, UNGRADED, same colourspace/res/handles as plate. Overrides the original plate at conform."),
+  // 6 — VFX Pull → Comp → Approve → Master (8-step process, with owners)
+  n("v-shotlist", "vfx", "picture", "turnover", "VFX Shot List", "Compiled from the locked-edit offline — per-shot IDs, methodology, frame ranges, difficulty. The master line-up.", "VFX Editor"),
+  n("v-edl", "vfx", "picture", "turnover", "EDL / XML Export", "Pulled from Avid/Premiere — the exact events to pull plates for, with source reels.", "1st Assistant Editor"),
+  n("v-plate", "vfx", "picture", "vfx-plate", "Plate Pull (8–16f handles)", "16-bit EXR, ACES2065-1 or ACEScg per vendor spec. Handles 8–16f (24–48f for matchmove / retimes) — agree in writing; a too-short handle = an expensive re-pull. ≥UHD, lens/tracking metadata.", "Online / Conform"),
+  n("v-ref", "vfx", "picture", "look", "Reference + Burn-in", "Offline reference (H.264) + burn-in metadata (TC, scene, take) supplied alongside the plate — not baked.", "VFX Editor"),
+  n("v-ingest", "vfx", "picture", "qc", "Ingest Confirmation", "Vendor confirms receipt & plate integrity (frame count, handles, colourspace) before work starts.", "VFX Vendor"),
+  n("v-comp", "vfx", "picture", "vfx-master", "VFX Comp (WIP)", "Composite in scene-linear ACES; per-shot WIP versions named per the convention.", "VFX Vendor"),
+  n("v-review", "vfx", "picture", "qc", "Version Review (ShotGrid/Ftrack)", "Daily/weekly WIP review. Notes → revisions loop. The creative + technical APPROVAL gate before a shot can go final.", "VFX Producer + Post Super"),
+  n("v-master", "vfx", "picture", "vfx-master", "Final EXR → Conform", "Approved locked EXR sequence — UNGRADED, same colourspace/res/handles as plate. Overrides the original plate at conform (full res).", "Online / Finishing"),
   // 7 — Conform
-  n("c-timeline", "conform", "picture", "conform", "Conformed Timeline", "Full-res relinked master sequence, VFX masters override plates, colour-managed. Hands to the grade."),
+  n("c-timeline", "conform", "picture", "conform", "Conformed Timeline", "Match the offline back to camera masters at full res — a DNxHR-proxy decision becomes a pixel-perfect cut on the original ARRIRAW. Checklist: EDL matches the locked reference exactly · all reel names map to camera-master filenames (no orphans) · tracks colour-coded (VFX/stock/captures/archive/primary) · opticals & speed ramps flagged · handles preserved for the colourist · output res = grade working res. Watch for: missing reels, unresolved speed ramps (need original not transcode), archive in wrong gamma (needs IDT), mixed frame rates (29.97 stock in a 25p show).", "Online / Finishing"),
   // A3 — Final mix
   n("a-final", "audio-mix", "audio", "audio", "Final Mix", "D+M+E balanced to picture @ reference SPL. The branch point for all downstream masters."),
   n("a-atmos", "audio-mix", "audio", "audio", "Atmos Master", "Objects + bed (7.1.4 min). Rides the IMF as an IAB track (ST 2067-201); ADM BWAV is the alt printmaster."),
@@ -173,24 +182,31 @@ export const EDGES: PEdge[] = [
   { from: "o-verified", to: "d-dailies", op: "bake", label: "Transcode with show LUT + CDL baked" },
   { from: "o-verified", to: "d-proxy", op: "transcode", label: "Proxy gen, look baked, edit codec" },
   { from: "a-prod", to: "d-synced", op: "sync", label: "TC/clap marry of production sound (first audio touch-point)" },
-  // 5
-  { from: "d-proxy", to: "e-cut", op: "transcode", label: "Cut on proxies" },
-  { from: "e-cut", to: "e-turnover", op: "turnover", label: "Export the decision list at picture-lock" },
+  // 5 — the cut-approval ladder
+  { from: "d-proxy", to: "e-assembly", op: "transcode", label: "Cut on look-baked proxies" },
+  { from: "e-assembly", to: "e-dircut", op: "approve", label: "String-out → director's cut" },
+  { from: "e-dircut", to: "e-prodcut", op: "approve", label: "Director's-cut notes addressed → producer's cut" },
+  { from: "e-prodcut", to: "e-netcut", op: "approve", label: "Producer's-cut notes → network/studio cut" },
+  { from: "e-netcut", to: "e-lock", op: "approve", label: "Final sign-off → PICTURE LOCK" },
+  { from: "e-lock", to: "e-turnover", op: "turnover", label: "Lock triggers the turnover package" },
   // A2
   { from: "e-turnover", to: "a-dx", op: "turnover", label: "Locked-picture AAF/OMF turnover" },
   { from: "a-sync", to: "a-dx", op: "transform", label: "Synced field tracks into dialogue edit" },
   { from: "a-dx", to: "a-premix", op: "mix", label: "Predub D" },
   { from: "a-fx", to: "a-premix", op: "mix", label: "Predub E" },
   { from: "a-music", to: "a-premix", op: "mix", label: "Predub M" },
-  // 6
-  { from: "e-turnover", to: "v-plate", op: "transform", label: "Parse VFX locators → pull events; relink to camera-original" },
-  { from: "e-cut", to: "v-ref", op: "regrade", label: "Extract dailies look / CDL / LUT as vendor reference" },
-  { from: "v-plate", to: "v-comp", op: "comp", label: "Deliver plate → vendor compositing" },
-  { from: "v-ref", to: "v-comp", op: "transform", label: "Supply look reference alongside the plate" },
-  { from: "v-comp", to: "v-qc", op: "qc-gate", label: "Technical + creative QC review" },
-  { from: "v-qc", to: "v-comp", op: "qc-fail-loop", label: "Kickback / revisions loop" },
-  { from: "v-qc", to: "v-master", op: "wrap", label: "Approve & publish the final EXR master" },
-  { from: "v-master", to: "e-cut", op: "trim", label: "Slap-comp finals back into editorial" },
+  // 6 — VFX 8-step pull & approval
+  { from: "e-lock", to: "v-shotlist", op: "turnover", label: "VFX editor compiles the shot list from the locked offline" },
+  { from: "v-shotlist", to: "v-edl", op: "transform", label: "Pull the EDL/XML for the VFX events" },
+  { from: "v-edl", to: "v-plate", op: "transform", label: "Relink to camera-original; pull plates with handles" },
+  { from: "e-turnover", to: "v-ref", op: "regrade", label: "Offline reference (H.264) + burn-in metadata" },
+  { from: "v-plate", to: "v-ingest", op: "transform", label: "Deliver plates to the vendor, per spec" },
+  { from: "v-ingest", to: "v-comp", op: "qc-gate", label: "Receipt & integrity confirmed → comp begins" },
+  { from: "v-ref", to: "v-comp", op: "transform", label: "Supply the look reference alongside the plate" },
+  { from: "v-comp", to: "v-review", op: "qc-gate", label: "Submit WIP for review" },
+  { from: "v-review", to: "v-comp", op: "notes", label: "Notes → revisions (back to vendor)" },
+  { from: "v-review", to: "v-master", op: "approve", label: "Creative + technical sign-off → publish final EXR" },
+  { from: "v-master", to: "e-netcut", op: "trim", label: "Final comps slapped back into the cut" },
   // 7
   { from: "e-turnover", to: "c-timeline", op: "conform", label: "Relink proxy → camera-original full-res; cuts/retimes/FDL" },
   { from: "v-master", to: "c-timeline", op: "transform", label: "VFX master EXR overrides the original plate at its event" },
