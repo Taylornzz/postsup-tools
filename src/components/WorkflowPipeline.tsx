@@ -112,7 +112,7 @@ export function WorkflowPipeline({ onOpenMastering, config }: Props) {
   };
 
   return (
-    <div className="flex-1 min-h-0 min-w-0 flex bg-suite-canvas">
+    <div className="flex-1 min-h-0 min-w-0 flex bg-suite-canvas select-none">
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {/* Toolbar */}
         <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
