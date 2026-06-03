@@ -88,7 +88,7 @@ export function Glossary() {
   const renderEntry = (e: GlossaryEntry) => (
     <article key={e.term} id={`gloss-${slug(e.term)}`} className="py-2.5">
       <div className="flex items-baseline justify-between gap-3">
-        <h4 className="font-mono text-[13px] text-suite-text font-semibold leading-snug">{e.term}</h4>
+        <h4 className="font-mono text-[16px] text-suite-text font-bold tracking-tight leading-snug">{e.term}</h4>
         <button
           onClick={() => setCat(e.category)}
           title={`Filter to ${e.category}`}

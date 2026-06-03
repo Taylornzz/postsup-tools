@@ -107,8 +107,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.65";
+const VERSION = "v1.9.66";
 const CHANGELOG = [
+  "v1.9.66 — Glossary: larger, bolder term headings for easier scanning.",
   "v1.9.65 — Planner: the Seed button is now Template — it lays the standard post phases down starting from the current week (not week zero). New Save button keeps named version snapshots in the browser that you can reload or delete anytime. New Export menu: PDF (a proper drawn Gantt chart), PNG image, Calendar (.ics — drop every phase and milestone straight into Google/Apple/Outlook calendar), CSV spreadsheet, and JSON backup.",
   "v1.9.64 — Planner: group-move now works. The date editor was popping up on the first selection and covering the rows below it, so shift-clicks meant for the next bars hit the popover instead. Editing a date (plain click) is now separate from building a multi-selection (shift-click) — shift-click as many bars as you like with nothing in the way, then drag any one to move them all together.",
   "v1.9.63 — Planner: fixed the layout bug where a zoomed-in (wide) timeline stretched the whole panel — pushing the toolbar (Start date, zoom, Seed…) off-screen and stopping drag-to-pan from working. The timeline now scrolls inside its own box, the toolbar always stays in frame, and you can drag anywhere on the canvas (including below the rows) to pan.",
