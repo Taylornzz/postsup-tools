@@ -103,8 +103,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.54";
+const VERSION = "v1.9.55";
 const CHANGELOG = [
+  "v1.9.55 — Slate block now shows the same rotating chevron the other collapsible panels use, so it's clear it opens — replaced the faint text arrow with the standard ChevronRight on the right edge.",
   "v1.9.54 — Renamed to Southlight Tools — the southern-hemisphere take on the steady, even 'south light' shooters work by. Removed the header byline for a cleaner top bar; updated the wordmark, tab title and every export brand mark.",
   "v1.9.53 — Renamed the product from LuminaFox Frame Matrix to Northlight Guide, with the byline 'Capture · Framing · Delivery' in the header. Updated the wordmark, browser tab title + social meta, and every export brand mark (framing chart, spec sheet, Camera Report PDF, FDL creator). Saved-plate storage keys left unchanged so nothing local breaks.",
   "v1.9.52 — Workflow: the canvas no longer accidentally selects text when you drag to pan or click around — the whole pipeline view is now selection-proof.",
@@ -1059,14 +1060,14 @@ const Index = () => {
           {/* Slate — project + DP, stamped onto every export. */}
           <section className="px-5 py-3 border-b border-suite-border">
             <details className="group">
-              <summary className="cursor-pointer list-none flex items-center justify-between text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text select-none">
-                <span className="flex items-center gap-1.5">
-                  <span className="transition-transform group-open:rotate-90">▸</span>
-                  00 · Slate
-                </span>
-                <span className="font-mono normal-case tracking-normal text-suite-text-dim truncate max-w-[55%] text-right">
-                  {projectName.trim() || "untitled"}
-                  {authorName.trim() ? ` · ${authorName.trim()}` : ""}
+              <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-[10px] tracking-[0.18em] uppercase text-suite-text-muted hover:text-suite-text select-none">
+                <span className="shrink-0">00 · Slate</span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-mono normal-case tracking-normal text-suite-text-dim truncate text-right">
+                    {projectName.trim() || "untitled"}
+                    {authorName.trim() ? ` · ${authorName.trim()}` : ""}
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-suite-text-muted transition-transform group-open:rotate-90" strokeWidth={2} />
                 </span>
               </summary>
               <div className="flex flex-col gap-3 pt-3">
