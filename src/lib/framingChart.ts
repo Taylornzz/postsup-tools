@@ -108,7 +108,7 @@ export function buildFdl({
   source,
   target,
   protection = 0,
-  creator = "Northlight Guide",
+  creator = "Southlight Tools",
   secondaryCropAR = null,
 }: FramingChartParams): Fdl {
   const W = source.width;
