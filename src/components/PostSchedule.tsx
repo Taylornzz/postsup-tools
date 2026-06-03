@@ -93,6 +93,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(KEY_START) || mondayOf(localISO(new Date())));
   const [weekW, setWeekW] = useState<number>(WEEK_W_DEFAULT);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [editId, setEditId] = useState<string | null>(null); // which bar's date editor is open (plain click only)
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekWRef = useRef(weekW);
@@ -158,8 +159,10 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
       // a click, not a drag → selection
       if (d.shift) {
         setSelectedIds((ids) => (ids.includes(d.clickedId) ? ids.filter((x) => x !== d.clickedId) : [...ids, d.clickedId]));
+        setEditId(null); // building a multi-selection — don't pop the date editor
       } else {
         setSelectedIds([d.clickedId]);
+        setEditId(d.clickedId); // plain click opens the date editor
       }
     }
     drag.current = null;
@@ -202,7 +205,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     if (t.closest("input, button, [data-no-pan]")) return; // don't pan from controls / name column / popover
     const el = scrollRef.current;
     if (!el) return;
-    setSelectedIds([]); // clicking empty canvas clears selection
+    setSelectedIds([]); setEditId(null); // clicking empty canvas clears selection
     pan.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
     document.body.style.cursor = "grabbing";
     window.addEventListener("mousemove", onPanMove);
@@ -274,30 +277,30 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   }, [weekW]);
 
   useEffect(() => {
-    if (selectedIds.length === 0) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedIds([]); };
+    if (selectedIds.length === 0 && !editId) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setSelectedIds([]); setEditId(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedIds.length]);
+  }, [selectedIds.length, editId]);
 
   function patch(id: string, p: Partial<Bar>) { setBars((bs) => bs.map((b) => (b.id === id ? { ...b, ...p } : b))); }
-  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); setSelectedIds((ids) => ids.filter((x) => x !== id)); }
+  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); setSelectedIds((ids) => ids.filter((x) => x !== id)); setEditId((e) => (e === id ? null : e)); }
   const newStart = () => Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
   function addRow() {
     const b = { id: uid(), name: "New phase", color: PALETTE[bars.length % PALETTE.length], start: newStart(), dur: 2 };
-    setBars((bs) => [...bs, b]); setSelectedIds([b.id]);
+    setBars((bs) => [...bs, b]); setSelectedIds([b.id]); setEditId(b.id);
   }
   function addMilestone() {
     const b = { id: uid(), name: "Milestone", color: "#facc15", start: newStart(), dur: 0 };
-    setBars((bs) => [...bs, b]); setSelectedIds([b.id]);
+    setBars((bs) => [...bs, b]); setSelectedIds([b.id]); setEditId(b.id);
   }
   function seed() {
     if (bars.length && !window.confirm("Replace the schedule with the standard post phases?")) return;
-    setBars(SEED.map((b) => ({ ...b, id: uid() }))); setSelectedIds([]);
+    setBars(SEED.map((b) => ({ ...b, id: uid() }))); setSelectedIds([]); setEditId(null);
   }
   function clearAll() {
     if (bars.length && !window.confirm("Clear all phases?")) return;
-    setBars([]); setSelectedIds([]);
+    setBars([]); setSelectedIds([]); setEditId(null);
   }
   function zoom(factor: number) { setWeekW((w) => clamp(w * factor, WEEK_W_MIN, WEEK_W_MAX)); }
   function scrollToToday() {
@@ -309,7 +312,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const timelineW = weeksToShow * weekW;
   const bodyH = bars.length * ROW_H;
 
-  const selected = selectedIds.length === 1 ? bars.find((b) => b.id === selectedIds[0]) || null : null;
+  const selected = editId ? bars.find((b) => b.id === editId) || null : null;
   const selIdx = selected ? bars.findIndex((b) => b.id === selected.id) : -1;
 
   const btn = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors";
@@ -474,7 +477,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                     <span className="size-2 rounded-full" style={{ backgroundColor: selected.color }} />
                     {selected.dur === 0 ? "Keyframe" : "Phase"}
                   </span>
-                  <button type="button" onClick={() => setSelectedIds([])} className="text-suite-text-dim hover:text-suite-text"><X className="size-3.5" strokeWidth={2} /></button>
+                  <button type="button" onClick={() => setEditId(null)} className="text-suite-text-dim hover:text-suite-text"><X className="size-3.5" strokeWidth={2} /></button>
                 </div>
                 <input
                   value={selected.name}

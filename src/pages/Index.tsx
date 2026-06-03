@@ -107,8 +107,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.63";
+const VERSION = "v1.9.64";
 const CHANGELOG = [
+  "v1.9.64 — Planner: group-move now works. The date editor was popping up on the first selection and covering the rows below it, so shift-clicks meant for the next bars hit the popover instead. Editing a date (plain click) is now separate from building a multi-selection (shift-click) — shift-click as many bars as you like with nothing in the way, then drag any one to move them all together.",
   "v1.9.63 — Planner: fixed the layout bug where a zoomed-in (wide) timeline stretched the whole panel — pushing the toolbar (Start date, zoom, Seed…) off-screen and stopping drag-to-pan from working. The timeline now scrolls inside its own box, the toolbar always stays in frame, and you can drag anywhere on the canvas (including below the rows) to pan.",
   "v1.9.62 — Planner interaction fixes: the plain mouse wheel now zooms the schedule (no modifier — so it never triggers the browser's page zoom that was pushing the toolbar off-screen; the toolbar always stays in frame). Drag any empty part of the timeline to pan left/right and up/down. Shift-click bars to multi-select, then drag any of them to move the whole group together (relative spacing preserved). Shift-wheel still nudges sideways.",
   "v1.9.61 — Planner: click any bar or keyframe to open a small editor and type an exact date (day-level precision) — plus rename, set duration in weeks, or convert between phase and keyframe. Scrolling fixed: the plain mouse wheel now scrolls the timeline left/right, and ⌘/Ctrl/Alt-wheel zooms (the +/− buttons still zoom too).",
