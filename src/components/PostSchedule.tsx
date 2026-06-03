@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 /** Post Schedule — a drag-and-drop weekly Gantt. Each row is a phase bar with a start
  *  (week offset) and a duration (weeks); drag the body to move, drag an edge to resize,
- *  drag the grip to reorder, click to set an exact date. Duration 0 = a milestone /
- *  keyframe diamond (e.g. Lock). Wheel scrolls; ⌘/Ctrl/Alt-wheel zooms. Saves locally. */
+ *  drag the grip to reorder, click to set an exact date, shift-click for multi-select.
+ *  Duration 0 = a milestone / keyframe diamond. Wheel zooms; drag the canvas to pan. */
 
 type Bar = { id: string; name: string; color: string; start: number; dur: number };
 
@@ -92,11 +92,13 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const [bars, setBars] = useState<Bar[]>(loadBars);
   const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(KEY_START) || mondayOf(localISO(new Date())));
   const [weekW, setWeekW] = useState<number>(WEEK_W_DEFAULT);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekWRef = useRef(weekW);
   weekWRef.current = weekW;
+  const selRef = useRef(selectedIds);
+  selRef.current = selectedIds;
 
   useEffect(() => { try { localStorage.setItem(KEY_BARS, JSON.stringify(bars)); } catch { /* ignore */ } }, [bars]);
   useEffect(() => { try { localStorage.setItem(KEY_START, startDate); } catch { /* ignore */ } }, [startDate]);
@@ -107,10 +109,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   const weeks = useMemo(() => {
     const out: { i: number; date: Date; wk: number }[] = [];
-    for (let i = 0; i < weeksToShow; i++) {
-      const date = addWeeks(anchor, i);
-      out.push({ i, date, wk: isoWeekNum(date) });
-    }
+    for (let i = 0; i < weeksToShow; i++) out.push({ i, date: addWeeks(anchor, i), wk: isoWeekNum(addWeeks(anchor, i)) });
     return out;
   }, [anchor, weeksToShow]);
 
@@ -131,23 +130,38 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   }, [anchor]);
   const todayInRange = todayWeeks >= 0 && todayWeeks <= weeksToShow;
 
-  // ---- bar drag (move / resize) + click-to-select ----
-  const drag = useRef<{ id: string; mode: "move" | "l" | "r"; x0: number; y0: number; s0: number; d0: number } | null>(null);
+  // ---- bar drag (move group / resize) + click-to-select ----
+  const drag = useRef<{ mode: "move" | "l" | "r"; clickedId: string; shift: boolean; x0: number; y0: number; items: { id: string; s0: number; d0: number }[]; minS0: number } | null>(null);
   const onMove = useCallback((e: MouseEvent) => {
     const d = drag.current;
     if (!d) return;
     const dw = Math.round((e.clientX - d.x0) / weekWRef.current);
-    setBars((bs) => bs.map((b) => {
-      if (b.id !== d.id) return b;
-      if (d.mode === "move") return { ...b, start: Math.max(0, d.s0 + dw) };
-      if (d.mode === "r") return { ...b, dur: Math.max(1, d.d0 + dw) };
-      const ns = Math.min(Math.max(0, d.s0 + dw), d.s0 + d.d0 - 1);
-      return { ...b, start: ns, dur: d.d0 - (ns - d.s0) };
-    }));
+    if (d.mode === "move") {
+      const dwc = d.minS0 + dw < 0 ? -d.minS0 : dw;
+      setBars((bs) => bs.map((b) => {
+        const it = d.items.find((x) => x.id === b.id);
+        return it ? { ...b, start: it.s0 + dwc } : b;
+      }));
+    } else {
+      const it = d.items[0];
+      setBars((bs) => bs.map((b) => {
+        if (b.id !== it.id) return b;
+        if (d.mode === "r") return { ...b, dur: Math.max(1, it.d0 + dw) };
+        const ns = Math.min(Math.max(0, it.s0 + dw), it.s0 + it.d0 - 1);
+        return { ...b, start: ns, dur: it.d0 - (ns - it.s0) };
+      }));
+    }
   }, []);
   const onUp = useCallback((e: MouseEvent) => {
     const d = drag.current;
-    if (d && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) setSelectedId(d.id); // a click, not a drag
+    if (d && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) {
+      // a click, not a drag → selection
+      if (d.shift) {
+        setSelectedIds((ids) => (ids.includes(d.clickedId) ? ids.filter((x) => x !== d.clickedId) : [...ids, d.clickedId]));
+      } else {
+        setSelectedIds([d.clickedId]);
+      }
+    }
     drag.current = null;
     window.removeEventListener("mousemove", onMove);
     window.removeEventListener("mouseup", onUp);
@@ -156,13 +170,42 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const onDown = useCallback((e: React.MouseEvent, id: string, mode: "move" | "l" | "r") => {
     e.preventDefault();
     e.stopPropagation();
-    const b = bars.find((x) => x.id === id);
-    if (!b) return;
-    drag.current = { id, mode, x0: e.clientX, y0: e.clientY, s0: b.start, d0: b.dur };
+    const sel = selRef.current;
+    let groupIds: string[];
+    if (mode === "move") groupIds = sel.includes(id) && sel.length > 1 ? sel : [id];
+    else groupIds = [id];
+    const items = groupIds.map((gid) => { const bb = bars.find((x) => x.id === gid)!; return { id: gid, s0: bb.start, d0: bb.dur }; });
+    const minS0 = Math.min(...items.map((i) => i.s0));
+    drag.current = { mode, clickedId: id, shift: e.shiftKey, x0: e.clientX, y0: e.clientY, items, minS0 };
     document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [bars, onMove, onUp]);
+
+  // ---- pan (drag empty canvas) ----
+  const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
+  const onPanMove = useCallback((e: MouseEvent) => {
+    const p = pan.current, el = scrollRef.current;
+    if (!p || !el) return;
+    el.scrollLeft = p.sl - (e.clientX - p.x);
+    el.scrollTop = p.st - (e.clientY - p.y);
+  }, []);
+  const onPanUp = useCallback(() => {
+    pan.current = null;
+    window.removeEventListener("mousemove", onPanMove);
+    window.removeEventListener("mouseup", onPanUp);
+    document.body.style.cursor = "";
+  }, [onPanMove]);
+  const startPan = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    setSelectedIds([]); // clicking empty canvas clears selection
+    pan.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+    document.body.style.cursor = "grabbing";
+    window.addEventListener("mousemove", onPanMove);
+    window.addEventListener("mouseup", onPanUp);
+  }, [onPanMove, onPanUp]);
 
   // ---- row reorder (grip) ----
   const rowDrag = useRef<{ id: string; y0: number; idx0: number } | null>(null);
@@ -200,28 +243,23 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     window.addEventListener("mouseup", onRowUp);
   }, [bars, onRowMove, onRowUp]);
 
-  // ---- wheel: scroll sideways · ⌘/Ctrl/Alt-wheel zooms (centred on cursor) ----
+  // ---- wheel: zoom the schedule (centred on cursor) · shift-wheel scrolls sideways ----
   const pendingZoom = useRef<{ wk: number; offX: number } | null>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) {
-        e.preventDefault();
-        const rect = el.getBoundingClientRect();
-        const offX = e.clientX - rect.left - LABEL_W;
-        const wk = (offX + el.scrollLeft) / weekWRef.current;
-        const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-        const next = clamp(weekWRef.current * factor, WEEK_W_MIN, WEEK_W_MAX);
-        if (next === weekWRef.current) return;
-        pendingZoom.current = { wk, offX };
-        setWeekW(next);
-        return;
-      }
-      if (el.scrollWidth > el.clientWidth) {
-        el.scrollLeft += e.deltaY + e.deltaX;
-        e.preventDefault();
-      }
+      if (e.shiftKey) { el.scrollLeft += e.deltaY; e.preventDefault(); return; }
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // trackpad horizontal → native scroll
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const offX = e.clientX - rect.left - LABEL_W;
+      const wk = (offX + el.scrollLeft) / weekWRef.current;
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      const next = clamp(weekWRef.current * factor, WEEK_W_MIN, WEEK_W_MAX);
+      if (next === weekWRef.current) return;
+      pendingZoom.current = { wk, offX };
+      setWeekW(next);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -230,38 +268,34 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   useEffect(() => {
     const p = pendingZoom.current;
     const el = scrollRef.current;
-    if (p && el) {
-      el.scrollLeft = p.wk * weekW - p.offX;
-      pendingZoom.current = null;
-    }
+    if (p && el) { el.scrollLeft = p.wk * weekW - p.offX; pendingZoom.current = null; }
   }, [weekW]);
 
-  // Escape closes the editor
   useEffect(() => {
-    if (!selectedId) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedId(null); };
+    if (selectedIds.length === 0) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedIds([]); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId]);
+  }, [selectedIds.length]);
 
   function patch(id: string, p: Partial<Bar>) { setBars((bs) => bs.map((b) => (b.id === id ? { ...b, ...p } : b))); }
-  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); if (selectedId === id) setSelectedId(null); }
+  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); setSelectedIds((ids) => ids.filter((x) => x !== id)); }
   const newStart = () => Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
   function addRow() {
     const b = { id: uid(), name: "New phase", color: PALETTE[bars.length % PALETTE.length], start: newStart(), dur: 2 };
-    setBars((bs) => [...bs, b]); setSelectedId(b.id);
+    setBars((bs) => [...bs, b]); setSelectedIds([b.id]);
   }
   function addMilestone() {
     const b = { id: uid(), name: "Milestone", color: "#facc15", start: newStart(), dur: 0 };
-    setBars((bs) => [...bs, b]); setSelectedId(b.id);
+    setBars((bs) => [...bs, b]); setSelectedIds([b.id]);
   }
   function seed() {
     if (bars.length && !window.confirm("Replace the schedule with the standard post phases?")) return;
-    setBars(SEED.map((b) => ({ ...b, id: uid() })));
+    setBars(SEED.map((b) => ({ ...b, id: uid() }))); setSelectedIds([]);
   }
   function clearAll() {
     if (bars.length && !window.confirm("Clear all phases?")) return;
-    setBars([]); setSelectedId(null);
+    setBars([]); setSelectedIds([]);
   }
   function zoom(factor: number) { setWeekW((w) => clamp(w * factor, WEEK_W_MIN, WEEK_W_MAX)); }
   function scrollToToday() {
@@ -273,7 +307,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const timelineW = weeksToShow * weekW;
   const bodyH = bars.length * ROW_H;
 
-  const selected = bars.find((b) => b.id === selectedId) || null;
+  const selected = selectedIds.length === 1 ? bars.find((b) => b.id === selectedIds[0]) || null : null;
   const selIdx = selected ? bars.findIndex((b) => b.id === selected.id) : -1;
 
   const btn = "flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors";
@@ -281,13 +315,13 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-suite-canvas select-none">
-      {/* Toolbar */}
+      {/* Toolbar (always in frame) */}
       <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <CalendarClock className="size-4 text-guide-target" strokeWidth={1.6} />
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Post Schedule</span>
-          {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[20ch]">· {projectName.trim()}</span>}
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to move · edges resize · grip reorders · click to set a date · wheel scrolls · ⌘-wheel zooms</span>
+          {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[18ch]">· {projectName.trim()}</span>}
+          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag bar to move · edges resize · grip reorders · click sets a date · shift-click multi-select · wheel zooms · drag canvas to pan</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-suite-text-muted">
@@ -376,7 +410,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
               const isMs = b.dur === 0;
               const left = b.start * weekW;
               const width = Math.max(b.dur, 0) * weekW;
-              const isSel = b.id === selectedId;
+              const isSel = selectedIds.includes(b.id);
               return (
                 <div key={b.id} className={cn("group flex border-b border-suite-border/40", dragRowId === b.id && "opacity-80")} style={{ height: ROW_H }}>
                   {/* Name cell (frozen) */}
@@ -396,8 +430,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                       <Trash2 className="size-3" strokeWidth={1.6} />
                     </button>
                   </div>
-                  {/* Timeline cell */}
-                  <div className="relative" style={{ width: timelineW, backgroundImage: gridBg }}>
+                  {/* Timeline cell — empty space pans the canvas */}
+                  <div className="relative cursor-grab active:cursor-grabbing" style={{ width: timelineW, backgroundImage: gridBg }} onMouseDown={startPan}>
                     {isMs ? (
                       <div
                         onMouseDown={(e) => onDown(e, b.id, "move")}
@@ -426,7 +460,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
               );
             })}
 
-            {/* Date editor popover */}
+            {/* Date editor popover (single selection) */}
             {selected && (
               <div
                 className="absolute z-50 w-[216px] rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-3 flex flex-col gap-2"
@@ -437,7 +471,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                     <span className="size-2 rounded-full" style={{ backgroundColor: selected.color }} />
                     {selected.dur === 0 ? "Keyframe" : "Phase"}
                   </span>
-                  <button type="button" onClick={() => setSelectedId(null)} className="text-suite-text-dim hover:text-suite-text"><X className="size-3.5" strokeWidth={2} /></button>
+                  <button type="button" onClick={() => setSelectedIds([])} className="text-suite-text-dim hover:text-suite-text"><X className="size-3.5" strokeWidth={2} /></button>
                 </div>
                 <input
                   value={selected.name}
