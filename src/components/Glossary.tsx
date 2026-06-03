@@ -12,10 +12,27 @@ import {
 const slug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
 
+/** Relevance rank for a search needle — lower is better.
+ *  exact term → starts-with → exact aka → aka starts-with → term contains → aka contains → definition. */
+function rank(e: GlossaryEntry, n: string): number {
+  const t = e.term.toLowerCase();
+  if (t === n) return 0;
+  if (t.startsWith(n)) return 1;
+  const aka = (e.aka || []).map((a) => a.toLowerCase());
+  if (aka.some((a) => a === n)) return 2;
+  if (aka.some((a) => a.startsWith(n))) return 3;
+  if (t.includes(n)) return 4;
+  if (aka.some((a) => a.includes(n))) return 5;
+  return 6;
+}
+
 export function Glossary() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<GlossaryCategory | "All">("All");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const needle = q.trim().toLowerCase();
+  const searching = needle.length > 0;
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -24,7 +41,6 @@ export function Glossary() {
   }, []);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return GLOSSARY.filter((e) => {
       if (cat !== "All" && e.category !== cat) return false;
       if (!needle) return true;
@@ -33,17 +49,31 @@ export function Glossary() {
       if (e.definition.toLowerCase().includes(needle)) return true;
       return false;
     });
-  }, [q, cat]);
+  }, [needle, cat]);
 
+  // when searching: relevance-ranked flat list
+  const ranked = useMemo(() => {
+    if (!searching) return [];
+    return [...filtered].sort((a, b) => {
+      const ra = rank(a, needle);
+      const rb = rank(b, needle);
+      if (ra !== rb) return ra - rb;
+      if (a.term.length !== b.term.length) return a.term.length - b.term.length;
+      return a.term.localeCompare(b.term);
+    });
+  }, [searching, filtered, needle]);
+
+  // when browsing: grouped A–Z
   const groups = useMemo(() => {
     const g: Record<string, GlossaryEntry[]> = {};
+    if (searching) return g;
     for (const e of filtered) {
       const c = (e.term[0] || "#").toUpperCase();
       const letter = /[A-Z]/.test(c) ? c : "#";
       (g[letter] ||= []).push(e);
     }
     return g;
-  }, [filtered]);
+  }, [filtered, searching]);
   const letters = Object.keys(groups).sort();
 
   function jump(letter: string) {
@@ -54,6 +84,37 @@ export function Glossary() {
     setCat("All");
     scrollRef.current?.scrollTo({ top: 0 });
   }
+
+  const renderEntry = (e: GlossaryEntry) => (
+    <article key={e.term} id={`gloss-${slug(e.term)}`} className="py-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h4 className="font-mono text-[13px] text-suite-text font-semibold leading-snug">{e.term}</h4>
+        <button
+          onClick={() => setCat(e.category)}
+          title={`Filter to ${e.category}`}
+          className="shrink-0 font-mono text-[8.5px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full border hover:opacity-80"
+          style={{ color: GLOSSARY_CAT_COLOR[e.category], borderColor: GLOSSARY_CAT_COLOR[e.category] + "66" }}
+        >
+          {e.category}
+        </button>
+      </div>
+      {e.aka?.length ? <p className="font-mono text-[10px] text-suite-text-dim mt-0.5">also: {e.aka.join(" · ")}</p> : null}
+      <p className="font-mono text-[11.5px] leading-relaxed text-suite-text-muted mt-1">{e.definition}</p>
+      {e.seeAlso?.length ? (
+        <p className="font-mono text-[10px] text-suite-text-dim mt-1">
+          See also:{" "}
+          {e.seeAlso.map((s, i) => (
+            <span key={s}>
+              <button onClick={() => goTerm(s)} className="text-guide-target/80 hover:text-guide-target underline-offset-2 hover:underline">
+                {s}
+              </button>
+              {i < e.seeAlso!.length - 1 ? ", " : ""}
+            </span>
+          ))}
+        </p>
+      ) : null}
+    </article>
+  );
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-suite-canvas">
@@ -93,6 +154,10 @@ export function Glossary() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
           {filtered.length === 0 ? (
             <div className="h-full grid place-items-center text-suite-text-dim font-mono text-sm">No matches{q ? ` for “${q}”` : ""}.</div>
+          ) : searching ? (
+            <div className="max-w-3xl mx-auto flex flex-col divide-y divide-suite-border/50">
+              {ranked.map(renderEntry)}
+            </div>
           ) : (
             <div className="max-w-3xl mx-auto flex flex-col gap-6">
               {letters.map((letter) => (
@@ -101,38 +166,7 @@ export function Glossary() {
                     {letter}
                   </h3>
                   <div className="flex flex-col divide-y divide-suite-border/50">
-                    {groups[letter].map((e) => (
-                      <article key={e.term} id={`gloss-${slug(e.term)}`} className="py-2.5">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <h4 className="font-mono text-[13px] text-suite-text font-semibold leading-snug">{e.term}</h4>
-                          <button
-                            onClick={() => setCat(e.category)}
-                            title={`Filter to ${e.category}`}
-                            className="shrink-0 font-mono text-[8.5px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full border hover:opacity-80"
-                            style={{ color: GLOSSARY_CAT_COLOR[e.category], borderColor: GLOSSARY_CAT_COLOR[e.category] + "66" }}
-                          >
-                            {e.category}
-                          </button>
-                        </div>
-                        {e.aka?.length ? (
-                          <p className="font-mono text-[10px] text-suite-text-dim mt-0.5">also: {e.aka.join(" · ")}</p>
-                        ) : null}
-                        <p className="font-mono text-[11.5px] leading-relaxed text-suite-text-muted mt-1">{e.definition}</p>
-                        {e.seeAlso?.length ? (
-                          <p className="font-mono text-[10px] text-suite-text-dim mt-1">
-                            See also:{" "}
-                            {e.seeAlso.map((s, i) => (
-                              <span key={s}>
-                                <button onClick={() => goTerm(s)} className="text-guide-target/80 hover:text-guide-target underline-offset-2 hover:underline">
-                                  {s}
-                                </button>
-                                {i < e.seeAlso!.length - 1 ? ", " : ""}
-                              </span>
-                            ))}
-                          </p>
-                        ) : null}
-                      </article>
-                    ))}
+                    {groups[letter].map(renderEntry)}
                   </div>
                 </section>
               ))}
@@ -140,24 +174,26 @@ export function Glossary() {
           )}
         </div>
 
-        <div className="hidden md:flex shrink-0 flex-col items-center justify-center gap-px px-1 border-l border-suite-border bg-suite-panel/40">
-          {ALPHA.map((L) => {
-            const has = !!groups[L];
-            return (
-              <button
-                key={L}
-                disabled={!has}
-                onClick={() => jump(L)}
-                className={cn(
-                  "font-mono text-[9px] leading-none px-1 py-0.5 rounded transition-colors",
-                  has ? "text-suite-text-muted hover:text-guide-target" : "text-suite-text-dim/30 cursor-default",
-                )}
-              >
-                {L}
-              </button>
-            );
-          })}
-        </div>
+        {!searching && (
+          <div className="hidden md:flex shrink-0 flex-col items-center justify-center gap-px px-1 border-l border-suite-border bg-suite-panel/40">
+            {ALPHA.map((L) => {
+              const has = !!groups[L];
+              return (
+                <button
+                  key={L}
+                  disabled={!has}
+                  onClick={() => jump(L)}
+                  className={cn(
+                    "font-mono text-[9px] leading-none px-1 py-0.5 rounded transition-colors",
+                    has ? "text-suite-text-muted hover:text-guide-target" : "text-suite-text-dim/30 cursor-default",
+                  )}
+                >
+                  {L}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
