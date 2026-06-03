@@ -78,6 +78,7 @@ import {
   Share2,
   GitBranch,
   CalendarClock,
+  BookText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,6 +87,7 @@ import { FovCalculator } from "@/components/FovCalculator";
 import { MasteringWorkflow } from "@/components/MasteringWorkflow";
 import { WorkflowPipeline } from "@/components/WorkflowPipeline";
 import { PostSchedule } from "@/components/PostSchedule";
+import { Glossary } from "@/components/Glossary";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 // Uploaded reference plate is persisted to localStorage (as a downscaled data
@@ -105,8 +107,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.57";
+const VERSION = "v1.9.58";
 const CHANGELOG = [
+  "v1.9.58 — New Glossary tab: 585 post-production terms, abbreviations and standards — camera & capture, colour & HDR, ACES, editorial, VFX, audio, mastering & delivery, QC, security and NZ industry. Live search (matches term, alternate names and definition), category filters, an A–Z jump rail, and clickable 'see also' cross-links. Built from the NZ post-super reference plus web research and fact-checked.",
   "v1.9.57 — New Planner tab: a Post Schedule. Phase-grouped milestones (Prep · Offline · VFX · Online · Grade · Audio · QC · Delivery) each with an owner, due date and status (To do / In progress / Done / Blocked). Set a delivery date and 'Seed standard' back-dates a full post timeline from it; progress bar, overdue flag and next-up readout up top. Saves to the browser.",
   "v1.9.56 — Renamed to PostSup Tools. Updated the wordmark, browser tab title and every export brand mark (framing chart, spec sheet, Camera Report PDF, FDL creator).",
   "v1.9.55 — Slate block now shows the same rotating chevron the other collapsible panels use, so it's clear it opens — replaced the faint text arrow with the standard ChevronRight on the right edge.",
@@ -178,7 +181,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner";
+type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -267,7 +270,7 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" ? t : "frame";
   });
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
@@ -1009,7 +1012,7 @@ const Index = () => {
             <span className="text-suite-text-muted">POSTSUP TOOLS</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
@@ -1021,12 +1024,17 @@ const Index = () => {
           <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
           <PlannerTabButton active={appTab === "planner"} onClick={() => setAppTab("planner")} />
+          <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
         </div>
         {/* Reserved for user login / account (future). */}
         <div className="flex items-center gap-3" />
       </header>
 
-      {appTab === "planner" ? (
+      {appTab === "glossary" ? (
+        <main className="flex-1 flex min-h-0">
+          <Glossary />
+        </main>
+      ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0">
           <PostSchedule projectName={projectName} />
         </main>
@@ -2231,6 +2239,25 @@ function MasteringTabButton({ active, onClick }: { active: boolean; onClick: () 
     >
       <Share2 className="size-3" strokeWidth={1.5} />
       Mastering
+    </button>
+  );
+}
+
+function GlossaryTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Glossary — every post-production term, abbreviation and standard"
+    >
+      <BookText className="size-3" strokeWidth={1.5} />
+      Glossary
     </button>
   );
 }
