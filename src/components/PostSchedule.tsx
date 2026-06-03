@@ -1,358 +1,321 @@
-import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Plus, Trash2, Wand2, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarClock, Plus, Trash2, Wand2, Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** A post-production schedule: phase-grouped tasks with owners, due dates and status.
- *  Self-contained — persists to localStorage. Dates can be back-calculated from a
- *  single delivery date using a standard post timeline template. */
+/** Post Schedule — a drag-and-drop weekly Gantt. Each row is a phase bar with a start
+ *  (week offset) and a duration (weeks); drag the body to move, drag an edge to resize.
+ *  A duration of 0 renders as a milestone diamond (e.g. picture Lock). Saves to the browser. */
 
-type SchedStatus = "todo" | "doing" | "done" | "blocked";
-type SchedTask = {
-  id: string;
-  label: string;
-  phase: Phase;
-  owner: string;
-  due: string; // YYYY-MM-DD or ""
-  status: SchedStatus;
-};
+type Bar = { id: string; name: string; color: string; start: number; dur: number };
 
-const PHASES = ["Prep", "Offline", "VFX", "Online", "Grade", "Audio", "QC", "Delivery"] as const;
-type Phase = (typeof PHASES)[number];
+const WEEK_W = 44;   // px per week column
+const ROW_H = 34;    // px per phase row
+const LABEL_W = 150; // left name column
+const MONTH_H = 22;
+const WEEK_H = 20;
+const HEAD_H = MONTH_H + WEEK_H;
 
-const PHASE_ACCENT: Record<Phase, string> = {
-  Prep: "#94a3b8",
-  Offline: "#38bdf8",
-  VFX: "#a78bfa",
-  Online: "#22d3ee",
-  Grade: "#f59e0b",
-  Audio: "#34d399",
-  QC: "#f87171",
-  Delivery: "#e879f9",
-};
-
-const STATUS_META: Record<SchedStatus, { label: string; cls: string }> = {
-  todo: { label: "To do", cls: "text-suite-text-muted border-suite-border bg-suite-bg" },
-  doing: { label: "In progress", cls: "text-guide-target border-guide-target/50 bg-guide-target/10" },
-  done: { label: "Done", cls: "text-status-ok border-status-ok/50 bg-status-ok/10" },
-  blocked: { label: "Blocked", cls: "text-destructive border-destructive/50 bg-destructive/10" },
-};
-const STATUS_CYCLE: SchedStatus[] = ["todo", "doing", "done", "blocked"];
-
-const COMMON_OWNERS = [
-  "Post Super", "Editor", "1st AE", "VFX Producer", "Online / Finishing",
-  "Colourist", "Director", "Supervising Sound Editor", "Re-recording Mixer",
-  "QC", "Mastering House", "Data Manager",
+const SEED: Omit<Bar, "id">[] = [
+  { name: "Prep", color: "#94a3b8", start: 0, dur: 2 },
+  { name: "Shoot", color: "#38bdf8", start: 2, dur: 4 },
+  { name: "Offload", color: "#22d3ee", start: 2, dur: 4 },
+  { name: "Offline", color: "#a78bfa", start: 6, dur: 6 },
+  { name: "Lock", color: "#facc15", start: 12, dur: 0 },
+  { name: "Grade", color: "#f59e0b", start: 12, dur: 3 },
+  { name: "Online", color: "#e879f9", start: 13, dur: 3 },
+  { name: "QC", color: "#f87171", start: 16, dur: 1 },
+  { name: "Delivery", color: "#34d399", start: 17, dur: 2 },
 ];
+const PALETTE = ["#94a3b8", "#38bdf8", "#22d3ee", "#a78bfa", "#facc15", "#f59e0b", "#e879f9", "#f87171", "#34d399", "#fb7185"];
 
-/** Standard post schedule template — `offset` = days BEFORE the delivery date. */
-const TEMPLATE: { label: string; phase: Phase; owner: string; offset: number }[] = [
-  { label: "Conform spec + deliverables list locked", phase: "Prep", owner: "Post Super", offset: 56 },
-  { label: "Camera + VFX turnover plan agreed", phase: "Prep", owner: "Post Super", offset: 56 },
-  { label: "Picture lock / locked cut", phase: "Offline", owner: "Editor", offset: 42 },
-  { label: "EDL / AAF turnover to online", phase: "Offline", owner: "Editor", offset: 40 },
-  { label: "Final VFX shots due", phase: "VFX", owner: "VFX Producer", offset: 35 },
-  { label: "VFX QC + slap-ins complete", phase: "VFX", owner: "VFX Producer", offset: 30 },
-  { label: "Spotting session", phase: "Audio", owner: "Supervising Sound Editor", offset: 30 },
-  { label: "Conform online master", phase: "Online", owner: "Online / Finishing", offset: 28 },
-  { label: "Titles + graphics built", phase: "Online", owner: "Online / Finishing", offset: 26 },
-  { label: "Attended grade", phase: "Grade", owner: "Colourist", offset: 24 },
-  { label: "HDR pass + SDR trims", phase: "Grade", owner: "Colourist", offset: 20 },
-  { label: "DI finals / sign-off", phase: "Grade", owner: "Colourist + Director", offset: 18 },
-  { label: "Final mix / printmaster", phase: "Audio", owner: "Re-recording Mixer", offset: 16 },
-  { label: "M&E + stems delivered", phase: "Audio", owner: "Re-recording Mixer", offset: 14 },
-  { label: "Automated + eyeball QC", phase: "QC", owner: "QC", offset: 10 },
-  { label: "QC report signed", phase: "QC", owner: "Post Super", offset: 8 },
-  { label: "IMF / ProRes masters delivered", phase: "Delivery", owner: "Mastering House", offset: 3 },
-  { label: "DCP + KDMs issued", phase: "Delivery", owner: "Mastering House", offset: 2 },
-  { label: "Archive — LTO + cloud (3-2-1)", phase: "Delivery", owner: "Data Manager", offset: 0 },
-];
-
-const KEY_TASKS = "postsup-schedule-v1";
-const KEY_DD = "postsup-schedule-delivery";
+const KEY_BARS = "postsup-gantt-v1";
+const KEY_START = "postsup-gantt-start";
 
 let _seq = 0;
-const uid = () => `t${Date.now().toString(36)}${(_seq++).toString(36)}`;
+const uid = () => `b${Date.now().toString(36)}${(_seq++).toString(36)}`;
 
-function todayISO(): string {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
+function localISO(d: Date): string {
+  const x = new Date(d);
+  x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+  return x.toISOString().slice(0, 10);
 }
-function minusDays(iso: string, days: number): string {
+function mondayOf(iso: string): string {
   const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() - days);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
+  const day = (d.getDay() + 6) % 7; // 0 = Monday
+  d.setDate(d.getDate() - day);
+  return localISO(d);
 }
-function fmtDue(iso: string): string {
-  if (!iso) return "";
+function addWeeks(iso: string, n: number): Date {
   const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n * 7);
+  return d;
+}
+function isoWeekNum(d: Date): number {
+  const date = new Date(d.getTime());
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+function fmtDate(d: Date): string {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
 }
 
-function loadTasks(): SchedTask[] {
+function loadBars(): Bar[] {
   try {
-    const raw = localStorage.getItem(KEY_TASKS);
+    const raw = localStorage.getItem(KEY_BARS);
     if (!raw) return [];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
-    return arr.filter((t) => t && typeof t.label === "string" && PHASES.includes(t.phase));
+    return arr.filter((b) => b && typeof b.name === "string" && Number.isFinite(b.start) && Number.isFinite(b.dur));
   } catch {
     return [];
   }
 }
 
 export function PostSchedule({ projectName }: { projectName?: string }) {
-  const [tasks, setTasks] = useState<SchedTask[]>(loadTasks);
-  const [deliveryDate, setDeliveryDate] = useState<string>(() => localStorage.getItem(KEY_DD) || "");
+  const [bars, setBars] = useState<Bar[]>(loadBars);
+  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(KEY_START) || mondayOf(localISO(new Date())));
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    try { localStorage.setItem(KEY_TASKS, JSON.stringify(tasks)); } catch { /* ignore */ }
-  }, [tasks]);
-  useEffect(() => {
-    try { localStorage.setItem(KEY_DD, deliveryDate); } catch { /* ignore */ }
-  }, [deliveryDate]);
+  useEffect(() => { try { localStorage.setItem(KEY_BARS, JSON.stringify(bars)); } catch { /* ignore */ } }, [bars]);
+  useEffect(() => { try { localStorage.setItem(KEY_START, startDate); } catch { /* ignore */ } }, [startDate]);
 
-  const today = todayISO();
+  const anchor = useMemo(() => mondayOf(startDate || localISO(new Date())), [startDate]);
 
-  const grouped = useMemo(() => {
-    const by: Record<Phase, SchedTask[]> = { Prep: [], Offline: [], VFX: [], Online: [], Grade: [], Audio: [], QC: [], Delivery: [] };
-    for (const t of tasks) by[t.phase].push(t);
-    for (const p of PHASES) {
-      by[p].sort((a, b) => {
-        if (a.due && b.due) return a.due.localeCompare(b.due);
-        if (a.due) return -1;
-        if (b.due) return 1;
-        return 0;
-      });
+  const maxEnd = bars.reduce((m, b) => Math.max(m, b.start + Math.max(b.dur, 1)), 0);
+  const weeksToShow = Math.min(Math.max(maxEnd + 4, 20), 70);
+
+  const weeks = useMemo(() => {
+    const out: { i: number; date: Date; wk: number }[] = [];
+    for (let i = 0; i < weeksToShow; i++) {
+      const date = addWeeks(anchor, i);
+      out.push({ i, date, wk: isoWeekNum(date) });
     }
-    return by;
-  }, [tasks]);
+    return out;
+  }, [anchor, weeksToShow]);
 
-  const doneCount = tasks.filter((t) => t.status === "done").length;
-  const pct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0;
-  const overdue = tasks.filter((t) => t.status !== "done" && t.due && t.due < today).length;
+  const months = useMemo(() => {
+    const out: { label: string; span: number }[] = [];
+    for (const w of weeks) {
+      const label = w.date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+      const last = out[out.length - 1];
+      if (last && last.label === label) last.span += 1;
+      else out.push({ label, span: 1 });
+    }
+    return out;
+  }, [weeks]);
 
-  const nextUp = useMemo(() => {
-    return tasks
-      .filter((t) => t.status !== "done" && t.due && t.due >= today)
-      .sort((a, b) => a.due.localeCompare(b.due))[0];
-  }, [tasks, today]);
+  // today marker (weeks from anchor, fractional)
+  const todayWeeks = useMemo(() => {
+    const ms = new Date(localISO(new Date()) + "T00:00:00").getTime() - new Date(anchor + "T00:00:00").getTime();
+    return ms / (7 * 86400000);
+  }, [anchor]);
+  const todayInRange = todayWeeks >= 0 && todayWeeks <= weeksToShow;
 
-  function addTask(phase: Phase) {
-    setTasks((ts) => [...ts, { id: uid(), label: "", phase, owner: "", due: "", status: "todo" }]);
-  }
-  function patch(id: string, p: Partial<SchedTask>) {
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)));
-  }
-  function remove(id: string) {
-    setTasks((ts) => ts.filter((t) => t.id !== id));
-  }
-  function cycleStatus(id: string) {
-    setTasks((ts) => ts.map((t) => {
-      if (t.id !== id) return t;
-      const i = STATUS_CYCLE.indexOf(t.status);
-      return { ...t, status: STATUS_CYCLE[(i + 1) % STATUS_CYCLE.length] };
+  // ---- drag ----
+  const drag = useRef<{ id: string; mode: "move" | "l" | "r"; x0: number; s0: number; d0: number } | null>(null);
+
+  const onMove = useCallback((e: MouseEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dw = Math.round((e.clientX - d.x0) / WEEK_W);
+    setBars((bs) => bs.map((b) => {
+      if (b.id !== d.id) return b;
+      if (d.mode === "move") return { ...b, start: Math.max(0, d.s0 + dw) };
+      if (d.mode === "r") return { ...b, dur: Math.max(1, d.d0 + dw) };
+      // left edge: move start, keep end fixed
+      const ns = Math.min(Math.max(0, d.s0 + dw), d.s0 + d.d0 - 1);
+      return { ...b, start: ns, dur: d.d0 - (ns - d.s0) };
     }));
+  }, []);
+  const onUp = useCallback(() => {
+    drag.current = null;
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+    document.body.style.cursor = "";
+  }, [onMove]);
+  const onDown = useCallback((e: React.MouseEvent, id: string, mode: "move" | "l" | "r") => {
+    e.preventDefault();
+    e.stopPropagation();
+    const b = bars.find((x) => x.id === id);
+    if (!b) return;
+    drag.current = { id, mode, x0: e.clientX, s0: b.start, d0: b.dur };
+    document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [bars, onMove, onUp]);
+
+  function patch(id: string, p: Partial<Bar>) { setBars((bs) => bs.map((b) => (b.id === id ? { ...b, ...p } : b))); }
+  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); }
+  function addRow() {
+    setBars((bs) => [...bs, { id: uid(), name: "New phase", color: PALETTE[bs.length % PALETTE.length], start: 0, dur: 2 }]);
   }
-  function seedStandard() {
-    if (tasks.length && !window.confirm("Replace the current schedule with the standard post template?")) return;
-    const seeded: SchedTask[] = TEMPLATE.map((t) => ({
-      id: uid(),
-      label: t.label,
-      phase: t.phase,
-      owner: t.owner,
-      due: deliveryDate ? minusDays(deliveryDate, t.offset) : "",
-      status: "todo",
-    }));
-    setTasks(seeded);
+  function seed() {
+    if (bars.length && !window.confirm("Replace the schedule with the standard post phases?")) return;
+    setBars(SEED.map((b) => ({ ...b, id: uid() })));
   }
   function clearAll() {
-    if (tasks.length && !window.confirm("Clear all tasks?")) return;
-    setTasks([]);
+    if (bars.length && !window.confirm("Clear all phases?")) return;
+    setBars([]);
   }
+  function scrollToToday() {
+    if (!scrollRef.current || !todayInRange) return;
+    scrollRef.current.scrollTo({ left: Math.max(0, todayWeeks * WEEK_W - 200), behavior: "smooth" });
+  }
+
+  const gridBg = `repeating-linear-gradient(to right, transparent, transparent ${WEEK_W - 1}px, rgba(148,163,184,0.10) ${WEEK_W - 1}px, rgba(148,163,184,0.10) ${WEEK_W}px)`;
+  const timelineW = weeksToShow * WEEK_W;
+  const bodyH = bars.length * ROW_H;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-suite-canvas select-none">
       {/* Toolbar */}
-      <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <CalendarClock className="size-4 text-guide-target" strokeWidth={1.6} />
-            <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Post Schedule</span>
-            {projectName?.trim() && (
-              <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[28ch]">· {projectName.trim()}</span>
-            )}
-          </div>
-          {tasks.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="h-1.5 w-28 rounded-full bg-suite-bg overflow-hidden border border-suite-border">
-                <div className="h-full bg-status-ok transition-all" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="font-mono text-[10px] text-suite-text-dim tabular">{doneCount}/{tasks.length} · {pct}%</span>
-              {overdue > 0 && (
-                <span className="flex items-center gap-1 font-mono text-[10px] text-destructive">
-                  <AlertTriangle className="size-3" strokeWidth={2} /> {overdue} overdue
-                </span>
-              )}
-            </div>
-          )}
-          {nextUp && (
-            <span className="font-mono text-[10px] text-suite-text-dim truncate hidden lg:inline">
-              Next: <span className="text-suite-text">{nextUp.label || "(untitled)"}</span> · {fmtDue(nextUp.due)}
-            </span>
-          )}
+      <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <CalendarClock className="size-4 text-guide-target" strokeWidth={1.6} />
+          <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Post Schedule</span>
+          {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[24ch]">· {projectName.trim()}</span>}
+          <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline">— drag a bar to move · drag an edge to resize</span>
         </div>
-
         <div className="flex items-center gap-2 shrink-0">
           <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-suite-text-muted">
-            Delivery
+            Start
             <input
               type="date"
-              value={deliveryDate}
-              onChange={(e) => setDeliveryDate(e.target.value)}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
               className="bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]"
             />
           </label>
-          <button
-            type="button"
-            onClick={seedStandard}
-            title="Fill with a standard post-production schedule (dates back-calculated from the delivery date)"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
-          >
-            <Wand2 className="size-3" strokeWidth={1.6} /> Seed standard
+          <button type="button" onClick={scrollToToday} title="Scroll to today"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+            <Crosshair className="size-3" strokeWidth={1.6} /> Today
           </button>
-          <button
-            type="button"
-            onClick={clearAll}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors"
-          >
+          <button type="button" onClick={addRow}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+            <Plus className="size-3" strokeWidth={2} /> Row
+          </button>
+          <button type="button" onClick={seed}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+            <Wand2 className="size-3" strokeWidth={1.6} /> Seed
+          </button>
+          <button type="button" onClick={clearAll}
+            className="px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Clear
           </button>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-5 py-4">
-        {tasks.length === 0 ? (
-          <div className="h-full min-h-[300px] grid place-items-center">
-            <div className="max-w-md text-center flex flex-col items-center gap-4">
-              <CalendarClock className="size-10 text-suite-text-dim" strokeWidth={1.2} />
-              <div className="space-y-1">
-                <p className="font-mono text-sm text-suite-text">No schedule yet</p>
-                <p className="font-mono text-[11px] text-suite-text-dim leading-relaxed">
-                  Set your delivery date, then seed a standard post timeline — picture lock through VFX, grade, mix, QC and delivery — with every milestone dated back from delivery. Edit anything.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={seedStandard}
-                className="flex items-center gap-2 px-3 py-2 text-[11px] tracking-[0.1em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
-              >
-                <Wand2 className="size-3.5" strokeWidth={1.6} /> Seed standard schedule
-              </button>
-            </div>
+      {/* Gantt */}
+      {bars.length === 0 ? (
+        <div className="flex-1 grid place-items-center">
+          <div className="max-w-md text-center flex flex-col items-center gap-4">
+            <CalendarClock className="size-10 text-suite-text-dim" strokeWidth={1.2} />
+            <p className="font-mono text-[11px] text-suite-text-dim leading-relaxed">
+              Set a project start, then seed the standard post phases — Prep, Shoot, Offload, Offline, Lock, Grade, Online, QC, Delivery — and drag the bars to block out durations in weeks.
+            </p>
+            <button type="button" onClick={seed}
+              className="flex items-center gap-2 px-3 py-2 text-[11px] tracking-[0.1em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+              <Wand2 className="size-3.5" strokeWidth={1.6} /> Seed standard phases
+            </button>
           </div>
-        ) : (
-          <div className="max-w-4xl mx-auto flex flex-col gap-5">
-            {PHASES.map((phase) => {
-              const rows = grouped[phase];
-              if (rows.length === 0) return null;
-              const accent = PHASE_ACCENT[phase];
-              return (
-                <section key={phase} className="rounded-sm border border-suite-border bg-suite-panel overflow-hidden">
-                  <header
-                    className="flex items-center justify-between px-3 py-2 border-b border-suite-border"
-                    style={{ borderLeft: `3px solid ${accent}` }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="size-2 rounded-full" style={{ backgroundColor: accent }} />
-                      <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-suite-text">{phase}</span>
-                      <span className="font-mono text-[10px] text-suite-text-dim">
-                        {rows.filter((r) => r.status === "done").length}/{rows.length}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => addTask(phase)}
-                      className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-[0.1em] text-suite-text-muted hover:text-suite-text transition-colors"
-                    >
-                      <Plus className="size-3" strokeWidth={2} /> Add
-                    </button>
-                  </header>
-                  <div className="divide-y divide-suite-border/60">
-                    {rows.map((t) => {
-                      const isOverdue = t.status !== "done" && t.due && t.due < today;
-                      return (
-                        <div
-                          key={t.id}
-                          className="group grid grid-cols-[112px_1fr_150px_120px_28px] items-center gap-2 px-3 py-1.5 hover:bg-suite-panel-elevated/40"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => cycleStatus(t.id)}
-                            title="Click to change status"
-                            className={cn(
-                              "justify-self-start px-2 py-0.5 rounded-full border font-mono text-[9px] tracking-[0.08em] uppercase transition-colors",
-                              STATUS_META[t.status].cls,
-                            )}
-                          >
-                            {STATUS_META[t.status].label}
-                          </button>
-                          <input
-                            type="text"
-                            value={t.label}
-                            onChange={(e) => patch(t.id, { label: e.target.value })}
-                            placeholder="Milestone / task…"
-                            className={cn(
-                              "bg-transparent border-0 border-b border-transparent focus:border-suite-border px-0.5 py-0.5 text-[12px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none min-w-0",
-                              t.status === "done" && "line-through text-suite-text-dim",
-                            )}
-                          />
-                          <input
-                            type="text"
-                            list="postsched-owners"
-                            value={t.owner}
-                            onChange={(e) => patch(t.id, { owner: e.target.value })}
-                            placeholder="Owner"
-                            className="bg-transparent border-0 border-b border-transparent focus:border-suite-border px-0.5 py-0.5 text-[11px] font-mono text-suite-text-muted placeholder:text-suite-text-dim focus:outline-none min-w-0"
-                          />
-                          <input
-                            type="date"
-                            value={t.due}
-                            onChange={(e) => patch(t.id, { due: e.target.value })}
-                            className={cn(
-                              "bg-transparent border border-transparent hover:border-suite-border focus:border-guide-target rounded-sm px-1 py-0.5 text-[11px] font-mono focus:outline-none [color-scheme:dark]",
-                              isOverdue ? "text-destructive" : "text-suite-text-muted",
-                            )}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => remove(t.id)}
-                            title="Delete task"
-                            className="justify-self-center opacity-0 group-hover:opacity-100 text-suite-text-dim hover:text-destructive transition-opacity"
-                          >
-                            <Trash2 className="size-3.5" strokeWidth={1.6} />
-                          </button>
-                        </div>
-                      );
-                    })}
+        </div>
+      ) : (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto">
+          <div className="relative" style={{ width: LABEL_W + timelineW }}>
+            {/* Month header */}
+            <div className="sticky top-0 z-40 flex" style={{ height: MONTH_H }}>
+              <div className="sticky left-0 z-50 shrink-0 bg-suite-panel border-r border-b border-suite-border" style={{ width: LABEL_W }} />
+              <div className="flex bg-suite-panel border-b border-suite-border">
+                {months.map((m, i) => (
+                  <div key={i} className="flex items-center px-2 border-r border-suite-border font-mono text-[10px] tracking-[0.1em] uppercase text-suite-text-muted"
+                    style={{ width: m.span * WEEK_W }}>
+                    {m.label}
                   </div>
-                </section>
+                ))}
+              </div>
+            </div>
+            {/* Week header */}
+            <div className="sticky z-40 flex" style={{ top: MONTH_H, height: WEEK_H }}>
+              <div className="sticky left-0 z-50 shrink-0 flex items-center px-2 bg-suite-panel border-r border-b border-suite-border font-mono text-[9px] tracking-[0.14em] uppercase text-suite-text-dim" style={{ width: LABEL_W }}>
+                Phase
+              </div>
+              <div className="flex bg-suite-panel border-b border-suite-border">
+                {weeks.map((w) => (
+                  <div key={w.i} className="flex items-center justify-center border-r border-suite-border/60 font-mono text-[9px] text-suite-text-dim tabular"
+                    style={{ width: WEEK_W }} title={fmtDate(w.date)}>
+                    W{w.wk}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Today line */}
+            {todayInRange && (
+              <div className="absolute z-20 pointer-events-none" style={{ left: LABEL_W + todayWeeks * WEEK_W, top: HEAD_H, height: bodyH, width: 0, borderLeft: "1px solid #f87171" }}>
+                <span className="absolute -top-0 -translate-x-1/2 -translate-y-full px-1 rounded-sm bg-[#f87171] text-suite-bg font-mono text-[8px] uppercase tracking-wide">Today</span>
+              </div>
+            )}
+
+            {/* Rows */}
+            {bars.map((b) => {
+              const startD = addWeeks(anchor, b.start);
+              const endD = addWeeks(anchor, b.start + Math.max(b.dur, 1));
+              const isMs = b.dur === 0;
+              const left = b.start * WEEK_W;
+              const width = Math.max(b.dur, 0) * WEEK_W;
+              return (
+                <div key={b.id} className="group flex border-b border-suite-border/40" style={{ height: ROW_H }}>
+                  {/* Name cell (frozen) */}
+                  <div className="sticky left-0 z-30 shrink-0 flex items-center gap-1.5 px-2 bg-suite-panel border-r border-suite-border" style={{ width: LABEL_W }}>
+                    <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: b.color }} />
+                    <input
+                      value={b.name}
+                      onChange={(e) => patch(b.id, { name: e.target.value })}
+                      className="min-w-0 flex-1 bg-transparent border-0 border-b border-transparent focus:border-suite-border px-0.5 text-[11px] font-mono text-suite-text focus:outline-none"
+                    />
+                    <button type="button" onClick={() => remove(b.id)} title="Delete row"
+                      className="opacity-0 group-hover:opacity-100 text-suite-text-dim hover:text-destructive transition-opacity shrink-0">
+                      <Trash2 className="size-3" strokeWidth={1.6} />
+                    </button>
+                  </div>
+                  {/* Timeline cell */}
+                  <div className="relative" style={{ width: timelineW, backgroundImage: gridBg }}>
+                    {isMs ? (
+                      <div
+                        onMouseDown={(e) => onDown(e, b.id, "move")}
+                        title={`${b.name} — ${fmtDate(startD)} (milestone)`}
+                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
+                        style={{ left }}
+                      >
+                        <div className="size-3.5 rotate-45 border" style={{ backgroundColor: b.color, borderColor: "rgba(0,0,0,0.3)" }} />
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">{b.name}</span>
+                      </div>
+                    ) : (
+                      <div className="absolute top-1/2 -translate-y-1/2 h-5 rounded-[3px] flex items-center group/bar"
+                        style={{ left, width, backgroundColor: b.color }}>
+                        {/* left handle */}
+                        <div onMouseDown={(e) => onDown(e, b.id, "l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
+                        {/* body */}
+                        <div onMouseDown={(e) => onDown(e, b.id, "move")} className="flex-1 h-full cursor-grab active:cursor-grabbing flex items-center justify-center overflow-hidden">
+                          {b.dur >= 2 && <span className="font-mono text-[9px] text-black/70 font-semibold tabular">{b.dur}w</span>}
+                        </div>
+                        {/* right handle */}
+                        <div onMouseDown={(e) => onDown(e, b.id, "r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
+                        {/* name + range to the right */}
+                        <span className="absolute left-full ml-1.5 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">
+                          {b.name} <span className="text-suite-text-dim/60">· {fmtDate(startD)}–{fmtDate(endD)}</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
-            <p className="font-mono text-[10px] text-suite-text-dim leading-relaxed px-1">
-              Saved to this browser. Click a status pill to cycle To do → In progress → Done → Blocked. Set the delivery date and the standard template back-dates every milestone from it.
-            </p>
           </div>
-        )}
-      </div>
-
-      <datalist id="postsched-owners">
-        {COMMON_OWNERS.map((o) => (
-          <option key={o} value={o} />
-        ))}
-      </datalist>
+        </div>
+      )}
     </div>
   );
 }
