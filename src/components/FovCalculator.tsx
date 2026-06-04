@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 // Reference diagonals for focal-length equivalence.
 const FF_DIAG = Math.hypot(36, 24); // 43.27 mm — full frame
-const S35_DIAG = Math.hypot(24.89, 18.66); // ~31.1 mm — Super 35 (3-perf)
+const S35_DIAG = Math.hypot(24.89, 18.66); // ~31.1 mm — Super 35 (4-perf / full aperture)
 
 /** Field of view + depth of field for the chosen camera's sensor.
  *  Standard thin-lens model; anamorphic horizontal AOV uses focal ÷ squeeze. */
@@ -61,7 +61,7 @@ export function FovCalculator({ source }: { source: SourceFormat }) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SliderField icon={Maximize2} label="Focal Length" unit="mm" value={focal}
             min={8} max={300} step={1} onChange={setFocal} />
-          <SliderField icon={Aperture} label="Aperture (T/f)" unit="" value={fstop}
+          <SliderField icon={Aperture} label="Aperture (f-number)" unit="" value={fstop}
             min={1} max={22} step={0.1} onChange={setFstop} />
           <SliderField icon={Ruler} label="Subject Distance" unit="m" value={distM}
             min={0.3} max={50} step={0.1} onChange={setDistM} />
@@ -101,8 +101,9 @@ export function FovCalculator({ source }: { source: SourceFormat }) {
                   hint="Focus here → ∞ in focus" />
               </div>
               <p className="text-[10px] text-suite-text-dim font-mono mt-3">
-                Circle of confusion {r.coc.toFixed(3)} mm (sensor Ø {r.diag.toFixed(1)} mm ÷ 1500).
+                Circle of confusion {r.coc.toFixed(3)} mm (sensor width {sw.toFixed(1)} mm ÷ 1500, cinema/pCam convention).
                 When subject distance reaches the hyperfocal distance, far focus extends to infinity.
+                DoF uses the geometric f-number — cine lenses are marked in T-stops (~⅓ stop slower than f), so enter the f-number for exact depth.
               </p>
             </section>
 

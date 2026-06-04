@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.75";
+const VERSION = "v1.9.76";
 const CHANGELOG = [
+  "v1.9.76 — Audit pass 1 (formats.ts — camera & codec data). Fixed an impossible ALEXA 65 anamorphic mode, a fabricated RED V-RAPTOR S35 8K (→ real 7K), a wrong 1.65x lens credit (Hawk65 → Ultra Vista), a duplicate VENICE 2 mode, and a missing sensor crop on the 6K S35 1.3x. Recalibrated codec data rates that were off: ProRes (whole table was an fps notch high — ~20% at 24/25), REDCODE (~35% low), ARRIRAW HDE (~2.7× understated; it's lossless ~1.7:1), ARRIRAW uncompressed (13-bit). Circle of confusion now uses the cinema width/1500 (was diagonal) so DoF/hyperfocal match pCam; DoF panel notes the f-number vs T-stop point. Storage and framing/optics estimates are now correct.",
   "v1.9.75 — Glossary: re-categorised albert (→ Roles & Paperwork), Cinelab and FotoKem (→ Camera & Capture) out of NZ Industry — they're international.",
   "v1.9.74 — Glossary: removed 11 NZ-specific / facility entries (Park Road Post, Wētā FX, NZ VFX Houses, NZ Post Facilities, NZ Soundstages, NZ Exhibitors, Cause & FX Managed-Service Model, NZ Privacy Act 2020, Screen Industry Workers Act 2022, Te Reo Māori Subtitling, TVNZ On-Air Spec) and pruned their cross-links. Now 574 terms.",
   "v1.9.73 — Added Vercel Web Analytics — privacy-first visitor counts, page views, referrers and country (no IPs, no cookies). Needs enabling once in the Vercel dashboard.",

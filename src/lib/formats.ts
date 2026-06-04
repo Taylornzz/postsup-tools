@@ -185,16 +185,18 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "LogC3",
   },
   {
+    // 1.65x large-format squeeze is the Panavision Ultra Vista (not Hawk65, which is 1.3x).
+    // Shot on the full open-gate area so the desqueeze lands ~2.39:1 (4448·1.65 / 3096 = 2.37).
     id: "alexa-lf-165-ana",
     camera: "ARRI ALEXA LF",
-    mode: "LF 16:9 1.65x Ana (Hawk65)",
+    mode: "LF 1.65x Ana (Ultra Vista)",
     width: 4448,
-    height: 2502,
+    height: 3096,
     squeeze: 1.65,
     sensorWidthMm: 36.70,
     sensorHeightMm: 25.54,
     usedSensorWidthMm: 36.70,
-    usedSensorHeightMm: 20.65,
+    usedSensorHeightMm: 25.54,
     colorSpace: "ARRI Wide Gamut 3",
     oetf: "LogC3",
   },
@@ -237,16 +239,18 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "LogC3",
   },
   {
+    // The A3X sensor is 54.12×25.58 mm at 6560×3100. Anamorphic 4:3 is a width-crop at
+    // full sensor height (3100 rows, 25.58 mm) — NOT a taller read-out. Pixel pitch 8.25 µm.
     id: "alexa65-2x-ana",
     camera: "ARRI ALEXA 65",
-    mode: "4.3K 4:3 2x Anamorphic",
-    width: 4320,
-    height: 3592,
+    mode: "4.1K 4:3 2x Anamorphic",
+    width: 4128,
+    height: 3100,
     squeeze: 2,
     sensorWidthMm: 54.12,
     sensorHeightMm: 25.58,
-    usedSensorWidthMm: 35.64,
-    usedSensorHeightMm: 29.62,
+    usedSensorWidthMm: 34.06,
+    usedSensorHeightMm: 25.58,
     colorSpace: "ARRI Wide Gamut 3",
     oetf: "LogC3",
   },
@@ -281,7 +285,7 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     colorSpace: "REDWideGamutRGB",
     oetf: "Log3G10",
     notes:
-      "Industry-named '4:3 ana'; actual photosite area is 6:5 (5760×4320). Crops 28.80 mm of the 40.96 mm sensor width.",
+      "Full 4:3 2x anamorphic (5760×4320 = 4:3). Crops 28.80 mm of the 40.96 mm sensor width (5760 px at 5.0 µm pitch).",
   },
   {
     id: "raptor-vv-8k-65-2x-ana",
@@ -326,23 +330,23 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "Log3G10",
   },
   {
-    // The S35 sensor is 26.21×13.82 mm (8192×4320, 17:9). It has no 7K 4:3 mode —
-    // that exists only on the larger 8K VV sensor. The real S35 4:3 2x mode is
-    // 8K 4:3 = 5760×4320 using an 18.43×13.82 mm photosite area. (Verified vs RED docs.)
-    id: "raptor-s35-8k-43-2x-ana",
+    // RED V-RAPTOR S35 anamorphic 4:3 tops out at 7K (5040×3780 = exactly 4:3); there is no
+    // 8K S35 4:3 — that resolution exists only on the larger 8K VV sensor. S35 pitch ≈ 3.20 µm.
+    id: "raptor-s35-7k-43-2x-ana",
     camera: "RED V-RAPTOR [X] S35",
-    mode: "8K S35 4:3 2x Anamorphic",
-    width: 5760,
-    height: 4320,
+    mode: "7K S35 4:3 2x Anamorphic",
+    width: 5040,
+    height: 3780,
     squeeze: 2,
     sensorWidthMm: 26.21,
     sensorHeightMm: 13.82,
-    usedSensorWidthMm: 18.43,
-    usedSensorHeightMm: 13.82,
+    usedSensorWidthMm: 16.13,
+    usedSensorHeightMm: 12.10,
     colorSpace: "REDWideGamutRGB",
     oetf: "Log3G10",
   },
   {
+    // Uses 75% of the S35 sensor in both axes (6144/8192, 3240/4320) → 19.66×10.37 mm.
     id: "raptor-s35-6k-179-13x-ana",
     camera: "RED V-RAPTOR [X] S35",
     mode: "6K S35 17:9 1.3x Anamorphic",
@@ -351,6 +355,8 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     squeeze: 1.3,
     sensorWidthMm: 26.21,
     sensorHeightMm: 13.82,
+    usedSensorWidthMm: 19.66,
+    usedSensorHeightMm: 10.37,
     colorSpace: "REDWideGamutRGB",
     oetf: "Log3G10",
   },
@@ -466,24 +472,6 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "S-Log3",
     notes:
       "Real VENICE 2 1.3x ana mode (replaces v1.3's impossible 8.2K entry — that exceeded sensor row count).",
-  },
-  {
-    // Real VENICE 2 8K-sensor anamorphic mode (replaces a fabricated "7.6K 17:9
-    // 1.8x" entry — 1.8x is a de-squeeze MONITORING option, not a recording mode).
-    id: "venice2-58k-65-2x",
-    camera: "Sony VENICE 2",
-    mode: "5.8K 6:5 2x Anamorphic",
-    width: 5760,
-    height: 4800,
-    squeeze: 2,
-    sensorWidthMm: 35.90,
-    sensorHeightMm: 24.00,
-    usedSensorWidthMm: 23.93,
-    usedSensorHeightMm: 20.00,
-    maxFps: 48,
-    colorSpace: "S-Gamut3.Cine",
-    oetf: "S-Log3",
-    notes: "Documented VENICE 2 8K-sensor anamorphic mode (CBKZ-3620A license); 2x desqueeze → 2.40:1.",
   },
   {
     id: "burano-86k-og",
@@ -1158,7 +1146,7 @@ export function hdrPeakNits(v: HdrVariant): number {
 // IMPORTANT (v1.4 §B.7 fix): All `bppx` values are TRUE bits-per-pixel.
 // Earlier the ARRIRAW bppx was set to 12/8 = 1.5 (BYTES per pixel) with the
 // rest of the pipeline treating the result as Mbps, producing an 8× under-
-// statement. ARRIRAW uncompressed is 12 bits per pixel ⇒ bppx = 12.0.
+// statement. ALEXA 35 ARRIRAW is 13-bit log (bppx ≈ 12.74); older 12-bit ALEXAs ≈ 12.0.
 //
 // Sources: ARRI, RED, Sony, Blackmagic, Apple, Canon official codec docs.
 
@@ -1197,41 +1185,42 @@ export type Codec = {
  *  Frame rate is matched on integer-rounded value with closest-fps fallback. */
 export type ProResRateTable = Record<string, Record<number, number>>;
 
-// Apple ProRes published rates (Apple "ProRes White Paper", April 2023).
-// Mbps at the listed (resolution × integer-fps).
+// Apple ProRes published rates (Apple "ProRes White Paper", 2023). Apple's headline
+// figures are quoted at 29.97 fps, so they sit in the "30" column here; 24 = ×(24/29.97)
+// (i.e. the 23.98 figure, 0.8× the 29.97 rate), 25/50/60 scale linearly. Mbps.
 const PRORES_4444XQ_TABLE: ProResRateTable = {
-  "1920": { 24: 500, 25: 521, 30: 626, 50: 1042, 60: 1253 },
-  "3840": { 24: 1857, 25: 1934, 30: 2321, 50: 3868, 60: 4642 },
-  "4096": { 24: 1980, 25: 2062, 30: 2475, 50: 4124, 60: 4949 },
-  "8192": { 24: 7920, 25: 8250, 30: 9900 },
+  "1920": { 24: 400, 25: 417, 30: 500, 50: 834, 60: 1001 },
+  "3840": { 24: 1602, 25: 1668, 30: 2000, 50: 3337, 60: 4004 },
+  "4096": { 24: 1708, 25: 1780, 30: 2133, 50: 3559, 60: 4271 },
+  "8192": { 24: 6834, 25: 7118, 30: 8533 },
 };
 const PRORES_4444_TABLE: ProResRateTable = {
-  "1920": { 24: 330, 25: 344, 30: 413, 50: 688, 60: 826 },
-  "3840": { 24: 1244, 25: 1296, 30: 1555, 50: 2592, 60: 3110 },
-  "4096": { 24: 1326, 25: 1381, 30: 1657, 50: 2762, 60: 3315 },
-  "8192": { 24: 5305, 25: 5527, 30: 6630 },
+  "1920": { 24: 264, 25: 275, 30: 330, 50: 551, 60: 661 },
+  "3840": { 24: 1057, 25: 1101, 30: 1320, 50: 2202, 60: 2643 },
+  "4096": { 24: 1128, 25: 1175, 30: 1408, 50: 2349, 60: 2819 },
+  "8192": { 24: 4510, 25: 4698, 30: 5632 },
 };
 const PRORES_422HQ_TABLE: ProResRateTable = {
-  "1920": { 24: 220, 25: 229, 30: 275, 50: 458, 60: 550 },
-  "3840": { 24: 707, 25: 737, 30: 884, 50: 1473, 60: 1768 },
-  "4096": { 24: 754, 25: 786, 30: 942, 50: 1571, 60: 1885 },
-  "8192": { 24: 3015, 25: 3140, 30: 3768 },
+  "1920": { 24: 176, 25: 184, 30: 220, 50: 367, 60: 440 },
+  "3840": { 24: 705, 25: 734, 30: 880, 50: 1468, 60: 1762 },
+  "4096": { 24: 752, 25: 783, 30: 939, 50: 1566, 60: 1879 },
+  "8192": { 24: 3007, 25: 3132, 30: 3755 },
 };
 const PRORES_422_TABLE: ProResRateTable = {
-  "1920": { 24: 147, 25: 154, 30: 184, 50: 307, 60: 369 },
-  "3840": { 24: 471, 25: 491, 30: 589, 50: 982, 60: 1179 },
-  "4096": { 24: 503, 25: 524, 30: 628, 50: 1047, 60: 1257 },
-  "8192": { 24: 2010, 25: 2095, 30: 2515 },
+  "1920": { 24: 118, 25: 123, 30: 147, 50: 245, 60: 294 },
+  "3840": { 24: 471, 25: 490, 30: 588, 50: 981, 60: 1177 },
+  "4096": { 24: 502, 25: 523, 30: 627, 50: 1046, 60: 1256 },
+  "8192": { 24: 2009, 25: 2093, 30: 2509 },
 };
 const PRORES_422LT_TABLE: ProResRateTable = {
-  "1920": { 24: 102, 25: 107, 30: 128, 50: 213, 60: 256 },
-  "3840": { 24: 328, 25: 342, 30: 410, 50: 684, 60: 821 },
-  "4096": { 24: 350, 25: 365, 30: 437, 50: 729, 60: 875 },
+  "1920": { 24: 82, 25: 85, 30: 102, 50: 170, 60: 204 },
+  "3840": { 24: 327, 25: 340, 30: 408, 50: 681, 60: 817 },
+  "4096": { 24: 349, 25: 363, 30: 435, 50: 726, 60: 871 },
 };
 const PRORES_422PROXY_TABLE: ProResRateTable = {
-  "1920": { 24: 45, 25: 47, 30: 57, 50: 94, 60: 113 },
-  "3840": { 24: 145, 25: 152, 30: 182, 50: 303, 60: 364 },
-  "4096": { 24: 155, 25: 161, 30: 194, 50: 323, 60: 388 },
+  "1920": { 24: 36, 25: 38, 30: 45, 50: 75, 60: 90 },
+  "3840": { 24: 144, 25: 150, 30: 180, 50: 300, 60: 360 },
+  "4096": { 24: 154, 25: 160, 30: 192, 50: 320, 60: 384 },
 };
 
 export const CODECS: Codec[] = [
@@ -1241,19 +1230,19 @@ export const CODECS: Codec[] = [
     vendor: "ARRI",
     family: "RAW",
     name: "ARRIRAW (.ari) — Uncompressed",
-    bppx: 12, // 12-bit log uncompressed = 12 bits per pixel.
-    rateLabel: "12-bit uncompressed · ~4.2 Gbps @ 4.6K 24p · ~1.85 TB/hr",
+    bppx: 12.74, // ALEXA 35 is 13-bit log ARRIRAW (matches ARRI 4458 Mbit/s @ 4.6K 3:2 24p).
+    rateLabel: "13-bit uncompressed · ~4.46 Gbps @ 4.6K 3:2 24p (4.64 @25p) · ~2.0 TB/hr",
   },
   {
     id: "arriraw-hde",
     vendor: "ARRI",
     family: "RAW",
     name: "ARRIRAW HDE (lossless)",
-    // HDE typically achieves ~3.5–4× compression on log-encoded ARRIRAW.
-    // 12 bpp / 4 ≈ 3.0 bpp.
-    bppx: 3.0,
-    rateLabel: "Lossless compressed · ~1.05 Gbps @ 4.6K 24p · ~470 GB/hr",
-    notes: "ARRIRAW High-Density Encoding. Bit-exact decode, ~3.5–4× compression.",
+    // HDE is bit-exact LOSSLESS, storing ~60% of uncompressed (~1.7:1) — NOT 3.5–4×.
+    // 0.6 × 12.74 ≈ 7.64 bpp.
+    bppx: 7.64,
+    rateLabel: "Lossless · ~2.7 Gbps @ 4.6K 3:2 24p · ~1.2 TB/hr",
+    notes: "ARRIRAW High-Density Encoding. Bit-exact lossless, ~40% smaller than uncompressed (~1.7:1).",
   },
   {
     id: "arri-prores-4444xq",
@@ -1261,7 +1250,7 @@ export const CODECS: Codec[] = [
     family: "ProRes",
     name: "ProRes 4444 XQ",
     rateTable: PRORES_4444XQ_TABLE,
-    rateLabel: "Apple table · 500 Mbps @ HD24 / 1.86 Gbps @ UHD24",
+    rateLabel: "Apple table · 400 Mbps @ HD24 / 1.60 Gbps @ UHD24",
   },
   {
     id: "arri-prores-4444",
@@ -1269,7 +1258,7 @@ export const CODECS: Codec[] = [
     family: "ProRes",
     name: "ProRes 4444",
     rateTable: PRORES_4444_TABLE,
-    rateLabel: "Apple table · 330 Mbps @ HD24 / 1.24 Gbps @ UHD24",
+    rateLabel: "Apple table · 264 Mbps @ HD24 / 1.06 Gbps @ UHD24",
   },
   {
     id: "arri-prores-422hq",
@@ -1277,7 +1266,7 @@ export const CODECS: Codec[] = [
     family: "ProRes",
     name: "ProRes 422 HQ",
     rateTable: PRORES_422HQ_TABLE,
-    rateLabel: "Apple table · 220 Mbps @ HD24 / 707 Mbps @ UHD24",
+    rateLabel: "Apple table · 176 Mbps @ HD24 / 705 Mbps @ UHD24",
   },
   {
     id: "arri-prores-422",
@@ -1285,7 +1274,7 @@ export const CODECS: Codec[] = [
     family: "ProRes",
     name: "ProRes 422",
     rateTable: PRORES_422_TABLE,
-    rateLabel: "Apple table · 147 Mbps @ HD24 / 471 Mbps @ UHD24",
+    rateLabel: "Apple table · 118 Mbps @ HD24 / 471 Mbps @ UHD24",
   },
   {
     id: "arri-prores-422lt",
@@ -1293,7 +1282,7 @@ export const CODECS: Codec[] = [
     family: "ProRes",
     name: "ProRes 422 LT",
     rateTable: PRORES_422LT_TABLE,
-    rateLabel: "Apple table · 102 Mbps @ HD24 / 328 Mbps @ UHD24",
+    rateLabel: "Apple table · 82 Mbps @ HD24 / 327 Mbps @ UHD24",
   },
   {
     id: "arri-prores-422proxy",
@@ -1301,34 +1290,34 @@ export const CODECS: Codec[] = [
     family: "ProRes",
     name: "ProRes 422 Proxy",
     rateTable: PRORES_422PROXY_TABLE,
-    rateLabel: "Apple table · 45 Mbps @ HD24 / 145 Mbps @ UHD24",
+    rateLabel: "Apple table · 36 Mbps @ HD24 / 144 Mbps @ UHD24",
   },
 
   // -------- RED REDCODE --------
-  // REDCODE is variable-quality; bppx values calibrated so 8K 17:9 24p HQ ≈ 2.25 Gbps.
+  // REDCODE is variable-quality; bppx calibrated to RED spec — 8K 17:9 24p HQ ≈ 3.57 Gbps (446 MB/s).
   {
     id: "red-r3d-hq",
     vendor: "RED",
     family: "REDCODE",
     name: "REDCODE RAW HQ",
-    bppx: 2.6,
-    rateLabel: "Visually lossless · ~2.25 Gbps @ 8K 17:9 24p · ~1.0 TB/hr",
+    bppx: 4.2,
+    rateLabel: "Visually lossless · ~3.57 Gbps @ 8K 17:9 24p · ~1.6 TB/hr",
   },
   {
     id: "red-r3d-mq",
     vendor: "RED",
     family: "REDCODE",
     name: "REDCODE RAW MQ",
-    bppx: 1.85,
-    rateLabel: "Medium quality · ~1.6 Gbps @ 8K 17:9 24p",
+    bppx: 2.95,
+    rateLabel: "Medium quality · ~2.5 Gbps @ 8K 17:9 24p",
   },
   {
     id: "red-r3d-lq",
     vendor: "RED",
     family: "REDCODE",
     name: "REDCODE RAW LQ",
-    bppx: 1.3,
-    rateLabel: "Low quality · ~1.1 Gbps @ 8K 17:9 24p",
+    bppx: 1.85,
+    rateLabel: "Low quality · ~1.6 Gbps @ 8K 17:9 24p",
   },
 
   // -------- SONY --------
@@ -1777,7 +1766,12 @@ function lookupProResRate(table: ProResRateTable, width: number, height: number,
   // Linear scale from published reference up to the ACTUAL pixel rate, so tall /
   // anamorphic / out-of-table requests scale on real W×H (not an assumed 16:9).
   const refRate = row[bestF];
-  const refPx = bestW * (bestW * 9 / 16); // published rows are 16:9 reference frames
+  // Each rate row was measured at a specific reference frame — NOT all 16:9. DCI 4K is
+  // 4096×2160 (~1.9:1) and 8K-DCI is 8192×4320, so a native-DCI request must not be
+  // rescaled against a phantom 16:9 frame (which would undershoot ~6%).
+  const REF_H: Record<number, number> = { 1280: 720, 1920: 1080, 2048: 1080, 3840: 2160, 4096: 2160, 8192: 4320 };
+  const refH = REF_H[bestW] ?? Math.round((bestW * 9) / 16);
+  const refPx = bestW * refH;
   const refPxRate = refPx * bestF;
   const askPxRate = width * height * fps;
   if (refPxRate <= 0) return refRate;
@@ -1962,7 +1956,7 @@ export type FovDof = {
 };
 
 /** Thin-lens FOV + DoF. Anamorphic horizontal AOV uses focal ÷ squeeze.
- *  CoC = used-sensor diagonal ÷ 1500. All distances in metres / mm as labelled. */
+ *  CoC = used-sensor WIDTH ÷ 1500 (cinema / pCam convention). Distances in m / mm as labelled. */
 export function computeFovDof(opts: {
   sensorWidthMm: number;
   sensorHeightMm: number;
@@ -1980,7 +1974,10 @@ export function computeFovDof(opts: {
   const dAOV = 2 * Math.atan(Math.hypot(sw * sq, sh) / (2 * f)) * DEG;
   const frameW = (2 * dist * Math.tan(hAOV / 2 / DEG)) / 1000;
   const frameH = (2 * dist * Math.tan(vAOV / 2 / DEG)) / 1000;
-  const cocMm = Math.hypot(sw, sh) / 1500;
+  // Cinema circle of confusion = sensor WIDTH / 1500 (ASC / pCam convention), on the
+  // captured (squeezed) photosite width — not the diagonal. For high-squeeze anamorphic
+  // this errs a touch optimistic on the long axis vs the desqueezed frame, as pCam also does.
+  const cocMm = sw / 1500;
   const H = (f * f) / (fNumber * cocMm) + f; // mm
   const near = (H * dist) / (H + (dist - f));
   const farDen = H - (dist - f);

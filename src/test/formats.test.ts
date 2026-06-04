@@ -250,11 +250,11 @@ describe("computeFovDof", () => {
     expect(r.frameW).toBeCloseTo(2.4, 1);
     expect(r.frameH).toBeCloseTo(1.65, 1);
   });
-  it("computes depth of field in metres", () => {
-    expect(r.nearM).toBeCloseTo(2.6, 1);
-    expect(r.farM).toBeCloseTo(3.54, 1);
-    expect(r.dofM).toBeCloseTo(0.94, 1); // not 941 — metres, not mm
-    expect(r.hyperfocalM).toBeCloseTo(19.4, 0);
+  it("computes depth of field in metres (cinema CoC = sensor width / 1500)", () => {
+    expect(r.nearM).toBeCloseTo(2.66, 1);
+    expect(r.farM).toBeCloseTo(3.43, 1);
+    expect(r.dofM).toBeCloseTo(0.77, 1); // metres, not mm
+    expect(r.hyperfocalM).toBeCloseTo(23.5, 0); // ALEXA 35, 35mm f/2.8 — matches pCam (width/1500)
   });
   it("returns infinite far focus at/over the hyperfocal", () => {
     const far = computeFovDof({ sensorWidthMm: 27.99, sensorHeightMm: 19.22, focalMm: 35, fNumber: 2.8, distanceM: 25 });
