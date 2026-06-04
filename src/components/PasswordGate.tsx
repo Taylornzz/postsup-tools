@@ -2,16 +2,14 @@ import { useState } from "react";
 
 /** Lightweight private-preview gate. Soft wall only — keeps casual visitors out of the
  *  live URL; it is NOT real security (the password lives in the client bundle).
- *  Auto-lifts after GATE_UNTIL, after which the site is open with no prompt. */
+ *  Stays on continuously until removed; once a visitor enters the password it is
+ *  remembered on their device so they are not asked again. */
 
-const GATE_UNTIL = 1780619536000; // 2026-06-05 ~12:32 NZST
 const PASSWORD = "1234";
 const KEY = "postsup-gate-ok";
 
 export function PasswordGate({ children }: { children: React.ReactNode }) {
-  const open = Date.now() > GATE_UNTIL;
   const [ok, setOk] = useState(() => {
-    if (open) return true;
     try { return localStorage.getItem(KEY) === "1"; } catch { return false; }
   });
   const [val, setVal] = useState("");

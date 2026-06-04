@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.70";
+const VERSION = "v1.9.71";
 const CHANGELOG = [
+  "v1.9.71 — Private-preview password gate is now continuous (no 24h auto-lift) — it stays on until removed; visitors who enter the password are remembered on their device.",
   "v1.9.70 — Added a temporary private-preview password gate on the live site (auto-lifts after ~24h). Soft wall for sharing, not real security.",
   "v1.9.69 — Planner: the Template now lays down the full 15-item post schedule — Prep, Camera Test, Show Look, PP (keyframe), Shoot, Offload/DIT, Offline, Lock (keyframe), Conform, VFX, Grade, Audio Post, Online, QC, Delivery — with realistic overlapping durations, still anchored to the current week.",
   "v1.9.68 — Tools: the EDL Converter is now a full multi-format sequence converter. It auto-detects and reads CMX3600 EDL, FCP7 / Premiere / Resolve XML, FCPXML (best-effort) and CSV, shows a clean preview table, and converts out to XLSX (native Excel), CSV, EDL (CMX3600, with a reel-name>8 toggle), PDF cut list, or JSON. Drop-frame aware. Like editingtools.io it targets cut lists (transitions become cuts, audio-only tracks skipped). New parsers/writers are unit-tested; XLSX loads on demand so it doesn't bloat startup.",
