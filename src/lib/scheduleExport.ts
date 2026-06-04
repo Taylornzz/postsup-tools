@@ -60,7 +60,7 @@ function buildCSV(ctx: ExportCtx): string {
   for (const b of ctx.bars) {
     const s = dateAtISO(ctx.anchor, b.start);
     if (b.dur === 0) rows.push([b.name, "Milestone", fmtLong(s), "", "0"]);
-    else rows.push([b.name, "Phase", fmtLong(s), fmtLong(dateAtISO(ctx.anchor, b.start + b.dur)), String(b.dur)]);
+    else rows.push([b.name, "Phase", fmtLong(s), fmtLong(addDaysISO(dateAtISO(ctx.anchor, b.start + b.dur), -1)), String(b.dur)]); // inclusive last day
   }
   return rows.map((r) => r.map(esc).join(",")).join("\r\n");
 }
@@ -186,7 +186,7 @@ function renderGanttCanvas(ctx0: ExportCtx): HTMLCanvasElement {
         ctx.fillText(`${b.dur}w`, x + w / 2, y + RH / 2);
       }
       ctx.fillStyle = "#94a3b8"; ctx.textAlign = "left"; ctx.font = "10px ui-monospace, monospace";
-      ctx.fillText(`${b.name} · ${fmtShort(dateAtISO(anchor, b.start))}–${fmtShort(dateAtISO(anchor, b.start + b.dur))}`, x + w + 6, y + RH / 2);
+      ctx.fillText(`${b.name} · ${fmtShort(dateAtISO(anchor, b.start))}–${fmtShort(addDaysISO(dateAtISO(anchor, b.start + b.dur), -1))}`, x + w + 6, y + RH / 2);
     }
   });
 

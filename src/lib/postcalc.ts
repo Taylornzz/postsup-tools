@@ -35,6 +35,9 @@ export function tcToFrames(tc: string, nominal: number, df: boolean): number | n
   if (f >= nominal) return null;
   if (df) {
     const dropFrames = Math.round(nominal * 0.0666666); // 2 @30, 4 @60
+    // Illegal DF labels: frames 0..dropFrames-1 are dropped at the top of every
+    // non-tenth minute, so reject them rather than mapping to an adjacent frame.
+    if (s === 0 && m % 10 !== 0 && f < dropFrames) return null;
     const totalMinutes = 60 * h + m;
     return nominal * 60 * 60 * h + nominal * 60 * m + nominal * s + f - dropFrames * (totalMinutes - Math.floor(totalMinutes / 10));
   }
@@ -85,7 +88,7 @@ export function conform(frames: number, src: FpsPreset, tgt: FpsPreset) {
   const srcSeconds = frames / src.actual;
   const tgtSeconds = frames / tgt.actual;
   const speedPct = (srcSeconds === 0 ? 0 : (tgtSeconds / srcSeconds) * 100); // playback length as % of original
-  const audioPullPct = (src.actual / tgt.actual) * 100; // audio must be scaled by src/tgt
+  const audioPullPct = (tgt.actual / src.actual) * 100; // pull factor in the SAME direction as speed/pitch (24→25 = 104.17%, a pull-up)
   const semitones = src.actual && tgt.actual ? 12 * Math.log2(tgt.actual / src.actual) : 0;
   return { srcSeconds, tgtSeconds, speedPct, audioPullPct, semitones };
 }
@@ -94,7 +97,8 @@ export function conform(frames: number, src: FpsPreset, tgt: FpsPreset) {
 function gcd(a: number, b: number): number { return b ? gcd(b, a % b) : a; }
 
 const NAMED_RATIOS: { r: number; name: string }[] = [
-  { r: 1.33, name: "4:3 (Academy TV)" },
+  { r: 1.33, name: "4:3 (1.33 / Full Aperture)" },
+  { r: 1.375, name: "Academy (1.375)" },
   { r: 1.43, name: "IMAX 1.43" },
   { r: 1.5, name: "3:2" },
   { r: 1.66, name: "5:3 (Super 16)" },

@@ -246,7 +246,7 @@ function EdlTool() {
   const [text, setText] = useState("");
   const [filename, setFilename] = useState("");
   const [out, setOut] = useState<OutFormat>("xlsx");
-  const [reelLong, setReelLong] = useState(true);
+  const [reelLong, setReelLong] = useState(false); // default to spec-compliant 8-char CMX3600 reels
   const [titleOverride, setTitleOverride] = useState("");
   const [dfOverride, setDfOverride] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);

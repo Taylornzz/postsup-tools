@@ -523,7 +523,9 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
             {/* Rows */}
             {bars.map((b) => {
               const startD = addWeeks(anchor, b.start);
+              // Inclusive last day (the exclusive week-boundary minus one day) for the human label.
               const endD = addWeeks(anchor, b.start + Math.max(b.dur, 1));
+              endD.setDate(endD.getDate() - 1);
               const isMs = b.dur === 0;
               const left = b.start * weekW;
               const width = Math.max(b.dur, 0) * weekW;

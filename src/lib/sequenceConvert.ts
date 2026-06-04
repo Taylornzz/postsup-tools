@@ -31,9 +31,17 @@ export function detectFormat(text: string, filename = ""): SeqFormat {
   if (ext === "fcpxml" || /<fcpxml/i.test(t)) return "fcpxml";
   if (ext === "xml" || /<xmeml/i.test(t)) return /<fcpxml/i.test(t) ? "fcpxml" : "fcp7xml";
   if (ext === "csv") return "csv";
-  if (ext === "edl" || /^TITLE:/im.test(t) || /^\s*\d{1,6}\s+\S+\s+\S+\s+\S+\s+\d{2}:\d{2}:\d{2}/m.test(t)) return "edl";
   if (/<\?xml/i.test(t)) return "fcp7xml";
-  if (/,/.test(t.split(/\r?\n/)[0] || "") && /reel|clip|src/i.test(t.split(/\r?\n/)[0] || "")) return "csv";
+  if (ext === "edl" || /^TITLE:/im.test(t) || /^\s*\d{1,6}\s+\S+\s+\S+\s+\S+\s+\d{2}:\d{2}:\d{2}/m.test(t)) return "edl";
+  // CSV: a header keyword, OR a consistent multi-column comma structure (so differently-
+  // named cut-list headers aren't silently misread as EDL → "0 events").
+  const lines = t.split(/\r?\n/).filter((l) => l.trim());
+  const head = lines[0] || "";
+  if (head.includes(",")) {
+    if (/reel|clip|src|rec|track|event|name/i.test(head)) return "csv";
+    const cols = head.split(",").length;
+    if (cols >= 3 && lines.slice(1, 5).some((l) => l.split(",").length === cols)) return "csv";
+  }
   return "edl";
 }
 
@@ -121,7 +129,10 @@ function parseFCPXML(text: string): ParseResult {
     const ref = el.getAttribute("ref") || "";
     const asset = assets[ref];
     const name = el.getAttribute("name") || asset?.name || "clip";
-    const srcBase = (asset?.start || 0) + start;
+    // FCPXML asset-clip `start` is already in the asset's own timeline (its origin is the
+    // asset's start), so it IS the source in-point. Only fall back to asset.start when the
+    // clip has no start attribute. (Adding both double-counts the source TC — often ~1h.)
+    const srcBase = el.getAttribute("start") != null ? start : (asset?.start || 0);
     events.push({
       num: String(n++).padStart(3, "0"),
       reel: reelTag(name),
@@ -191,8 +202,9 @@ function toEDL(events: EdlEvent[], opts: { title?: string; df?: boolean; reelLon
   events.forEach((e, i) => {
     let reel = (e.reel || "AX").toUpperCase().replace(/[^A-Z0-9_]/g, "");
     if (!opts.reelLong) reel = reel.slice(0, 8) || "AX";
-    const trans = (e.transition || "C") + (e.transDur ? "" : "");
-    L.push(`${String(i + 1).padStart(3, "0")}  ${reel.padEnd(8)} ${(e.track || "V").padEnd(4)} ${trans.padEnd(4)}${e.transDur ? " " + e.transDur.padStart(3, "0") : "    "} ${e.srcIn} ${e.srcOut} ${e.recIn} ${e.recOut}`);
+    // Cut-list contract: every event is a clean cut. We don't emit two-line CMX3600
+    // dissolves, so collapse any transition to "C" rather than write a lone (invalid) "D nnn".
+    L.push(`${String(i + 1).padStart(3, "0")}  ${reel.padEnd(8)} ${(e.track || "V").padEnd(4)} C        ${e.srcIn} ${e.srcOut} ${e.recIn} ${e.recOut}`);
     if (e.clip) L.push(`* FROM CLIP NAME: ${e.clip}`);
   });
   return L.join("\r\n");
@@ -218,7 +230,7 @@ function toPDF(events: EdlEvent[], title: string, base: string) {
     pdf.setFont("courier", bold ? "bold" : "normal"); pdf.setFontSize(8);
     let x = margin;
     cols.forEach((c, i) => {
-      const max = Math.floor(c.w / 4.6);
+      const max = Math.floor(c.w / 4.8); // Courier 8pt advance = 0.6em = 4.8pt/char
       let t = String(vals[i] ?? "");
       if (t.length > max) t = t.slice(0, max - 1) + "…";
       pdf.text(t, x, y); x += c.w;
