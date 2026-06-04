@@ -100,15 +100,17 @@ function fmtDate(d: Date): string {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
 }
 
+const seedBars = (): Bar[] => SEED.map((b) => ({ ...b, id: uid() }));
+
 function loadBars(): Bar[] {
   try {
     const raw = localStorage.getItem(KEY_BARS);
-    if (!raw) return [];
+    if (raw === null) return seedBars(); // first visit → start pre-filled with the template
     const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
+    if (!Array.isArray(arr)) return seedBars();
     return arr.filter((b) => b && typeof b.name === "string" && Number.isFinite(b.start) && Number.isFinite(b.dur));
   } catch {
-    return [];
+    return seedBars();
   }
 }
 
