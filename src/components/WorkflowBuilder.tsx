@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, addEdge,
   useNodesState, useEdgesState, Handle, Position, MarkerType,
-  BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow,
+  BaseEdge, EdgeLabelRenderer, getBezierPath, useReactFlow,
   getNodesBounds, getViewportForBounds,
   type Node, type Edge, type Connection, type NodeProps, type EdgeProps,
 } from "@xyflow/react";
@@ -57,7 +57,7 @@ function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
   const { deleteElements } = useReactFlow();
   const [hovered, setHovered] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
-  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   const show = hovered || !!selected;
   // brief delay on leave so crossing the gap from line → × button doesn't hide it
   const enter = () => { if (hideTimer.current) clearTimeout(hideTimer.current); setHovered(true); };

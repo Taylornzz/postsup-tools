@@ -110,8 +110,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.90";
+const VERSION = "v1.9.91";
 const CHANGELOG = [
+  "v1.9.91 — Custom Workflow: connections between nodes are now smooth curves (bezier) instead of right-angle steps — easier to follow when nodes branch and cross.",
   "v1.9.90 — Custom Workflow: the × that deletes a connection now only appears when you hover over (or near) that line, keeping the canvas clean. The line also brightens slightly so you can see which one you're about to remove.",
   "v1.9.89 — Custom Workflow: added Undo / Redo (⌘Z / ⌘⇧Z — covers accidental node/connection deletes, drags, template & clear), Save with named versions (save multiple workflows, reload or delete any), and Export to PNG, PDF, CSV (spreadsheet of steps + their connections) and JSON backup.",
   "v1.9.88 — Custom Workflow moved inside the Workflow tab (toggle Production / Custom Workflow) instead of a separate tab. Connections now have a × button to remove them (and a node can branch to many). New 'Template' button drops a basic 6-step skeleton (Camera Test → Shoot/Offload → Editorial → VFX → Grade/Online → Delivery) to build from. Palette steps show a ✓ when they're already on the canvas.",
