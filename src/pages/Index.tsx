@@ -110,8 +110,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.88";
+const VERSION = "v1.9.89";
 const CHANGELOG = [
+  "v1.9.89 — Custom Workflow: added Undo / Redo (⌘Z / ⌘⇧Z — covers accidental node/connection deletes, drags, template & clear), Save with named versions (save multiple workflows, reload or delete any), and Export to PNG, PDF, CSV (spreadsheet of steps + their connections) and JSON backup.",
   "v1.9.88 — Custom Workflow moved inside the Workflow tab (toggle Production / Custom Workflow) instead of a separate tab. Connections now have a × button to remove them (and a node can branch to many). New 'Template' button drops a basic 6-step skeleton (Camera Test → Shoot/Offload → Editorial → VFX → Grade/Online → Delivery) to build from. Palette steps show a ✓ when they're already on the canvas.",
   "v1.9.87 — New Builder tab: a free-form custom workflow editor (node graph, like a Resolve node tree / mindmap). Tick standard post steps from the palette to drop them in, drag nodes to arrange, drag port→port to connect, click a node to rename / set owner / edit notes / recolour, Delete to remove. Starts from a Camera Test node and saves to the browser. Built on React Flow, loaded only when you open the tab.",
   "v1.9.86 — Capture: removed the two 'Reference Plate' demo entries from the camera list (they weren't real cameras). The uploadable reference-plate feature for the framing chart is unaffected.",
