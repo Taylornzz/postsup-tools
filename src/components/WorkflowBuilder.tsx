@@ -52,18 +52,35 @@ function StepNode({ data, selected }: NodeProps) {
 }
 const nodeTypes = { step: StepNode };
 
-// ---- edge with a delete (×) button at its midpoint ----
-function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style }: EdgeProps) {
+// ---- edge with a delete (×) button that appears only on hover ----
+function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, selected }: EdgeProps) {
   const { deleteElements } = useReactFlow();
+  const [hovered, setHovered] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
   const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const show = hovered || !!selected;
+  // brief delay on leave so crossing the gap from line → × button doesn't hide it
+  const enter = () => { if (hideTimer.current) clearTimeout(hideTimer.current); setHovered(true); };
+  const leave = () => { if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => setHovered(false), 80); };
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current); }, []);
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />
+      <BaseEdge id={id} path={path} markerEnd={markerEnd}
+        style={{ ...style, stroke: show ? "#94a3b8" : (style?.stroke as string), strokeWidth: show ? 2 : (style?.strokeWidth as number) }} />
+      {/* invisible wide ribbon over the line so the thin edge is easy to hover */}
+      <path d={path} fill="none" stroke="transparent" strokeWidth={24}
+        style={{ pointerEvents: "stroke", cursor: "pointer" }}
+        onMouseEnter={enter} onMouseLeave={leave} />
       <EdgeLabelRenderer>
         <button
-          className="nodrag nopan grid place-items-center size-4 rounded-full border border-suite-border bg-suite-panel text-suite-text-dim hover:text-destructive hover:border-destructive/60 transition-colors"
-          style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: "all", fontSize: 10, lineHeight: 1 }}
+          className={cn(
+            "nodrag nopan grid place-items-center size-4 rounded-full border bg-suite-panel transition-opacity duration-150",
+            "border-suite-border text-suite-text-dim hover:text-destructive hover:border-destructive/60",
+            show ? "opacity-100" : "opacity-0",
+          )}
+          style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: show ? "all" : "none", fontSize: 10, lineHeight: 1 }}
           title="Remove connection"
+          onMouseEnter={enter} onMouseLeave={leave}
           onClick={(e) => { e.stopPropagation(); void deleteElements({ edges: [{ id }] }); }}
         >×</button>
       </EdgeLabelRenderer>
@@ -398,7 +415,7 @@ function Builder() {
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold flex items-center gap-1.5">
             <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.6} /> Custom Workflow
           </span>
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to arrange · port → port to connect · × on a line removes it · ⌘Z undo</span>
+          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to arrange · port → port to connect · hover a line for its × · ⌘Z undo</span>
           <span className="flex-1" />
 
           {/* undo / redo */}
