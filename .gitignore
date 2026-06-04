@@ -25,3 +25,4 @@ dist-ssr
 
 # Source hi-res asset (optimized copy reference-bg.jpg is committed instead)
 src/assets/reference-person2.png
+.vercel
