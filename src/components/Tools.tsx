@@ -92,8 +92,9 @@ function TimecodeTool() {
   const [op, setOp] = useState<"+" | "-">("+");
 
   const tcFrames = tcToFrames(tc, fps.nominal, fps.df);
-  const frInt = Math.round(Number(frames));
-  const frTc = Number.isFinite(frInt) ? framesToTC(frInt, fps.nominal, fps.df) : "—";
+  const framesValid = /^\d+$/.test(frames.trim()); // frame counts are whole numbers
+  const frInt = framesValid ? parseInt(frames, 10) : NaN;
+  const frTc = framesValid ? framesToTC(frInt, fps.nominal, fps.df) : "invalid";
   const aF = tcToFrames(aTc, fps.nominal, fps.df);
   const bF = tcToFrames(bTc, fps.nominal, fps.df);
   const resF = aF != null && bF != null ? (op === "+" ? aF + bF : aF - bF) : null;
@@ -113,7 +114,7 @@ function TimecodeTool() {
           <Field label="Frames"><input value={frames} onChange={(e) => setFrames(e.target.value)} inputMode="numeric" className={inputCls} placeholder="0" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Stat label="Timecode" value={frTc} accent />
-            <Stat label="Seconds" value={Number.isFinite(frInt) ? fmtDuration(framesToSeconds(frInt, fps.actual)) : "—"} />
+            <Stat label="Seconds" value={framesValid ? fmtDuration(framesToSeconds(frInt, fps.actual)) : "—"} />
           </div>
         </Card>
       </div>

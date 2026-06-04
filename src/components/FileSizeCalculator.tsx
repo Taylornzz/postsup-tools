@@ -394,7 +394,8 @@ function MediaPlan({
   // Rotation: 1 in camera, 1 being offloaded (24h turnaround), 1 spare.
   const onSetInventory = cardsPerDay * 3;
   const totalCardLoads = Math.max(1, Math.ceil(totalGB / cardGB));
-  const utilisation = (perCamGB / cardGB) * 100;
+  // Average fill across the cards a camera actually uses per day (so it never exceeds 100%).
+  const utilisation = (perCamGB / (cardsPerCamPerDay * cardGB)) * 100;
 
   return (
     <section className="border border-suite-border rounded-sm bg-suite-panel">

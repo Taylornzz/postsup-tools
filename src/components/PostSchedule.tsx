@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X, Save, Download, FolderOpen } from "lucide-react";
+import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X, Save, Download, FolderOpen, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportSchedule, type ExportFormat } from "@/lib/scheduleExport";
 
@@ -137,7 +137,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   const anchor = useMemo(() => mondayOf(startDate || localISO(new Date())), [startDate]);
   const maxEnd = bars.reduce((m, b) => Math.max(m, b.start + Math.max(b.dur, 1)), 0);
-  const weeksToShow = Math.min(Math.max(Math.ceil(maxEnd) + 6, 24), 80);
+  const weeksToShow = Math.min(Math.max(Math.ceil(maxEnd) + 6, 24), 120); // span every bar so long phases aren't clipped on screen or in export
 
   const weeks = useMemo(() => {
     const out: { i: number; date: Date; wk: number }[] = [];
@@ -178,7 +178,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
       const it = d.items[0];
       setBars((bs) => bs.map((b) => {
         if (b.id !== it.id) return b;
-        if (d.mode === "r") return { ...b, dur: Math.max(1, it.d0 + dw) };
+        if (d.mode === "r") return { ...b, dur: clamp(it.d0 + dw, 1, 104) };
         const ns = Math.min(Math.max(0, it.s0 + dw), it.s0 + it.d0 - 1);
         return { ...b, start: ns, dur: it.d0 - (ns - it.s0) };
       }));
@@ -316,7 +316,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   function patch(id: string, p: Partial<Bar>) { setBars((bs) => bs.map((b) => (b.id === id ? { ...b, ...p } : b))); }
   function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); setSelectedIds((ids) => ids.filter((x) => x !== id)); setEditId((e) => (e === id ? null : e)); }
-  const newStart = () => Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
+  const newStart = () => Math.max(0, Math.floor(todayInRange ? todayWeeks : 0)); // start of the current week, never a week late
   function addRow() {
     const b = { id: uid(), name: "New phase", color: PALETTE[bars.length % PALETTE.length], start: newStart(), dur: 2 };
     setBars((bs) => [...bs, b]); setSelectedIds([b.id]); setEditId(b.id);
@@ -340,8 +340,29 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     setVerName("");
   }
   function loadVersion(v: Version) {
-    setBars(v.bars.map((b) => ({ ...b }))); setStartDate(v.startDate);
-    setSelectedIds([]); setEditId(null); setShowSave(false);
+    applyImported(v.bars, v.startDate); setShowSave(false);
+  }
+  // Validate + normalise arbitrary bar data (saved version OR imported JSON), like loadBars.
+  function applyImported(rawBars: unknown, rawStart?: string) {
+    const bars = (Array.isArray(rawBars) ? rawBars : [])
+      .filter((b): b is Bar => !!b && typeof (b as Bar).name === "string" && Number.isFinite((b as Bar).start) && Number.isFinite((b as Bar).dur))
+      .map((b) => ({ id: typeof b.id === "string" ? b.id : uid(), name: b.name, color: typeof b.color === "string" ? b.color : "#94a3b8", start: Math.max(0, b.start), dur: Math.max(0, b.dur) }));
+    setBars(bars);
+    if (rawStart && /^\d{4}-\d{2}-\d{2}$/.test(rawStart)) setStartDate(rawStart);
+    setSelectedIds([]); setEditId(null);
+  }
+  function importJSON(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = "";
+    if (!file) return;
+    file.text().then((txt) => {
+      try {
+        const data = JSON.parse(txt);
+        const bars = Array.isArray(data) ? data : data.bars;
+        if (!Array.isArray(bars)) throw new Error("no bars");
+        applyImported(bars, typeof data.startDate === "string" ? data.startDate : undefined);
+        setShowSave(false);
+      } catch { window.alert("That doesn't look like a PostSup schedule JSON file."); }
+    });
   }
   function deleteVersion(id: string) { setVersions((vs) => vs.filter((v) => v.id !== id)); }
   function doExport(fmt: ExportFormat) {
@@ -441,6 +462,10 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                       </div>
                     ))}
                   </div>
+                  <label className="flex items-center justify-center gap-1.5 mt-1 px-2 py-1.5 rounded-sm border border-dashed border-suite-border text-suite-text-dim hover:text-suite-text cursor-pointer font-mono text-[10px]">
+                    <Upload className="size-3" strokeWidth={1.6} /> Import schedule JSON…
+                    <input type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
+                  </label>
                 </div>
               </>
             )}

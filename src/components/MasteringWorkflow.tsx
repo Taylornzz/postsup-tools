@@ -110,6 +110,20 @@ export function MasteringWorkflow({
   const sel = graph.nodes.find((n) => n.id === selected) ?? null;
   const inbound = sel ? graph.edges.filter((e) => e.to === sel.id) : [];
 
+  // Spread parallel edges (same from→to) vertically so their curves + chips don't overlap.
+  const edgeOffsets = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const e of graph.edges) count.set(`${e.from}->${e.to}`, (count.get(`${e.from}->${e.to}`) || 0) + 1);
+    const seen = new Map<string, number>();
+    return graph.edges.map((e) => {
+      const k = `${e.from}->${e.to}`;
+      const n = count.get(k)!;
+      const idx = seen.get(k) || 0;
+      seen.set(k, idx + 1);
+      return n > 1 ? (idx - (n - 1) / 2) * 16 : 0;
+    });
+  }, [graph]);
+
   // --- Zoom + pan ----------------------------------------------------------
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -291,13 +305,14 @@ export function MasteringWorkflow({
                 const x1 = a.x + COL_W, y1 = a.y + NODE_H / 2;
                 const x2 = b.x, y2 = b.y + NODE_H / 2;
                 const dx = Math.max(40, (x2 - x1) / 2);
+                const off = edgeOffsets[i];
                 const meta = EDGE_OP_META[e.op];
                 const up = e.direction === "up-volume";
                 const stroke = up ? "#ef4444" : e.acesManaged ? "#22d3ee" : "#64748b";
                 const dash = meta.style === "dashed" ? "6 4" : meta.style === "dotted" ? "2 5" : undefined;
                 const active = sel && (e.from === sel.id || e.to === sel.id);
                 return (
-                  <path key={i} d={`M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`}
+                  <path key={i} d={`M ${x1} ${y1} C ${x1 + dx} ${y1 + off}, ${x2 - dx} ${y2 + off}, ${x2} ${y2}`}
                     fill="none" stroke={stroke} strokeWidth={active ? 2.4 : 1.4}
                     strokeDasharray={dash} opacity={active ? 1 : sel ? 0.25 : 0.7} />
                 );
@@ -309,7 +324,7 @@ export function MasteringWorkflow({
               const a = pos.get(e.from); const b = pos.get(e.to);
               if (!a || !b) return null;
               const mx = (a.x + COL_W + b.x) / 2;
-              const my = (a.y + b.y) / 2 + NODE_H / 2;
+              const my = (a.y + b.y) / 2 + NODE_H / 2 + edgeOffsets[i];
               const up = e.direction === "up-volume";
               const active = !!(sel && (e.from === sel.id || e.to === sel.id));
               const full = active && !!e.label;
