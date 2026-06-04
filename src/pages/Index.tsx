@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.74";
+const VERSION = "v1.9.75";
 const CHANGELOG = [
+  "v1.9.75 — Glossary: re-categorised albert (→ Roles & Paperwork), Cinelab and FotoKem (→ Camera & Capture) out of NZ Industry — they're international.",
   "v1.9.74 — Glossary: removed 11 NZ-specific / facility entries (Park Road Post, Wētā FX, NZ VFX Houses, NZ Post Facilities, NZ Soundstages, NZ Exhibitors, Cause & FX Managed-Service Model, NZ Privacy Act 2020, Screen Industry Workers Act 2022, Te Reo Māori Subtitling, TVNZ On-Air Spec) and pruned their cross-links. Now 574 terms.",
   "v1.9.73 — Added Vercel Web Analytics — privacy-first visitor counts, page views, referrers and country (no IPs, no cookies). Needs enabling once in the Vercel dashboard.",
   "v1.9.72 — Planner now opens pre-filled with the standard post template on a first visit, instead of an empty canvas with a button. Clearing the schedule still gives you the blank empty-state.",
