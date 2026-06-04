@@ -1095,6 +1095,33 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "HLG (10-bit)",
   },
 
+  // ============ GoPro MISSION 1 — compact 8K cinema (1″ 50MP, 2026) ============
+  {
+    id: "gopro-mission1-8k-169",
+    camera: "GoPro Mission 1",
+    mode: "8K 16:9",
+    width: 7680,
+    height: 4320,
+    squeeze: 1,
+    sensorWidthMm: 13.2,
+    sensorHeightMm: 7.43,
+    colorSpace: "GoPro / Rec.2020",
+    oetf: "HLG (10-bit)",
+    notes: "Compact 1-inch 50MP cinema cam (GP3); 8K30, up to 240 Mbps HEVC, 10-bit HLG. Standard model also does 4K120 + 4K open gate; MISSION 1 PRO adds 8K open gate, the PRO ILS a Micro Four Thirds mount.",
+  },
+  {
+    id: "gopro-mission1-4k-169",
+    camera: "GoPro Mission 1",
+    mode: "4K 16:9 (120 fps)",
+    width: 3840,
+    height: 2160,
+    squeeze: 1,
+    sensorWidthMm: 13.2,
+    sensorHeightMm: 7.43,
+    colorSpace: "GoPro / Rec.2020",
+    oetf: "HLG (10-bit)",
+  },
+
   // FLAT / SCOPE reference plates (exact aspect captures for demo)
   {
     id: "flat-185-4k",
