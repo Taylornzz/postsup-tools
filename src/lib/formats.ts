@@ -1122,25 +1122,6 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "HLG (10-bit)",
   },
 
-  // FLAT / SCOPE reference plates (exact aspect captures for demo)
-  {
-    id: "flat-185-4k",
-    camera: "Reference Plate",
-    mode: "1.85:1 Flat 4K",
-    width: 3996,
-    height: 2160,
-    squeeze: 1,
-    notes: "Exact 1.85:1 capture — useful for demoing flat-in-16:9 letterbox.",
-  },
-  {
-    id: "scope-239-4k",
-    camera: "Reference Plate",
-    mode: "2.39:1 Scope 4K",
-    width: 4096,
-    height: 1716,
-    squeeze: 1,
-    notes: "Exact 2.39:1 capture — useful for demoing scope-in-16:9 letterbox.",
-  },
 
   // VERTICAL / PORTRAIT (phone & rotated cinema rigs)
   {

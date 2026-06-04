@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.85";
+const VERSION = "v1.9.86";
 const CHANGELOG = [
+  "v1.9.86 — Capture: removed the two 'Reference Plate' demo entries from the camera list (they weren't real cameras). The uploadable reference-plate feature for the framing chart is unaffected.",
   "v1.9.85 — Planner: zoom in far enough and the timeline switches to a day view — day columns (weekends tinted) and a 'Day view' badge — and dragging / resizing bars now snaps to whole days instead of weeks. Bar labels and the duration field read in days when a phase isn't a whole number of weeks.",
   "v1.9.84 — Capture: added the new GoPro Mission 1 (compact 1-inch 50MP 8K cinema cam) — 8K 16:9 and 4K 16:9 modes, 10-bit HLG.",
   "v1.9.83 — Glossary: fixed 'see also' links that pointed to a verbose label (e.g. 'ODT (Output Transform)') failing to find the page — they now resolve to the real entry (ODT) and land on it.",
