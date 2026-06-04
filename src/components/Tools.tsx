@@ -6,7 +6,7 @@ import {
   FPS_PRESETS, type FpsPreset, tcToFrames, framesToTC, framesToSeconds, fmtDuration, conform,
   aspectFromWH, solveDimension,
 } from "@/lib/postcalc";
-import { parseEDL, edlToCSV } from "@/lib/edl";
+import { parseSequence, exportConverted, toEDL, eventsToCSV, FORMAT_LABEL, type OutFormat } from "@/lib/sequenceConvert";
 
 type Sub = "tc" | "rate" | "aspect" | "edl";
 const SUBS: { id: Sub; label: string; icon: typeof Clock }[] = [
@@ -17,13 +17,6 @@ const SUBS: { id: Sub; label: string; icon: typeof Clock }[] = [
 ];
 
 const getFps = (id: string): FpsPreset => FPS_PRESETS.find((f) => f.id === id) || FPS_PRESETS[1];
-
-function download(name: string, mime: string, content: string) {
-  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
 
 export function Tools() {
   const [sub, setSub] = useState<Sub>("tc");
@@ -241,43 +234,110 @@ FCM: NON-DROP FRAME
 002  AX       V     D    025 00:00:10:00 00:00:14:00 01:00:05:00 01:00:09:00
 * FROM CLIP NAME: shot_020.mov`;
 
+const OUTS: { id: OutFormat; label: string }[] = [
+  { id: "xlsx", label: "XLSX — Excel" },
+  { id: "csv", label: "CSV — spreadsheet" },
+  { id: "edl", label: "EDL — CMX3600" },
+  { id: "pdf", label: "PDF — cut list" },
+  { id: "json", label: "JSON" },
+];
+
 function EdlTool() {
   const [text, setText] = useState("");
-  const parsed = useMemo(() => parseEDL(text), [text]);
-  const has = parsed.events.length > 0;
+  const [filename, setFilename] = useState("");
+  const [out, setOut] = useState<OutFormat>("xlsx");
+  const [reelLong, setReelLong] = useState(true);
+  const [titleOverride, setTitleOverride] = useState("");
+  const [dfOverride, setDfOverride] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const parsed = useMemo(() => {
+    if (!text.trim()) return null;
+    try { return { ok: true as const, ...parseSequence(text, filename) }; }
+    catch (e) { return { ok: false as const, error: (e as Error).message }; }
+  }, [text, filename]);
+
+  const events = parsed?.ok ? parsed.events : [];
+  const has = events.length > 0;
+  const title = titleOverride.trim() || (parsed?.ok ? parsed.title : "") || "sequence";
+  const df = dfOverride != null ? dfOverride : !!(parsed?.ok && parsed.df);
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    f.text().then(setText);
+    const f = e.target.files?.[0]; if (!f) return;
+    setFilename(f.name); f.text().then(setText);
   }
-  function copyCSV() {
-    navigator.clipboard.writeText(edlToCSV(parsed)).then(() => toast.success("EDL copied as CSV"));
+  function outText(): string | null {
+    if (!has) return null;
+    if (out === "edl") return toEDL(events, { title, df, reelLong });
+    if (out === "csv") return eventsToCSV(events);
+    if (out === "json") return JSON.stringify({ title, events }, null, 2);
+    return null;
+  }
+  function copyOut() {
+    const t = outText(); if (!t) return;
+    navigator.clipboard.writeText(t).then(() => toast.success(`Copied as ${out.toUpperCase()}`));
+  }
+  async function go() {
+    if (!has) return;
+    setBusy(true);
+    try { await exportConverted(out, events, { title, df, reelLong }); toast.success(`Exported ${out.toUpperCase()}`); }
+    catch (err) { toast.error("Export failed: " + (err as Error).message); }
+    finally { setBusy(false); }
   }
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-4">
-      <Card title="Paste a CMX3600 EDL">
+      <Card title="Source sequence">
         <textarea
-          value={text} onChange={(e) => setText(e.target.value)} spellCheck={false}
-          placeholder="Paste your .edl text here…"
-          className="w-full h-40 bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target resize-y"
+          value={text} onChange={(e) => { setText(e.target.value); setFilename(""); }} spellCheck={false}
+          placeholder="Paste an EDL, FCP7 / Premiere / Resolve XML, FCPXML or CSV — or load a file…"
+          className="w-full h-36 bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target resize-y"
         />
         <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm cursor-pointer text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg">
-            <Upload className="size-3" strokeWidth={1.6} /> Load .edl
-            <input type="file" accept=".edl,.txt,text/plain" onChange={onFile} className="hidden" />
+            <Upload className="size-3" strokeWidth={1.6} /> Load file
+            <input type="file" accept=".edl,.xml,.fcpxml,.csv,.txt,text/plain" onChange={onFile} className="hidden" />
           </label>
-          <button type="button" onClick={() => setText(SAMPLE_EDL)} className="px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg">Sample</button>
+          <button type="button" onClick={() => { setText(SAMPLE_EDL); setFilename("sample.edl"); }} className="px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg">Sample EDL</button>
           <span className="flex-1" />
-          <button type="button" disabled={!has} onClick={copyCSV} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg disabled:opacity-40"><Copy className="size-3" strokeWidth={1.6} /> Copy CSV</button>
-          <button type="button" disabled={!has} onClick={() => download("edl-export.csv", "text/csv", edlToCSV(parsed))} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 disabled:opacity-40"><Download className="size-3" strokeWidth={1.6} /> Export CSV</button>
+          {parsed?.ok && <span className="font-mono text-[10px] text-suite-text-dim">Detected <span className="text-status-ok">{FORMAT_LABEL[parsed.format]}</span> · {events.length} events{parsed.fps ? ` · ${parsed.fps} fps${parsed.df ? " DF" : ""}` : ""}</span>}
+          {parsed && !parsed.ok && <span className="font-mono text-[10px] text-destructive">{parsed.error}</span>}
+        </div>
+      </Card>
+
+      <Card title="Convert to">
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="w-44"><Field label="Output format">
+            <select value={out} onChange={(e) => setOut(e.target.value as OutFormat)} className={inputCls}>
+              {OUTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          </Field></div>
+          <div className="flex-1 min-w-[160px]"><Field label="Title"><input value={title} onChange={(e) => setTitleOverride(e.target.value)} className={inputCls} /></Field></div>
+          {out === "edl" && (
+            <label className="flex items-center gap-1.5 font-mono text-[10px] text-suite-text-muted pb-2 whitespace-nowrap">
+              <input type="checkbox" checked={reelLong} onChange={(e) => setReelLong(e.target.checked)} className="accent-guide-target" /> reel &gt; 8 chars
+            </label>
+          )}
+          {(out === "edl" || out === "pdf") && (
+            <label className="flex items-center gap-1.5 font-mono text-[10px] text-suite-text-muted pb-2 whitespace-nowrap">
+              <input type="checkbox" checked={df} onChange={(e) => setDfOverride(e.target.checked)} className="accent-guide-target" /> drop-frame
+            </label>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" disabled={!has || busy} onClick={go} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 disabled:opacity-40">
+            <Download className="size-3" strokeWidth={1.6} /> {busy ? "Working…" : `Export ${out.toUpperCase()}`}
+          </button>
+          <button type="button" disabled={!outText()} onClick={copyOut} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg disabled:opacity-40">
+            <Copy className="size-3" strokeWidth={1.6} /> Copy
+          </button>
+          <span className="font-mono text-[10px] text-suite-text-dim">Cut lists — transitions become cuts, audio-only tracks skipped.</span>
         </div>
       </Card>
 
       {has && (
-        <Card title={`${parsed.events.length} events${parsed.title ? ` · ${parsed.title}` : ""}${parsed.fcm ? ` · FCM ${parsed.fcm}` : ""}`}>
-          <div className="overflow-auto max-h-[50vh] -mx-1">
+        <Card title={`Preview · ${events.length} events`}>
+          <div className="overflow-auto max-h-[45vh] -mx-1">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 bg-suite-panel">
                 <tr className="text-suite-text-dim text-left">
@@ -287,7 +347,7 @@ function EdlTool() {
                 </tr>
               </thead>
               <tbody>
-                {parsed.events.map((e, i) => (
+                {events.map((e, i) => (
                   <tr key={i} className="text-suite-text-muted hover:bg-suite-panel-elevated/40">
                     <td className="px-2 py-1 border-b border-suite-border/50 text-suite-text">{e.num}</td>
                     <td className="px-2 py-1 border-b border-suite-border/50">{e.reel}</td>
@@ -305,7 +365,7 @@ function EdlTool() {
           </div>
         </Card>
       )}
-      {!has && text.trim() && <p className="font-mono text-[11px] text-suite-text-dim">No CMX3600 events found — check it's a standard EDL (event lines like “001 AX V C …” with four timecodes).</p>}
+      {!has && text.trim() && parsed?.ok && <p className="font-mono text-[11px] text-suite-text-dim">No events found — supported inputs: CMX3600 EDL, FCP7 / Premiere / Resolve XML, FCPXML, CSV.</p>}
     </div>
   );
 }
