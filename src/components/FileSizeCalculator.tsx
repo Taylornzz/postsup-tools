@@ -3,6 +3,7 @@ import {
   SOURCE_FORMATS,
   CODECS,
   Codec,
+  nativeCodecsForCamera,
   codecMbps,
   estimateFileSizeGB,
   formatSize,
@@ -52,7 +53,13 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
   const [proxyCodecId, setProxyCodecId] = useState(PROXY_CODEC_IDS[0].id);
 
   const source = SOURCE_FORMATS.find((s) => s.id === sourceId)!;
-  const codec = CODECS.find((c) => c.id === codecId)!;
+
+  // Only the codecs this camera actually records — pick from these, compare against these.
+  const nativeCodecs = useMemo(() => nativeCodecsForCamera(source.camera), [source.camera]);
+  useEffect(() => {
+    if (!nativeCodecs.some((c) => c.id === codecId)) setCodecId(nativeCodecs[0].id);
+  }, [nativeCodecs, codecId, setCodecId]);
+  const codec = CODECS.find((c) => c.id === codecId) ?? nativeCodecs[0];
 
   // Camera brand → compatible media (e.g. "ARRI" → Codex + CFexpress)
   const vendor = source.camera.split(" ")[0];
@@ -105,21 +112,21 @@ export function FileSizeCalculator(props: FileSizeCalculatorProps = {}) {
     group: s.camera.split(" ")[0],
   }));
 
-  // Group codecs by vendor for nice select grouping
-  const codecOptions = CODECS.map((c) => ({
+  // Group codecs by vendor for nice select grouping — only this camera's native codecs.
+  const codecOptions = nativeCodecs.map((c) => ({
     value: c.id,
     label: c.name,
     group: c.vendor,
   }));
 
-  // Comparison table — every codec at the chosen res/fps/duration
+  // Comparison table — this camera's native codecs at the chosen res/fps/duration
   const comparison = useMemo(() => {
-    return CODECS.map((c) => {
+    return nativeCodecs.map((c) => {
       const m = codecMbps(c, source.width, source.height, fps);
       const gb = estimateFileSizeGB(m, durationSec) * cameras * shootDays;
       return { codec: c, mbps: m, gb };
     }).sort((a, b) => b.mbps - a.mbps);
-  }, [source, fps, durationSec, cameras, shootDays]);
+  }, [nativeCodecs, source, fps, durationSec, cameras, shootDays]);
 
   return (
     <div className="flex-1 min-h-0 flex">

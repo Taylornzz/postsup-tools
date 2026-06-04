@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.79";
+const VERSION = "v1.9.80";
 const CHANGELOG = [
+  "v1.9.80 — Storage: the recording-codec picker and the codec-comparison table now show only the codecs the chosen camera actually records (e.g. a Canon body shows Canon Cinema RAW + XF-AVC, not RED REDCODE or Sony X-OCN); switching camera resets the codec to a compatible one. Removed the in-app changelog popover (kept in code for history).",
   "v1.9.79 — Audit pass 4 (Planner, Mastering view, Storage, Tools). Planner: long phases no longer get clipped off the timeline or truncated in the PDF/PNG export; you can now Import a schedule JSON to restore a backup (validated), and loading a saved version validates its data. Mastering view: parallel edges between the same two nodes (e.g. Dolby Vision analyse + trim) are spread apart instead of overlapping, and each master/deliverable now carries its audio loudness target (−27 LKFS streaming, −23 LUFS R128, theatrical reference level) on its detail panel. Storage: the media-plan 'fill %' no longer exceeds 100% when a camera needs more than one card a day. Tools: the Frames field rejects fractional/garbage input instead of silently rounding.",
   "v1.9.78 — Audit pass 3 (Glossary, Mastering, Workflow, ACES). Glossary factual fixes: Dolby Vision Profile 5 is 10-bit (not 12), Profile 8 is single-layer (not dual), EBU R128 tolerance is ±0.5 LU non-live / ±1.0 LU live, and the EBU 8-bar pattern is 100/0/100/0. Mastering: the Dolby Vision SDR-trim edge no longer tacks on an unrelated 600-nit target, and the SDR IMF is relabelled App 2E (ST 2067-21, the current consolidated standard). Workflow: removed a VFX edge that looped finals backward into the pre-lock cut, wired Synced Dailies into the offline, and clarified the audio-conform dependency. ACES: tightened the HLG, ACEScct/ACEScc and interchange-encoding notes.",
   "v1.9.77 — Audit pass 2 (Tools + Planner). Timecode: the audio-pull % was inverted (now reads 104.17% pull-up for 24→25, matching the pitch); drop-frame inputs that don't exist (e.g. 00:01:00;00) are now rejected instead of silently shifting. Aspect: 1.33 relabelled '4:3 / Full Aperture' and a true Academy (1.375) added. EDL converter: writes spec-compliant 8-char reels by default, collapses transitions to clean cuts (no malformed lone dissolves), actually skips audio-only tracks as documented, FCPXML source timecode no longer double-counts the asset start (~1h offset), and CSV that lacks reel/clip headers is no longer misread as EDL. Planner: the schedule 'End' date is now the inclusive last working day (was a day late) in the CSV, PDF/PNG and on-screen labels.",
@@ -1855,30 +1856,8 @@ const Index = () => {
 };
 
 function VersionBadge() {
-  return (
-    <div className="relative group">
-      <button
-        type="button"
-        className="text-[10px] text-suite-text-dim ml-2 font-mono hover:text-suite-text transition-colors cursor-help"
-      >
-        {VERSION}
-      </button>
-      <div className="absolute left-0 top-full mt-2 w-80 z-50 hidden group-hover:block group-focus-within:block">
-        <div className="bg-suite-panel border border-suite-border rounded-sm p-3 shadow-xl">
-          <h3 className="text-[9px] tracking-[0.22em] uppercase text-suite-text-muted mb-2">
-            Changelog
-          </h3>
-          <ul className="flex flex-col gap-2">
-            {CHANGELOG.map((line) => (
-              <li key={line} className="text-[10px] leading-relaxed text-suite-text-dim font-mono">
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
+  // Changelog kept in code (CHANGELOG above) for history, but no longer surfaced in the UI.
+  return <span className="text-[10px] text-suite-text-dim ml-2 font-mono">{VERSION}</span>;
 }
 
 function SectionHeader({ label, dotClass }: { label: string; dotClass?: string }) {
