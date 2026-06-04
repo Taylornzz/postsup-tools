@@ -882,6 +882,61 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     oetf: "Log3G10",
   },
 
+  // ============ DJI — cinema drones ============
+  {
+    // Zenmuse X9-8K Air, full-frame sensor (~35.9×24.0). ProRes RAW / CinemaDNG.
+    id: "dji-inspire3-x9-8k-179",
+    camera: "DJI Inspire 3",
+    mode: "X9-8K · 8K FF 17:9",
+    width: 8192,
+    height: 4320,
+    squeeze: 1,
+    sensorWidthMm: 35.9,
+    sensorHeightMm: 18.93,
+    colorSpace: "DJI D-Gamut",
+    oetf: "D-Log",
+    notes: "Zenmuse X9-8K Air full-frame; ProRes RAW / CinemaDNG.",
+  },
+  {
+    id: "dji-inspire3-x9-8k-24",
+    camera: "DJI Inspire 3",
+    mode: "X9-8K · 8K FF 2.4:1",
+    width: 8192,
+    height: 3424,
+    squeeze: 1,
+    sensorWidthMm: 35.9,
+    sensorHeightMm: 15.00,
+    colorSpace: "DJI D-Gamut",
+    oetf: "D-Log",
+  },
+  {
+    id: "dji-mavic3-pro-cine-51k",
+    camera: "DJI Mavic 3 Pro",
+    mode: "Hasselblad · 5.1K 17:9 (Cine)",
+    width: 5120,
+    height: 2700,
+    squeeze: 1,
+    sensorWidthMm: 17.4,
+    sensorHeightMm: 9.18,
+    colorSpace: "DJI D-Gamut",
+    oetf: "D-Log",
+    notes: "Mavic 3 Pro Cine — 4/3 Hasselblad; Apple ProRes 422 HQ.",
+  },
+
+  // ============ iPhone (landscape) ============
+  {
+    id: "iphone-prores-169",
+    camera: "iPhone 15 Pro",
+    mode: "4K ProRes 16:9",
+    width: 3840,
+    height: 2160,
+    squeeze: 1,
+    sensorWidthMm: 7.6,
+    sensorHeightMm: 5.7,
+    colorSpace: "Apple Log / P3",
+    oetf: "Apple Log",
+  },
+
   // FLAT / SCOPE reference plates (exact aspect captures for demo)
   {
     id: "flat-185-4k",
@@ -1871,6 +1926,15 @@ export function nativeCodecsForCamera(cameraName: string): Codec[] {
     }
     if (c.includes("panavision")) {
       return ["red-r3d-hq", "red-r3d-mq", "red-r3d-lq"];
+    }
+    if (c.includes("inspire")) {
+      return ["prores-raw-hq", "prores-raw", "arri-prores-4444", "arri-prores-422hq"]; // Zenmuse X9: ProRes RAW / ProRes
+    }
+    if (c.includes("mavic")) {
+      return ["arri-prores-422hq", "arri-prores-422lt", "h264-100", "h265-50"]; // Mavic 3 Pro Cine: ProRes 422 + H.264/5
+    }
+    if (c.includes("dji")) {
+      return ["arri-prores-422hq", "h264-100", "h265-50"];
     }
     return ["arri-prores-422hq", "h264-100", "h265-50"];
   })();
