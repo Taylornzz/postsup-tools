@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.82";
+const VERSION = "v1.9.83";
 const CHANGELOG = [
+  "v1.9.83 — Glossary: fixed 'see also' links that pointed to a verbose label (e.g. 'ODT (Output Transform)') failing to find the page — they now resolve to the real entry (ODT) and land on it.",
   "v1.9.82 — Capture: expanded the DJI line (Air 3S 1-inch, Air 3, Mini 4 Pro, Avata 2 FPV, Osmo Pocket 3 1-inch + Pocket 2), and added GoPro Hero 11 / 12 / 13 Black (1/1.9-inch 8:7 sensor, 5.3K in 8:7 and 16:9; GP-Log on 12/13, HLG on 11). Each maps to its real codec set in Storage (HEVC/H.264 for the consumer drones, Osmo and GoPro).",
   "v1.9.81 — Capture: added an iPhone 15 Pro 4K ProRes 16:9 (landscape) mode alongside the vertical one, and a new DJI drones group — Inspire 3 (Zenmuse X9-8K full-frame, 8K 17:9 + 2.4:1) and Mavic 3 Pro Cine (5.1K Hasselblad). Their native codecs (ProRes RAW / ProRes 422) flow through to the Storage tab.",
   "v1.9.80 — Storage: the recording-codec picker and the codec-comparison table now show only the codecs the chosen camera actually records (e.g. a Canon body shows Canon Cinema RAW + XF-AVC, not RED REDCODE or Sony X-OCN); switching camera resets the codec to a compatible one. Removed the in-app changelog popover (kept in code for history).",

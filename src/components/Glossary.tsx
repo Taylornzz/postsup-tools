@@ -79,8 +79,21 @@ export function Glossary() {
   function jump(letter: string) {
     document.getElementById(`gloss-letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  // Resolve a "see also" string (often verbose, e.g. "ODT (Output Transform)") to the
+  // actual entry's term, so the substring search can land on it.
+  function resolveSeeAlso(s: string): string {
+    const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const head = s.replace(/\s*\(.*$/, "").trim(); // strip the parenthetical
+    const full = norm(s);
+    const headN = norm(head);
+    const byTerm = GLOSSARY.find((e) => norm(e.term) === full) || GLOSSARY.find((e) => norm(e.term) === headN);
+    if (byTerm) return byTerm.term;
+    const byAka = GLOSSARY.find((e) => e.aka?.some((a) => norm(a) === full || norm(a) === headN));
+    if (byAka) return byAka.term;
+    return head || s; // fall back to the head — far more likely to match than the full string
+  }
   function goTerm(term: string) {
-    setQ(term);
+    setQ(resolveSeeAlso(term));
     setCat("All");
     scrollRef.current?.scrollTo({ top: 0 });
   }
