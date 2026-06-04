@@ -80,7 +80,6 @@ import {
   CalendarClock,
   BookText,
   Calculator,
-  Workflow as WorkflowIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -111,8 +110,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.87";
+const VERSION = "v1.9.88";
 const CHANGELOG = [
+  "v1.9.88 — Custom Workflow moved inside the Workflow tab (toggle Production / Custom Workflow) instead of a separate tab. Connections now have a × button to remove them (and a node can branch to many). New 'Template' button drops a basic 6-step skeleton (Camera Test → Shoot/Offload → Editorial → VFX → Grade/Online → Delivery) to build from. Palette steps show a ✓ when they're already on the canvas.",
   "v1.9.87 — New Builder tab: a free-form custom workflow editor (node graph, like a Resolve node tree / mindmap). Tick standard post steps from the palette to drop them in, drag nodes to arrange, drag port→port to connect, click a node to rename / set owner / edit notes / recolour, Delete to remove. Starts from a Camera Test node and saves to the browser. Built on React Flow, loaded only when you open the tab.",
   "v1.9.86 — Capture: removed the two 'Reference Plate' demo entries from the camera list (they weren't real cameras). The uploadable reference-plate feature for the framing chart is unaffected.",
   "v1.9.85 — Planner: zoom in far enough and the timeline switches to a day view — day columns (weekends tinted) and a 'Day view' badge — and dragging / resizing bars now snaps to whole days instead of weeks. Bar labels and the duration field read in days when a phase isn't a whole number of weeks.",
@@ -214,7 +214,8 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "builder" | "planner" | "glossary" | "tools";
+type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools";
+type WorkflowView = "production" | "custom";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -303,8 +304,12 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "builder" || t === "planner" || t === "glossary" || t === "tools" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" ? t : "frame";
   });
+  const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
+    try { return localStorage.getItem("postsup-workflow-view") === "custom" ? "custom" : "production"; } catch { return "production"; }
+  });
+  useEffect(() => { try { localStorage.setItem("postsup-workflow-view", workflowView); } catch { /* ignore */ } }, [workflowView]);
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
     return id && SOURCE_FORMATS.some((s) => s.id === id) ? id : SOURCE_FORMATS[0].id;
@@ -1045,7 +1050,7 @@ const Index = () => {
             <span className="text-suite-text-muted">POSTSUP TOOLS</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "PRODUCTION WORKFLOW" : appTab === "builder" ? "WORKFLOW BUILDER" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
@@ -1056,7 +1061,6 @@ const Index = () => {
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
           <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
-          <BuilderTabButton active={appTab === "builder"} onClick={() => setAppTab("builder")} />
           <PlannerTabButton active={appTab === "planner"} onClick={() => setAppTab("planner")} />
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
@@ -1065,13 +1069,7 @@ const Index = () => {
         <div className="flex items-center gap-3" />
       </header>
 
-      {appTab === "builder" ? (
-        <main className="flex-1 flex min-h-0 min-w-0">
-          <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading builder…</div>}>
-            <WorkflowBuilder />
-          </Suspense>
-        </main>
-      ) : appTab === "tools" ? (
+      {appTab === "tools" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <Tools />
         </main>
@@ -1084,8 +1082,25 @@ const Index = () => {
           <PostSchedule projectName={projectName} />
         </main>
       ) : appTab === "workflow" ? (
-        <main className="flex-1 flex min-h-0">
-          <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} config={pipelineConfig} />
+        <main className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="shrink-0 border-b border-suite-border bg-suite-panel px-3 py-1.5 flex items-center gap-1.5">
+            {([["production", "Production"], ["custom", "Custom Workflow"]] as [WorkflowView, string][]).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setWorkflowView(v)}
+                className={cn("px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
+                  workflowView === v ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 flex min-h-0 min-w-0">
+            {workflowView === "custom" ? (
+              <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading…</div>}>
+                <WorkflowBuilder />
+              </Suspense>
+            ) : (
+              <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} config={pipelineConfig} />
+            )}
+          </div>
         </main>
       ) : appTab === "mastering" ? (
         <main className="flex-1 flex min-h-0">
@@ -2300,25 +2315,6 @@ function GlossaryTabButton({ active, onClick }: { active: boolean; onClick: () =
     >
       <BookText className="size-3" strokeWidth={1.5} />
       Glossary
-    </button>
-  );
-}
-
-function BuilderTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
-        active
-          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
-          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
-      )}
-      title="Workflow Builder — build your own custom node graph"
-    >
-      <WorkflowIcon className="size-3" strokeWidth={1.5} />
-      Builder
     </button>
   );
 }

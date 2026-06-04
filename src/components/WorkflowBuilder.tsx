@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, addEdge,
   useNodesState, useEdgesState, Handle, Position, MarkerType,
-  type Node, type Edge, type Connection, type NodeProps,
+  BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useReactFlow,
+  type Node, type Edge, type Connection, type NodeProps, type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { GitBranch, Plus, Trash2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { GitBranch, Plus, Trash2, X, ChevronRight, RotateCcw, Wand2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STAGES, NODES as PIPE_NODES, KIND_ACCENT } from "@/lib/pipeline";
 
@@ -42,11 +43,41 @@ function StepNode({ data, selected }: NodeProps) {
 }
 const nodeTypes = { step: StepNode };
 
+// ---- edge with a delete (×) button at its midpoint ----
+function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style }: EdgeProps) {
+  const { setEdges } = useReactFlow();
+  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  return (
+    <>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />
+      <EdgeLabelRenderer>
+        <button
+          className="nodrag nopan grid place-items-center size-4 rounded-full border border-suite-border bg-suite-panel text-suite-text-dim hover:text-destructive hover:border-destructive/60 transition-colors"
+          style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: "all", fontSize: 10, lineHeight: 1 }}
+          title="Remove connection"
+          onClick={(e) => { e.stopPropagation(); setEdges((es) => es.filter((x) => x.id !== id)); }}
+        >×</button>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+const edgeTypes = { deletable: DeletableEdge };
+
 const defaultEdgeOptions = {
-  type: "smoothstep" as const,
+  type: "deletable" as const,
   markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#64748b" },
   style: { stroke: "#64748b", strokeWidth: 1.5 },
 };
+
+// A very basic 6-step template covering the whole process; add detail from there.
+const BASIC_TEMPLATE: StepData[] = [
+  { label: "Camera Test & Show LUT", owner: "DOP + DIT", color: "#f59e0b" },
+  { label: "Shoot & Offload", owner: "DIT", color: "#38bdf8" },
+  { label: "Editorial — Offline → Lock", owner: "Editor", color: "#a78bfa" },
+  { label: "VFX", owner: "VFX Producer", color: "#2dd4bf" },
+  { label: "Grade & Online", owner: "Colourist + Online", color: "#22d3ee" },
+  { label: "Delivery & Archive", owner: "Post Super", color: "#a78bfa" },
+];
 
 // ---- palette (grouped standard steps from the real pipeline) ----
 const PALETTE = STAGES
@@ -108,6 +139,7 @@ function Builder() {
 
   const selected = nodes.find((x) => x.id === selId) || null;
   const selData = selected?.data as StepData | undefined;
+  const usedLabels = useMemo(() => new Set(nodes.map((n) => (n.data as StepData).label)), [nodes]);
 
   const patchSel = useCallback((p: Partial<StepData>) => {
     setNodes((ns) => ns.map((x) => (x.id === selId ? { ...x, data: { ...(x.data as StepData), ...p } } : x)));
@@ -127,6 +159,13 @@ function Builder() {
   function reseed() {
     if (nodes.length && !window.confirm("Replace with a fresh Camera Test start?")) return;
     setNodes(seedNodes()); setEdges([]); setSelId(null);
+  }
+  function loadTemplate() {
+    if (nodes.length && !window.confirm("Replace with the basic 6-step template?")) return;
+    const ids = BASIC_TEMPLATE.map(() => uid());
+    setNodes(BASIC_TEMPLATE.map((t, i) => ({ id: ids[i], type: "step", position: { x: 60 + i * 230, y: 180 }, data: { ...t } })));
+    setEdges(ids.slice(0, -1).map((id, i) => ({ id: `e-${id}`, source: id, target: ids[i + 1] })));
+    setSelId(null);
   }
 
   return (
@@ -151,13 +190,18 @@ function Builder() {
                     className="w-full flex items-center gap-1 px-2 py-1.5 font-mono text-[9px] tracking-[0.12em] uppercase text-suite-text-dim hover:text-suite-text">
                     <ChevronRight className={cn("size-3 transition-transform", open && "rotate-90")} strokeWidth={2} /> {g.stage}
                   </button>
-                  {open && g.steps.map((s, i) => (
-                    <button key={i} onClick={() => addStep(s)} title={s.detail}
-                      className="w-full text-left pl-7 pr-2 py-1 flex items-center gap-1.5 font-mono text-[10px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated">
-                      <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                      <span className="truncate">{s.label}</span>
-                    </button>
-                  ))}
+                  {open && g.steps.map((s, i) => {
+                    const used = usedLabels.has(s.label);
+                    return (
+                      <button key={i} onClick={() => addStep(s)} title={used ? `${s.label} (already on the canvas — click to add another)` : s.detail}
+                        className={cn("w-full text-left pl-7 pr-2 py-1 flex items-center gap-1.5 font-mono text-[10px] hover:bg-suite-panel-elevated",
+                          used ? "text-suite-text-dim/60" : "text-suite-text-muted hover:text-suite-text")}>
+                        <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="truncate flex-1">{s.label}</span>
+                        {used && <Check className="size-3 shrink-0 text-status-ok" strokeWidth={2.5} />}
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -175,10 +219,11 @@ function Builder() {
             </button>
           )}
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold flex items-center gap-1.5">
-            <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.6} /> Workflow Builder
+            <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.6} /> Custom Workflow
           </span>
-          <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline">— drag to arrange · drag port→port to connect · click to edit · Del removes</span>
+          <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline">— drag to arrange · drag a node's right dot → another's left dot to connect (a node can branch to many) · click the × on a line to remove it · click a node to edit</span>
           <span className="flex-1" />
+          <button onClick={loadTemplate} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20"><Wand2 className="size-3" strokeWidth={1.6} /> Template</button>
           <button onClick={reseed} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg"><RotateCcw className="size-3" strokeWidth={1.6} /> Reset</button>
           <button onClick={clearAll} className="px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg">Clear</button>
         </div>
@@ -190,6 +235,7 @@ function Builder() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
           colorMode="dark"
           fitView
