@@ -1177,20 +1177,6 @@
 ]
 },
 {
-"term": "Cause & FX Managed-Service Model",
-"aka": [
-"Managed-Service Model",
-"Single Book of Record"
-],
-"category": "NZ Industry",
-"definition": "A NZ-based managed-service structure where all PDV vendors and subcontracts invoice one NZ entity, simplifying the rebate audit and maximising QNZPE. The Post Supervisor typically owns the vendor list, SOWs and contract templates that make it work.",
-"seeAlso": [
-"NZSPR",
-"QNZPE",
-"SOW"
-]
-},
-{
 "term": "CDL",
 "aka": [
 "Colour Decision List",
@@ -3082,8 +3068,7 @@
 "seeAlso": [
 "ECN-2",
 "DPX",
-"FotoKem",
-"Park Road Post"
+"FotoKem"
 ]
 },
 {
@@ -3458,7 +3443,6 @@
 "category": "Security & Legal",
 "definition": "The EU General Data Protection Regulation. It can apply to a NZ production that handles personal data of people in the EU or works with EU partners; its consent, breach-notification and cross-border transfer obligations are stricter than the NZ Privacy Act, so productions selling into Europe must account for it.",
 "seeAlso": [
-"NZ Privacy Act 2020",
 "Talent release"
 ]
 },
@@ -5407,23 +5391,6 @@
 ]
 },
 {
-"term": "NZ Exhibitors",
-"aka": [
-"Event Cinemas",
-"Hoyts",
-"Reading Cinemas",
-"NZIFF"
-],
-"category": "NZ Industry",
-"definition": "NZ theatrical chains and venues that receive DCPs: Event Cinemas, Hoyts and Reading, plus independents (Embassy, Roxy, Penthouse, Lido, Academy) and IMAX Auckland. Most run Doremi/Dolby or GDC servers; DCPs arrive on CRU drives with KDMs (decryption keys) emailed separately. NZIFF (Whānau Mārama) issues an annual festival tech sheet.",
-"seeAlso": [
-"DCP",
-"CRU DataPort Drive",
-"KDM",
-"NZIFF"
-]
-},
-{
 "term": "NZ Film Commission (NZFC)",
 "aka": [
 "New Zealand Film Commission",
@@ -5433,7 +5400,6 @@
 "category": "NZ Industry",
 "definition": "New Zealand's government screen agency, which funds and supports NZ films and administers the New Zealand Screen Production Rebate (NZSPR). Its delivery and reporting requirements feed directly into a production's deliverables list and archival obligations.",
 "seeAlso": [
-"Screen Industry Workers Act 2022",
 "SPADA",
 "Deliverables List"
 ]
@@ -5448,68 +5414,7 @@
 "definition": "The Crown funding agency (Irirangi Te Motu) that invests in local public-media content — television, music, podcasts and digital — across NZ platforms. A primary domestic commissioning body whose contracts carry their own delivery and metadata requirements.",
 "seeAlso": [
 "albert",
-"Te Reo Māori Subtitling",
 "NZFC"
-]
-},
-{
-"term": "NZ Post Facilities",
-"aka": [
-"Images & Sound",
-"The Department of Post",
-"Digipost",
-"Native Audio"
-],
-"category": "NZ Industry",
-"definition": "Core NZ post houses: Park Road Post (Wellington, full feature finishing/DCP); Images & Sound (Auckland, full-service); The Department of Post (Auckland, grade/online/mastering); Digipost (Auckland, dailies/deliverables/festival DCP); plus Native Audio and Franklin Road for audio post.",
-"seeAlso": [
-"Park Road Post",
-"DCP Mastering Tools"
-]
-},
-{
-"term": "NZ Privacy Act 2020",
-"aka": [
-"Privacy Act 2020",
-"IPPs",
-"Information Privacy Principles"
-],
-"category": "NZ Industry",
-"definition": "New Zealand's privacy law, built on 13 IPPs (Information Privacy Principles) governing how personal information is collected, used, stored, disclosed and sent overseas, plus a mandatory notifiable-breach regime. Relevant to crew/contributor data, on-set personal information and any footage of identifiable people.",
-"seeAlso": [
-"GDPR (General Data Protection Regulation)",
-"Talent release"
-]
-},
-{
-"term": "NZ Soundstages",
-"aka": [
-"Auckland Film Studios",
-"Kumeu Film Studios",
-"Stone Street Studios",
-"Avalon Studios"
-],
-"category": "NZ Industry",
-"definition": "Principal NZ stages: Auckland Film Studios (largest complex), Kumeu Film Studios, Studio West (Henderson), Stone Street Studios (Wellington, home of Wētā productions), Wellywood Studios, and Avalon Studios (Lower Hutt, the historic TVNZ complex). The NZFC publishes the current list.",
-"seeAlso": [
-"NZFC",
-"NZ Post Facilities"
-]
-},
-{
-"term": "NZ VFX Houses",
-"aka": [
-"Method Studios",
-"Rebel Fleet",
-"Mr. X",
-"Flux Animation Studio"
-],
-"category": "NZ Industry",
-"definition": "NZ-based VFX vendors a supervisor can draw on: Wētā FX (Wellington, feature scale), Method Studios/Rebel Fleet (premium TV/feature), Mr. X Wellington, Park Road Post, Images & Sound, and Flux Animation Studio (Auckland); Rising Sun Pictures (Australia) is closely aligned.",
-"seeAlso": [
-"Wētā FX",
-"Plate Pull",
-"VFX"
 ]
 },
 {
@@ -5541,7 +5446,6 @@
 "category": "NZ Industry",
 "definition": "The New Zealand International Film Festival (Whānau Mārama), which issues an annual festival tech sheet, ingests DCPs at its tech office, and uses festival-window KDMs (time-limited decryption keys). Festival shorts are often delivered unencrypted to reduce operational friction.",
 "seeAlso": [
-"NZ Exhibitors",
 "DCP",
 "KDM"
 ]
@@ -5565,7 +5469,6 @@
 "PDV",
 "NZFC",
 "PDV Uplift",
-"Screen Industry Workers Act 2022",
 "NZFC (NZ Film Commission)",
 "International Rebate (ISPR)"
 ]
@@ -5910,19 +5813,6 @@
 "NTSC",
 "Frame Rate (23.976 vs 24.000)",
 "TVNZ"
-]
-},
-{
-"term": "Park Road Post",
-"aka": [
-"Park Road Post Production"
-],
-"category": "NZ Industry",
-"definition": "Wellington's feature-scale finishing facility — picture grade, online conform, audio post and DCP mastering (Clipster, 4K HDR, Dolby Cinema, IMAX DSM). Also offers ARRISCAN scan-only in NZ; it wound down its photochemical lab as capture went digital.",
-"seeAlso": [
-"DCP Mastering Tools",
-"Film Scan",
-"NZ Post Facilities"
 ]
 },
 {
@@ -6990,8 +6880,7 @@
 "definition": "A networked cluster of computers that distributes CG/comp rendering across many machines so frames complete in parallel, managed by a queue scheduler (e.g. Deadline, Tractor). Lets a facility render thousands of frames overnight instead of one workstation grinding for weeks.",
 "seeAlso": [
 "Compositing",
-"CG Render",
-"Wētā FX"
+"CG Render"
 ]
 },
 {
@@ -7223,19 +7112,6 @@
 "Anamorphic",
 "Aspect Ratio",
 "Blanking / Letterbox"
-]
-},
-{
-"term": "Screen Industry Workers Act 2022",
-"aka": [
-"SIWA",
-"SIWA 2022"
-],
-"category": "NZ Industry",
-"definition": "New Zealand legislation, in force since 30 December 2022, that sets minimum terms for screen-sector contractors and enables collective bargaining over pay, overtime and conditions. It replaced the 'Hobbit law' framework and shapes how NZ crew, including post, are engaged.",
-"seeAlso": [
-"SPADA",
-"NZ Film Commission (NZFC)"
 ]
 },
 {
@@ -7501,7 +7377,6 @@
 "category": "Mastering & Delivery",
 "definition": "The identifying card and countdown placed at the head of a broadcast or online master (e.g. TVNZ's slate plus countdown clock) carrying show info so the broadcaster can ingest and air it correctly.",
 "seeAlso": [
-"TVNZ On-Air Spec",
 "Deliverables"
 ]
 },
@@ -7675,7 +7550,6 @@
 "category": "Roles & Paperwork",
 "definition": "Statement of Work — the contract document defining a vendor's deliverables and scope. On rebate-eligible shows it identifies the NZSPR project code and audit obligations; the Post Supervisor owns these templates under the managed-service model.",
 "seeAlso": [
-"Cause & FX Managed-Service Model",
 "NZSPR"
 ]
 },
@@ -7687,7 +7561,6 @@
 "category": "NZ Industry",
 "definition": "The Screen Production and Development Association, the industry body representing New Zealand's independent screen producers in advocacy, training and collective bargaining. It negotiates standard terms with the actors' and crew guilds that shape NZ production paperwork.",
 "seeAlso": [
-"Screen Industry Workers Act 2022",
 "NZ Film Commission (NZFC)"
 ]
 },
@@ -7911,8 +7784,7 @@
 "category": "Mastering & Delivery",
 "definition": "EBU STL — a legacy subtitle file format (EBU Tech 3264) still accepted by TVNZ for older pipelines; new commissions use IMSC 1.1/TTML.",
 "seeAlso": [
-"TTML",
-"TVNZ On-Air Spec"
+"TTML"
 ]
 },
 {
@@ -8091,20 +7963,6 @@
 ]
 },
 {
-"term": "Te Reo Māori Subtitling",
-"aka": [
-"Macron Rendering",
-"te reo Māori subtitles"
-],
-"category": "NZ Industry",
-"definition": "NZ-specific subtitle requirement: te reo Māori text must render correct macrons (ā, ē, ī, ō, ū), so the subtitle vendor needs a Unicode-safe TTML pipeline. In-show te reo is increasingly supported; confirm whether burned-in subtitles are required.",
-"seeAlso": [
-"TTML",
-"SDH",
-"NZ On Air"
-]
-},
-{
 "term": "Te Tumu Whakaata Taonga",
 "aka": [
 "NZFC (te reo name)",
@@ -8127,7 +7985,6 @@
 "category": "Mastering & Delivery",
 "definition": "The legacy NZ broadcast caption carriage — subtitles on teletext page 801 (or supplied as an MXF sidecar) accepted by TVNZ for some shows. IMSC 1.1 is now standard for new commissions.",
 "seeAlso": [
-"TVNZ On-Air Spec",
 "STL",
 "Closed Captions"
 ]
@@ -8449,21 +8306,6 @@
 "seeAlso": [
 "CG Render",
 "Wedge (render)"
-]
-},
-{
-"term": "TVNZ On-Air Spec",
-"aka": [
-"TVNZ Delivery",
-"TVNZ Commercial Spec",
-"TVNZ+"
-],
-"category": "NZ Industry",
-"definition": "TVNZ's broadcast delivery: 1920x1080i50 XDCAM HD422 50 Mbps MXF OP1a for traditional broadcast, or 1080p25 ProRes for TVNZ+; audio normalised to EBU R128 -23 LUFS (±0.5 LU), true peak ≤ -1 dBTP, 4 channels (stereo plus M&E); captions on teletext 801 or as a sidecar; plus a delivery clock/slate. Spec at sales.tvnz.co.nz.",
-"seeAlso": [
-"XDCAM HD422",
-"EBU R128",
-"Teletext Page 801"
 ]
 },
 {
@@ -8883,20 +8725,6 @@
 "ACEScg",
 "ACEScct",
 "OpenColorIO (OCIO)"
-]
-},
-{
-"term": "Wētā FX",
-"aka": [
-"Weta FX",
-"Wētā Digital"
-],
-"category": "NZ Industry",
-"definition": "Wellington's feature-scale VFX house specialising in creatures and high-end visual effects (formerly Weta Digital), also offering premium-scale finishing. The flagship NZ VFX vendor for large shows.",
-"seeAlso": [
-"NZ VFX Houses",
-"Plate Pull",
-"VFX"
 ]
 },
 {
