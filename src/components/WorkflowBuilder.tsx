@@ -19,10 +19,28 @@ import { STAGES, NODES as PIPE_NODES, KIND_ACCENT } from "@/lib/pipeline";
  *  tick standard post steps to add them, drag to arrange, drag port→port to connect,
  *  rename and edit each node. Undo/redo, save named versions, export. Saves to the browser. */
 
-type StepData = { label: string; owner?: string; detail?: string; color: string };
+export type StepData = { label: string; owner?: string; detail?: string; color: string };
 type EdgeData = { label?: string };
 type Snapshot = { nodes: Node[]; edges: Edge[] };
 type Version = { id: string; name: string; savedAt: number; nodes: Node[]; edges: Edge[] };
+
+export type PaletteGroup = { stage: string; steps: StepData[] };
+/** A toolbar "regenerate" button (Template / Reset / Re-seed from Mastering …). */
+export type SeedAction = { label: string; confirm?: string; make: () => Snapshot; icon?: typeof Wand2 };
+export interface BuilderProps {
+  /** localStorage key for the working graph (lets the Workflow + Mastering builders stay separate). */
+  storageKey?: string;
+  /** localStorage key for saved named versions. */
+  versionsKey?: string;
+  /** Toolbar title + export-filename base. */
+  title?: string;
+  /** Initial graph when nothing is saved yet. */
+  makeSeed?: () => Snapshot;
+  /** Toolbar regenerate buttons. */
+  seedActions?: SeedAction[];
+  /** Left palette groups (steps you can click to add). */
+  paletteGroups?: PaletteGroup[];
+}
 
 const KEY = "postsup-builder-v1";
 const KEY_VERSIONS = "postsup-builder-versions";
@@ -160,9 +178,9 @@ const PALETTE = STAGES
 
 const CAMERA_TEST = PIPE_NODES.find((n) => /camera test|show lut|t-test/i.test(n.label) || n.id === "t-test");
 
-function loadGraph(): Snapshot | null {
+function loadGraph(key: string): Snapshot | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const g = JSON.parse(raw);
     if (Array.isArray(g.nodes) && Array.isArray(g.edges)) return g;
@@ -170,9 +188,9 @@ function loadGraph(): Snapshot | null {
   return null;
 }
 
-function loadVersions(): Version[] {
+function loadVersions(key: string): Version[] {
   try {
-    const raw = localStorage.getItem(KEY_VERSIONS);
+    const raw = localStorage.getItem(key);
     if (raw) { const a = JSON.parse(raw); if (Array.isArray(a)) return a; }
   } catch { /* ignore */ }
   return [];
@@ -188,6 +206,19 @@ function seedNodes(): Node[] {
 
 // strip transient flags so restored / saved nodes don't carry stale selection
 const clean = (ns: Node[]) => ns.map((n) => ({ ...n, selected: false, dragging: false }));
+
+function makeTemplateGraph(): Snapshot {
+  const ids = BASIC_TEMPLATE.map(() => uid());
+  return {
+    nodes: BASIC_TEMPLATE.map((t, i) => ({ id: ids[i], type: "step", position: { x: 60 + i * 230, y: 180 }, data: { ...t } })),
+    edges: ids.slice(0, -1).map((id, i) => ({ id: `e-${id}`, source: id, target: ids[i + 1] })),
+  };
+}
+const DEFAULT_SEED = (): Snapshot => ({ nodes: seedNodes(), edges: [] });
+const DEFAULT_SEED_ACTIONS: SeedAction[] = [
+  { label: "Template", icon: Wand2, confirm: "Replace with the basic 6-step template?", make: makeTemplateGraph },
+  { label: "Reset", icon: RotateCcw, confirm: "Replace with a fresh Camera Test start?", make: DEFAULT_SEED },
+];
 
 // ---- export helpers ----
 function downloadURL(url: string, name: string) {
@@ -241,13 +272,22 @@ async function exportImage(kind: "png" | "pdf", base: string, nodes: Node[]) {
   pdf.save(`${base}.pdf`);
 }
 
-function Builder() {
-  const saved = useMemo(loadGraph, []);
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(saved?.nodes ?? seedNodes());
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(saved?.edges ?? []);
+function Builder({
+  storageKey = KEY,
+  versionsKey = KEY_VERSIONS,
+  title = "Custom Workflow",
+  makeSeed = DEFAULT_SEED,
+  seedActions = DEFAULT_SEED_ACTIONS,
+  paletteGroups = PALETTE,
+}: BuilderProps) {
+  // compute the initial graph once: saved working copy, else the seed
+  const initial = useRef<Snapshot>();
+  if (!initial.current) initial.current = loadGraph(storageKey) ?? makeSeed();
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initial.current.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.current.edges);
   const [selId, setSelId] = useState<string | null>(null);
   const [showPalette, setShowPalette] = useState(true);
-  const [openStages, setOpenStages] = useState<Set<string>>(() => new Set(PALETTE.map((g) => g.stage)));
+  const [openStages, setOpenStages] = useState<Set<string>>(() => new Set(paletteGroups.map((g) => g.stage)));
 
   // always-current refs (for history snapshots + export from event handlers)
   const nodesRef = useRef(nodes); nodesRef.current = nodes;
@@ -255,8 +295,8 @@ function Builder() {
 
   // persist working graph
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify({ nodes, edges })); } catch { /* ignore */ }
-  }, [nodes, edges]);
+    try { localStorage.setItem(storageKey, JSON.stringify({ nodes, edges })); } catch { /* ignore */ }
+  }, [nodes, edges, storageKey]);
 
   // ---- undo / redo ----
   const past = useRef<Snapshot[]>([]);
@@ -349,41 +389,34 @@ function Builder() {
   }, [selId, commit, setNodes, setEdges]);
 
   function clearAll() {
-    if (nodesRef.current.length && !window.confirm("Clear the whole workflow?")) return;
+    if (nodesRef.current.length && !window.confirm("Clear the whole canvas?")) return;
     commit();
     setNodes([]); setEdges([]); setSelId(null);
   }
-  function reseed() {
-    if (nodesRef.current.length && !window.confirm("Replace with a fresh Camera Test start?")) return;
+  const runSeed = useCallback((a: SeedAction) => {
+    if (nodesRef.current.length && a.confirm && !window.confirm(a.confirm)) return;
     commit();
-    setNodes(seedNodes()); setEdges([]); setSelId(null);
-  }
-  function loadTemplate() {
-    if (nodesRef.current.length && !window.confirm("Replace with the basic 6-step template?")) return;
-    commit();
-    const ids = BASIC_TEMPLATE.map(() => uid());
-    setNodes(BASIC_TEMPLATE.map((t, i) => ({ id: ids[i], type: "step", position: { x: 60 + i * 230, y: 180 }, data: { ...t } })));
-    setEdges(ids.slice(0, -1).map((id, i) => ({ id: `e-${id}`, source: id, target: ids[i + 1] })));
-    setSelId(null);
-  }
+    const s = a.make();
+    setNodes(clean(s.nodes)); setEdges(s.edges); setSelId(null);
+  }, [commit, setNodes, setEdges]);
 
   // ---- saved workflows ----
-  const [versions, setVersions] = useState<Version[]>(loadVersions);
+  const [versions, setVersions] = useState<Version[]>(() => loadVersions(versionsKey));
   const [saveName, setSaveName] = useState("");
   const [showSave, setShowSave] = useState(false);
   const [showExport, setShowExport] = useState(false);
   useEffect(() => {
-    try { localStorage.setItem(KEY_VERSIONS, JSON.stringify(versions)); } catch { /* ignore */ }
-  }, [versions]);
+    try { localStorage.setItem(versionsKey, JSON.stringify(versions)); } catch { /* ignore */ }
+  }, [versions, versionsKey]);
 
   const saveVersion = useCallback(() => {
     if (!nodesRef.current.length) { toast.error("Nothing to save yet."); return; }
-    const name = saveName.trim() || `Workflow ${versions.length + 1}`;
+    const name = saveName.trim() || `${title} ${versions.length + 1}`;
     const v: Version = { id: uid(), name, savedAt: Date.now(), nodes: clean(nodesRef.current), edges: edgesRef.current };
     setVersions((vs) => [v, ...vs.filter((x) => x.name !== name)]);
     setSaveName("");
     toast.success(`Saved “${name}”`);
-  }, [saveName, versions.length]);
+  }, [saveName, versions.length, title]);
 
   const loadVersion = useCallback((v: Version) => {
     commit();
@@ -396,7 +429,8 @@ function Builder() {
   const doExport = useCallback(async (fmt: "png" | "pdf" | "csv" | "json") => {
     setShowExport(false);
     if (!nodesRef.current.length) { toast.error("Nothing to export."); return; }
-    const base = `postsup-workflow-${new Date().toISOString().slice(0, 10)}`;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "workflow";
+    const base = `postsup-${slug}-${new Date().toISOString().slice(0, 10)}`;
     try {
       if (fmt === "csv") downloadText(buildCSV(nodesRef.current, edgesRef.current), `${base}.csv`, "text/csv;charset=utf-8");
       else if (fmt === "json") downloadText(JSON.stringify({ nodes: clean(nodesRef.current), edges: edgesRef.current }, null, 2), `${base}.json`, "application/json");
@@ -405,7 +439,7 @@ function Builder() {
     } catch {
       toast.error("Export failed — try again.");
     }
-  }, []);
+  }, [title]);
 
   return (
     <div className="flex-1 min-h-0 min-w-0 flex bg-suite-canvas select-none">
@@ -421,7 +455,7 @@ function Builder() {
               className="w-full text-left px-3 py-1.5 flex items-center gap-1.5 font-mono text-[11px] text-guide-target hover:bg-suite-panel-elevated">
               <Plus className="size-3" strokeWidth={2} /> Blank node
             </button>
-            {PALETTE.map((g) => {
+            {paletteGroups.map((g) => {
               const open = openStages.has(g.stage);
               return (
                 <div key={g.stage} className="border-t border-suite-border/50">
@@ -458,7 +492,7 @@ function Builder() {
             </button>
           )}
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold flex items-center gap-1.5">
-            <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.6} /> Custom Workflow
+            <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.6} /> {title}
           </span>
           <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to arrange · port → port to connect · click a line to label it · ⌘Z undo</span>
           <span className="flex-1" />
@@ -475,7 +509,12 @@ function Builder() {
             </button>
           </div>
 
-          <button onClick={loadTemplate} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20"><Wand2 className="size-3" strokeWidth={1.6} /> Template</button>
+          {seedActions.map((a) => (
+            <button key={a.label} onClick={() => runSeed(a)} title={a.label}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg">
+              {a.icon ? <a.icon className="size-3" strokeWidth={1.6} /> : null} {a.label}
+            </button>
+          ))}
 
           {/* save / versions */}
           <div className="relative">
@@ -530,7 +569,6 @@ function Builder() {
             )}
           </div>
 
-          <button onClick={reseed} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg"><RotateCcw className="size-3" strokeWidth={1.6} /> Reset</button>
           <button onClick={clearAll} className="px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text bg-suite-bg">Clear</button>
         </div>
 
@@ -595,10 +633,10 @@ function Builder() {
   );
 }
 
-export default function WorkflowBuilder() {
+export default function WorkflowBuilder(props: BuilderProps) {
   return (
     <ReactFlowProvider>
-      <Builder />
+      <Builder {...props} />
     </ReactFlowProvider>
   );
 }

@@ -3,8 +3,8 @@ import {
   AcesVersion,
 } from "@/lib/aces";
 import {
-  MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META,
-  buildMasterGraph, buildCustomGraph, MNode, Lane, DeliverableRole, EdgeOp,
+  MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META, ROLE_ACCENT,
+  buildMasterGraph, buildCustomGraph, MNode, Lane, EdgeOp,
   MASTER_NITS, MasterNits, CustomConfig, CustomDeliverable,
   CUSTOM_HEROES, CUSTOM_DELIVERABLES,
 } from "@/lib/mastering";
@@ -49,15 +49,6 @@ const OP_TOKEN: Record<EdgeOp, string> = {
   "embed": "embed",
   "transcode": "proxy",
   "reference-match": "match",
-};
-
-const ROLE_ACCENT: Record<DeliverableRole, string> = {
-  source: "#4ade80",        // green
-  archive: "#a78bfa",       // violet
-  "streaming-hdr": "#22d3ee", // cyan
-  broadcast: "#94a3b8",     // slate
-  theatrical: "#f59e0b",    // amber
-  review: "#6b7280",        // gray
 };
 
 export function MasteringWorkflow({

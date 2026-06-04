@@ -42,7 +42,7 @@ import { renderFramingChart } from "@/lib/framingChartCanvas";
 import { buildCameraReportPdf } from "@/lib/cameraReport";
 import { AcesPanel } from "@/components/AcesPanel";
 import { AcesVersion, acesPipeline } from "@/lib/aces";
-import { MasteringStrategy, MasterNits, CustomConfig, STRATEGIES, CUSTOM_HEROES } from "@/lib/mastering";
+import { MasteringStrategy, MasterNits, CustomConfig, STRATEGIES, CUSTOM_HEROES, buildMasterGraph, buildCustomGraph } from "@/lib/mastering";
 import { PipelineConfig } from "@/lib/pipeline";
 import { Metric } from "@/components/Metric";
 import { FrameViewer } from "@/components/FrameViewer";
@@ -91,6 +91,7 @@ import { PostSchedule } from "@/components/PostSchedule";
 import { Glossary } from "@/components/Glossary";
 import { Tools } from "@/components/Tools";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
+import { masterGraphToFlow, masteringPaletteGroups } from "@/lib/masteringFlow";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 // Uploaded reference plate is persisted to localStorage (as a downscaled data
@@ -110,8 +111,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.92";
+const VERSION = "v1.9.93";
 const CHANGELOG = [
+  "v1.9.93 — Mastering Workflow is now customisable: a Derived / Custom toggle. Derived is the same smart auto-built tree (Hero + deliverables → correct order, red up-volume flags). Custom unlocks a fully editable copy of it — drag, rename, connect, add/remove nodes, undo/redo, save named versions and export (PNG/PDF/CSV/JSON), seeded from your current derived tree. Edge colours carry the meaning across (cyan = ACES-managed, red = up-volume re-grade). 'Re-seed from Mastering' refreshes the canvas from Derived after you change strategy or deliverables.",
   "v1.9.92 — Custom Workflow: connections can now carry a label describing the handoff (e.g. 'approved show LUT', 'locked EDL + plates'). Click any line to type one; it shows on the curve and flows through to the CSV and image/PDF exports.",
   "v1.9.91 — Custom Workflow: connections between nodes are now smooth curves (bezier) instead of right-angle steps — easier to follow when nodes branch and cross.",
   "v1.9.90 — Custom Workflow: the × that deletes a connection now only appears when you hover over (or near) that line, keeping the canvas clean. The line also brightens slightly so you can see which one you're about to remove.",
@@ -220,6 +222,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 type ViewMode = "source" | "delivery";
 type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools";
 type WorkflowView = "production" | "custom";
+type MasteringView = "derived" | "custom";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -314,6 +317,10 @@ const Index = () => {
     try { return localStorage.getItem("postsup-workflow-view") === "custom" ? "custom" : "production"; } catch { return "production"; }
   });
   useEffect(() => { try { localStorage.setItem("postsup-workflow-view", workflowView); } catch { /* ignore */ } }, [workflowView]);
+  const [masteringView, setMasteringView] = useState<MasteringView>(() => {
+    try { return localStorage.getItem("postsup-mastering-view") === "custom" ? "custom" : "derived"; } catch { return "derived"; }
+  });
+  useEffect(() => { try { localStorage.setItem("postsup-mastering-view", masteringView); } catch { /* ignore */ } }, [masteringView]);
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
     return id && SOURCE_FORMATS.some((s) => s.id === id) ? id : SOURCE_FORMATS[0].id;
@@ -432,6 +439,15 @@ const Index = () => {
     hero: "streaming-hdr",
     deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"],
   });
+  // Derived mastering graph → editable-builder seed (for the Custom mastering view).
+  const masteringGraph = useMemo(
+    () => masteringStrategy === "custom"
+      ? buildCustomGraph(masteringCustom, acesVersion, masterNits)
+      : buildMasterGraph(masteringStrategy, acesVersion, masterNits),
+    [masteringStrategy, masteringCustom, acesVersion, masterNits],
+  );
+  const makeMasteringSeed = useCallback(() => masterGraphToFlow(masteringGraph), [masteringGraph]);
+  const masteringPalette = useMemo(() => masteringPaletteGroups(), []);
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -1107,17 +1123,46 @@ const Index = () => {
           </div>
         </main>
       ) : appTab === "mastering" ? (
-        <main className="flex-1 flex min-h-0">
-          <MasteringWorkflow
-            version={acesVersion}
-            onVersionChange={setAcesVersion}
-            strategy={masteringStrategy}
-            onStrategyChange={setMasteringStrategy}
-            masterNits={masterNits}
-            onMasterNitsChange={setMasterNits}
-            custom={masteringCustom}
-            onCustomChange={setMasteringCustom}
-          />
+        <main className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="shrink-0 border-b border-suite-border bg-suite-panel px-3 py-1.5 flex items-center gap-1.5">
+            {([["derived", "Derived"], ["custom", "Custom"]] as [MasteringView, string][]).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setMasteringView(v)}
+                className={cn("px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
+                  masteringView === v ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
+                {label}
+              </button>
+            ))}
+            <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline ml-1">
+              {masteringView === "derived"
+                ? "Auto-built from your Hero + deliverables — switch to Custom to edit it freely."
+                : "Editable copy of the derived tree — drag, rename, connect, add/remove, save & export. ‘Re-seed’ refreshes it from Derived."}
+            </span>
+          </div>
+          <div className="flex-1 flex min-h-0 min-w-0">
+            {masteringView === "custom" ? (
+              <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading…</div>}>
+                <WorkflowBuilder
+                  storageKey="postsup-mastering-builder-v1"
+                  versionsKey="postsup-mastering-builder-versions"
+                  title="Custom Mastering"
+                  makeSeed={makeMasteringSeed}
+                  paletteGroups={masteringPalette}
+                  seedActions={[{ label: "Re-seed from Mastering", confirm: "Replace the canvas with a fresh copy of the current derived Mastering tree? (this is undoable)", make: makeMasteringSeed }]}
+                />
+              </Suspense>
+            ) : (
+              <MasteringWorkflow
+                version={acesVersion}
+                onVersionChange={setAcesVersion}
+                strategy={masteringStrategy}
+                onStrategyChange={setMasteringStrategy}
+                masterNits={masterNits}
+                onMasterNitsChange={setMasterNits}
+                custom={masteringCustom}
+                onCustomChange={setMasteringCustom}
+              />
+            )}
+          </div>
         </main>
       ) : appTab === "optics" ? (
         <main className="flex-1 flex min-h-0">

@@ -87,6 +87,16 @@ export const LANES: { id: Lane; label: string }[] = [
   { id: "viewing", label: "Viewing" },
 ];
 
+/** Node accent by deliverable role (shared with the editable builder). */
+export const ROLE_ACCENT: Record<DeliverableRole, string> = {
+  source: "#4ade80",          // green
+  archive: "#a78bfa",         // violet
+  "streaming-hdr": "#22d3ee", // cyan
+  broadcast: "#94a3b8",       // slate
+  theatrical: "#f59e0b",      // amber
+  review: "#6b7280",          // gray
+};
+
 export const STRATEGIES: {
   id: MasteringStrategy; name: string; hero: string; when: string; pros: string; cons: string;
 }[] = [
@@ -158,6 +168,15 @@ const N = {
   revhdr: (): MNode => ({ id: "revhdr", type: "viewing", label: "HDR review proxy", colourspace: "Rec.2020 PQ", eotf: "PQ", peakNits: null, container: "H.265", role: "review", lane: "viewing" }),
   revsdr: (): MNode => ({ id: "revsdr", type: "viewing", label: "SDR screener", colourspace: "Rec.709", eotf: "gamma 2.4", peakNits: null, container: "H.264", role: "review", lane: "viewing" }),
 };
+
+/** Representative nodes for the editable-builder palette (one per master/deliverable). */
+export const MASTERING_PALETTE_NODES: MNode[] = [
+  N.arch(), N.nam(),
+  N.hdrHero(false), N.dvxml(), N.hdr10(), N.sdr(),
+  N.dcdm4k("masters"), N.dcdm2k(),
+  N.imf2e(), N.imfsdr(), N.dcp4k(), N.dcp2k(),
+  N.revhdr(), N.revsdr(),
+];
 
 const OT_PQ = { hdrVariant: "Dolby Vision P8.1", targetName: "UHD 4K" };
 const OT_DCI = { hdrVariant: "SDR", targetName: "DCI 4K Scope" };
