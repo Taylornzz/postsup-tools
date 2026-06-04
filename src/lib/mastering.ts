@@ -147,12 +147,12 @@ const N = {
   arch: (): MNode => ({ id: "arch", type: "archive", label: "Graded ACES archive", colourspace: "ACES2065-1 / AP0", eotf: "Linear", peakNits: null, container: "IMF App 5 · ST 2067-50", role: "archive", lane: "archive", acesManaged: true }),
   hdrHero: (hero: boolean): MNode => ({ id: "hdrHero", type: hero ? "hero" : "master", label: "HDR PQ master", colourspace: "P3-D65 (Rec.2020 container)", eotf: "PQ / ST.2084", peakNits: "1000–4000", role: "streaming-hdr", lane: "hero", isHero: hero, acesManaged: true }),
   dvxml: (): MNode => ({ id: "dvxml", type: "sidecar", label: "Dolby Vision XML", colourspace: "metadata", eotf: "—", peakNits: null, container: "XML · CMv4.0 [4 1]", role: "streaming-hdr", lane: "hero" }),
-  hdr10: (): MNode => ({ id: "hdr10", type: "master", label: "HDR10 master", colourspace: "Rec.2020 (P3-D65 content)", eotf: "PQ / ST.2084", peakNits: "1000", container: "+L6 MaxCLL/MaxFALL", role: "streaming-hdr", lane: "masters" }),
+  hdr10: (): MNode => ({ id: "hdr10", type: "master", label: "HDR10 master", colourspace: "Rec.2020 (P3-D65 content)", eotf: "PQ / ST.2084", peakNits: "1000", container: "+L6 MaxCLL/MaxFALL (content-measured)", role: "streaming-hdr", lane: "masters" }),
   sdr: (): MNode => ({ id: "sdr", type: "master", label: "SDR Rec.709 master", colourspace: "Rec.709", eotf: "BT.1886", peakNits: "100", role: "broadcast", lane: "masters" }),
   dcdm4k: (lane: Lane, hero = false): MNode => ({ id: "dcdm4k", type: hero ? "hero" : "master", label: hero ? "DCDM hero (theatrical)" : "DCDM 4K", colourspace: "X′Y′Z′", eotf: "gamma 2.6", peakNits: "48", container: "12-bit TIFF · ST 428-1", role: "theatrical", lane, isHero: hero, acesManaged: hero }),
   dcdm2k: (): MNode => ({ id: "dcdm2k", type: "master", label: "DCDM 2K", colourspace: "X′Y′Z′", eotf: "gamma 2.6", peakNits: "48", container: "12-bit TIFF", role: "theatrical", lane: "masters" }),
   imf2e: (): MNode => ({ id: "imf2e", type: "deliverable", label: "IMF App 2E (DV) 4K", colourspace: "Rec.2020 PQ", eotf: "PQ / ST.2084", peakNits: "1000", container: "J2K/MXF · ST 2067-21", role: "streaming-hdr", lane: "deliverables" }),
-  imfsdr: (): MNode => ({ id: "imfsdr", type: "deliverable", label: "IMF App 2 SDR / Broadcast HD", colourspace: "Rec.709", eotf: "BT.1886", peakNits: "100", container: "ST 2067-20", role: "broadcast", lane: "deliverables" }),
+  imfsdr: (): MNode => ({ id: "imfsdr", type: "deliverable", label: "IMF App 2E — SDR (Rec.709)", colourspace: "Rec.709", eotf: "BT.1886", peakNits: "100", container: "J2K/MXF · ST 2067-21", role: "broadcast", lane: "deliverables" }),
   dcp4k: (): MNode => ({ id: "dcp4k", type: "deliverable", label: "DCP 4K", colourspace: "XYZ", eotf: "gamma 2.6", peakNits: "48", container: "J2K/MXF · ST 429", role: "theatrical", lane: "deliverables" }),
   dcp2k: (): MNode => ({ id: "dcp2k", type: "deliverable", label: "DCP 2K", colourspace: "XYZ", eotf: "gamma 2.6", peakNits: "48", container: "J2K/MXF", role: "theatrical", lane: "deliverables" }),
   revhdr: (): MNode => ({ id: "revhdr", type: "viewing", label: "HDR review proxy", colourspace: "Rec.2020 PQ", eotf: "PQ", peakNits: null, container: "H.265", role: "review", lane: "viewing" }),
@@ -166,14 +166,14 @@ const OT_DCI = { hdrVariant: "SDR", targetName: "DCI 4K Scope" };
 function hdrDeriveEdges(heroId: string): MEdge[] {
   return [
     { from: heroId, to: "dvxml", op: "analyze", label: "Dolby Vision L1 analysis (min/avg/max)", direction: "lateral", acesManaged: false },
-    { from: heroId, to: "dvxml", op: "trim", label: "TID1 trim → SDR Rec.709 100 nit (first), +600 nit", direction: "down-volume", acesManaged: false },
+    { from: heroId, to: "dvxml", op: "trim", label: "TID1 trim → SDR Rec.709 100-nit (required first; foundation for the trim ladder)", direction: "down-volume", acesManaged: false },
     { from: heroId, to: "hdr10", op: "cm-derive", label: "Content-map → HDR10 (L1 + L6 static)", direction: "lateral", acesManaged: false },
     { from: "dvxml", to: "hdr10", op: "embed", label: "L6 MaxCLL/MaxFALL drives HDR10", direction: "lateral", acesManaged: false },
     { from: heroId, to: "sdr", op: "cm-derive", label: "DV TID1 map → SDR Rec.709 100 nit (+ manual per-shot trims)", direction: "down-volume", acesManaged: false },
     { from: "dvxml", to: "sdr", op: "trim", label: "L8/L2 TID1 trim drives the SDR derive", direction: "down-volume", acesManaged: false },
     { from: heroId, to: "imf2e", op: "wrap", label: "Wrap PQ essence → IMF App 2E CPL (J2K/MXF)", direction: "lateral", acesManaged: false },
     { from: "dvxml", to: "imf2e", op: "embed", label: "Embed DV metadata, CMVersion [4 1]", direction: "lateral", acesManaged: false },
-    { from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2 SDR / Broadcast HD CPL", direction: "lateral", acesManaged: false },
+    { from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2E SDR (Rec.709) CPL", direction: "lateral", acesManaged: false },
     { from: heroId, to: "revhdr", op: "transcode", label: "H.265 HDR review proxy (no new OT)", direction: "lateral", acesManaged: false },
     { from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false },
   ];
@@ -341,7 +341,7 @@ export function buildCustomGraph(
       add(N.dvxml()); add(pq(N.hdr10())); add(pq(N.imf2e()));
       edges.push(
         { from: "hdrHero", to: "dvxml", op: "analyze", label: "Dolby Vision L1 analysis (min/avg/max)", direction: "lateral", acesManaged: false },
-        { from: "hdrHero", to: "dvxml", op: "trim", label: "TID1 trim → SDR Rec.709 100 nit (first), +600 nit", direction: "down-volume", acesManaged: false },
+        { from: "hdrHero", to: "dvxml", op: "trim", label: "TID1 trim → SDR Rec.709 100-nit (required first; foundation for the trim ladder)", direction: "down-volume", acesManaged: false },
         { from: "hdrHero", to: "hdr10", op: "cm-derive", label: "Content-map → HDR10 (L1 + L6 static)", direction: "lateral", acesManaged: false },
         { from: "dvxml", to: "hdr10", op: "embed", label: "L6 MaxCLL/MaxFALL drives HDR10", direction: "lateral", acesManaged: false },
         { from: "hdrHero", to: "imf2e", op: "wrap", label: "Wrap PQ essence → IMF App 2E CPL (J2K/MXF)", direction: "lateral", acesManaged: false },
@@ -362,7 +362,7 @@ export function buildCustomGraph(
     } else {
       edges.push({ from: "arch", to: "sdr", op: "regrade", label: "SDR trim off archive → Rec.709 100 nit (dim-surround, fresh grade)", direction: "down-volume", acesManaged: false });
     }
-    edges.push({ from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2 SDR / Broadcast HD CPL", direction: "lateral", acesManaged: false });
+    edges.push({ from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2E SDR (Rec.709) CPL", direction: "lateral", acesManaged: false });
     if (want.has("proxies")) { add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false }); }
   } else if (heroIsSdr && want.has("proxies")) {
     add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false });

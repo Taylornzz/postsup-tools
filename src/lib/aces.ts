@@ -163,7 +163,7 @@ const HLG_ODT: AcesOdt = {
   display: "Rec.2100 container · P3-D65-limited",
   eotf: "HLG (BT.2100)",
   peakNits: "1000",
-  note: "ACES 2.0 ships ONLY a 1000-nit, P3-D65-limited HLG transform — there is no full Rec.2020-primaries HLG output.",
+  note: "ACES 2.0 ships HLG only at 1000 nit, P3-limited (D65 and ACES/D60 creative-white variants) — there is no full Rec.2020-primaries HLG output.",
 };
 const DV_PQ: AcesOdt = {
   label2: "Rec.2100 PQ (1000–4000 nit · match mastering display)",
@@ -195,7 +195,7 @@ export function acesOdtFor(hdrVariant: string, targetName: string): AcesOdt {
 // ---- Working spaces (constant) --------------------------------------------
 const GRADE: AcesWorkingSpace = {
   name: "ACEScct",
-  use: "Grade — log-like toe; what most colorists pick over ACEScc.",
+  use: "Grade — log curve with a linear toe in the shadows (ACEScc has no toe → harsher lift); the usual colourist pick.",
 };
 const VFX: AcesWorkingSpace = {
   name: "ACEScg",
@@ -203,7 +203,7 @@ const VFX: AcesWorkingSpace = {
 };
 const INTERCHANGE: AcesWorkingSpace = {
   name: "ACES2065-1 (AP0)",
-  use: "Interchange & archival — the only ACES handoff/archival encoding (OpenEXR).",
+  use: "Interchange & archival — the designated ACES handoff/archival encoding (linear AP0). Carried as OpenEXR / SMPTE ST 2065-4 ACES container; tag it AP0, since EXR alone doesn't pin the encoding.",
 };
 
 /** Full reference pipeline for a source + delivery + ACES version. */

@@ -111,7 +111,7 @@ export const NODES: PNode[] = [
   n("o-backup", "offload", "data", "manifest", "Backup Sets (3-2-1)", "3 copies, 2 media, 1 off-site: typically 2 shuttle drives + 1 LTO/LTFS."),
   n("o-qc", "offload", "data", "qc", "Ingest / Technical QC", "All clips offloaded + verified, no dropped frames/corruption, metadata complete."),
   // 4 — Dailies
-  n("d-dailies", "dailies", "picture", "dailies", "Dailies (look baked)", "Transcodes with show LUT + CDL baked, Rec.709 default (PQ only on HDR pipelines)."),
+  n("d-dailies", "dailies", "picture", "dailies", "Dailies (look baked)", "Transcodes with show LUT + CDL baked, Rec.709 default (PQ only on HDR pipelines). Review deliverable (dailies platform for production/studio) — not a graph-consumed conform input."),
   n("d-proxy", "dailies", "picture", "dailies", "Editorial Proxies", "ProRes Proxy / DNxHR LB / H.264, look baked, matching TC/reel for conform."),
   n("d-synced", "dailies", "picture", "dailies", "Synced Dailies", "Dailies/proxies married to production sound by TC/clap."),
   // 5 — Offline Editorial → Lock (the cut-approval ladder)
@@ -147,7 +147,7 @@ export const NODES: PNode[] = [
   n("a-atmos", "audio-mix", "audio", "audio", "Atmos / Object Mix", "Object-based re-render from the stem bed (7.1.4 min). Rides the IMF as an IAB track (ST 2067-201); ADM BWAV is the alt printmaster.", "Atmos Mixer"),
   n("a-print", "audio-mix", "audio", "audio", "Printmasters / M&E", "Final deliverable files per spec. Native printmaster is the master; 5.1 / 2.0 auto-derived (no upmix). M&E (music & effects) for foreign dubs.", "Re-recording Mixer"),
   n("a-loud", "audio-mix", "audio", "qc", "Loudness QC", "Measure per delivery domain (BS.1770) and file a LUFS report: Netflix −27 LKFS dialog-gated · −2 dBTP. TVNZ / EBU R128 −23 LUFS · TP −1 dBTP. Amazon / ATSC A/85 −24 LUFS · −2 dBTP. Different targets = different masters.", "Mixer + QC"),
-  n("a-conform", "audio-mix", "audio", "audio", "Audio Conform", "Re-sync to the FINAL graded picture (not the offline): frame-exact length, project frame rate, long-form sync check.", "Re-recording Mixer"),
+  n("a-conform", "audio-mix", "audio", "audio", "Audio Conform", "Re-sync to the final conformed/locked picture (not the offline): frame-exact length, project frame rate, long-form sync check. (Length/fps are fixed at the online conform — the mix doesn't wait on the grade.)", "Re-recording Mixer"),
   // 8 — Grade & Mastering
   n("m-grade", "mastering", "picture", "grade", "ACES Grade (hero)", "ACEScct working, AP1, mid-grey 15.0. The single creative master. HDR Originals master in Dolby Vision. Grade order: colour test → pre-grade → attended grade (director + DOP) → client review → HDR pass (trim SDR) → finals. DI TOOL — DaVinci Resolve OR Baselight: identical workflow (ACES IDT → grade → Output Transform → IMF/DCP). Differences are nomenclature, not pipeline — Resolve drives it through RCM/ACES and wraps IMF & DCP in-tool; Baselight grades in T-CAM/Truelight (fully ACES-capable) and conforms via BLG, usually pairing a dedicated mastering box (Clipster / EasyDCP) for the IMF/DCP wrap. Same masters, same QC, same deliverables either way.", "Colourist (DI)"),
   n("m-master", "mastering", "picture", "master", "Mastering DAG ▸", "The existing Mastering deliverables DAG — hero master, trims, NAM, deliverable masters. Open it to expand."),
@@ -171,7 +171,7 @@ export const NODES: PNode[] = [
   n("dp-trailer", "del-paper", "data", "deliverable", "Trailers · Promos · Key Art", "Trailer / teaser cut-downs, promo versions, and marketing/key-art deliverables produced from the approved master.", "Marketing / Editorial"),
   n("dp-fonts", "del-paper", "data", "report", "Font Licences", "Licence + EMBEDDING rights for every font used in titles, graphics and subtitles — a desktop font licence is NOT a broadcast/streaming embedding licence. DCP/IMF embed the subtitle font, so the embedding right must be cleared. Goes in the clearance / chain-of-title pack.", "GFX + Clearances"),
   n("dp-coc", "del-paper", "data", "report", "Chain of Title + E&O Binder", "The legal deliverable: writer/director/cast agreements, music sync+master licences, clip/archive licences, location & talent releases, script-clearance report, clearance log + E&O insurance proof. NO binder, NO delivery acceptance — the #1 cause of failed broadcaster acceptance. Escalate any unclear rights to the producer + lawyer.", "Producer + Lawyer"),
-  // 11 — Long-Term Archive
+  // 12 — Long-Term Archive
   n("arc-nam", "archive", "data", "archive", "NAM (Non-Graded)", "Texted, fully conformed, final VFX, scene-referred ACES2065-1/AP0, NO output transform. 16-bit EXR (10-bit DPX only if ≥50% of capture was 10-bit).", "Mastering House"),
   n("arc-gam", "archive", "data", "archive", "GAM / App 5 IMF", "Graded uncompressed ACES essence wrapped MXF in IMF App 5 (ST 2067-50). Other mezzanines: ProRes 4444 XQ, DNxHR 444/HQX, J2K MXF OP1a, DPX, EXR.", "Mastering House"),
   n("arc-cam", "archive", "data", "archive", "Camera-Original + Project", "RAW pre-debayer, native gamut, no baked looks; + conform/EDL, CDL/LUTs, VFX masters, M&E, printmaster, cue sheets.", "Post Supervisor"),
@@ -202,6 +202,7 @@ export const EDGES: PEdge[] = [
   { from: "a-prod", to: "d-synced", op: "sync", label: "TC/clap marry of production sound (first audio touch-point)" },
   // 5 — the cut-approval ladder
   { from: "d-proxy", to: "e-assembly", op: "transcode", label: "Cut on look-baked proxies" },
+  { from: "d-synced", to: "e-assembly", op: "sync", label: "Synced dailies (picture + guide-track sound) drive the offline" },
   { from: "e-assembly", to: "e-dircut", op: "approve", label: "String-out → director's cut" },
   { from: "e-dircut", to: "e-prodcut", op: "approve", label: "Director's-cut notes addressed → producer's cut" },
   { from: "e-prodcut", to: "e-netcut", op: "approve", label: "Producer's-cut notes → network/studio cut" },
@@ -227,7 +228,6 @@ export const EDGES: PEdge[] = [
   { from: "v-comp", to: "v-review", op: "qc-gate", label: "Submit WIP for review" },
   { from: "v-review", to: "v-comp", op: "notes", label: "Notes → revisions (back to vendor)" },
   { from: "v-review", to: "v-master", op: "approve", label: "Creative + technical sign-off → publish final EXR" },
-  { from: "v-master", to: "e-netcut", op: "trim", label: "Final comps slapped back into the cut" },
   // 7 — conform + online assembly
   { from: "e-turnover", to: "c-timeline", op: "conform", label: "Relink proxy → camera-original full-res; cuts/retimes/FDL" },
   { from: "v-master", to: "c-timeline", op: "transform", label: "VFX master EXR overrides the original plate at its event" },

@@ -2544,7 +2544,7 @@
 "Profile 8.4"
 ],
 "category": "Mastering & Delivery",
-"definition": "Delivery configurations of a Dolby Vision stream. Profile 8.1 = HDR10 base + DV RPU; Profile 8.4 = HLG base + DV RPU (both dual-layer-compatible streaming profiles); Profile 5 is single-layer 12-bit (Apple TV+, legacy UHD Blu-ray).",
+"definition": "Delivery configurations of a Dolby Vision stream. Profile 8.1 = HDR10 base + DV RPU; Profile 8.4 = HLG base + DV RPU (both single-layer streaming profiles (base layer is HDR10 / HLG, with a DV RPU metadata sidecar; contrast the dual-layer Profile 7 on UHD Blu-ray)); Profile 5 is single-layer 10-bit (Dolby's proprietary IPT-PQ-c2 colourspace, not HDR10-compatible) (Apple TV+, legacy UHD Blu-ray).",
 "seeAlso": [
 "Dolby Vision",
 "RPU"
@@ -2783,7 +2783,7 @@
 "EBU 3325"
 ],
 "category": "QC & Standards",
-"definition": "The European 100/0/75/0 vertical colour-bar test pattern (eight full-height bars) used to line up and verify a signal path. It is the EBU equivalent of the SMPTE bars, used in PAL/European workflows.",
+"definition": "The European 100/0/100/0 vertical colour-bar test pattern (eight full-height bars) used to line up and verify a signal path. It is the EBU equivalent of the SMPTE bars, used in PAL/European workflows.",
 "seeAlso": [
 "SMPTE bars / RP 219",
 "Broadcast safe"
@@ -2812,7 +2812,7 @@
 "Loudness Normalisation"
 ],
 "category": "Audio Post",
-"definition": "The European loudness-normalisation standard: integrated programme loudness targets -23 LUFS (tolerance about ±0.5 LU for live) with a maximum true peak of -1 dBTP. It measures loudness over the whole programme using ITU-R BS.1770, ending per-channel level juggling. The default outside the US.",
+"definition": "The European loudness-normalisation standard: integrated programme loudness targets -23 LUFS (tolerance ±0.5 LU for non-live/file-based, ±1.0 LU for live) with a maximum true peak of -1 dBTP. It measures loudness over the whole programme using ITU-R BS.1770, ending per-channel level juggling. The default outside the US.",
 "seeAlso": [
 "LUFS / LKFS",
 "dBTP",
