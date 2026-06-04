@@ -21,15 +21,21 @@ const WEEK_W_MAX = 130;
 const POP_W = 216;
 
 const SEED: Omit<Bar, "id">[] = [
-  { name: "Prep", color: "#94a3b8", start: 0, dur: 2 },
-  { name: "Shoot", color: "#38bdf8", start: 2, dur: 4 },
-  { name: "Offload", color: "#22d3ee", start: 2, dur: 4 },
-  { name: "Offline", color: "#a78bfa", start: 6, dur: 6 },
-  { name: "Lock", color: "#facc15", start: 12, dur: 0 },
-  { name: "Grade", color: "#f59e0b", start: 12, dur: 3 },
-  { name: "Online", color: "#e879f9", start: 13, dur: 3 },
-  { name: "QC", color: "#f87171", start: 16, dur: 1 },
-  { name: "Delivery", color: "#34d399", start: 17, dur: 2 },
+  { name: "Prep", color: "#94a3b8", start: 0, dur: 4 },
+  { name: "Camera Test", color: "#a78bfa", start: 0, dur: 1 },
+  { name: "Show Look", color: "#facc15", start: 0, dur: 1 },
+  { name: "PP", color: "#facc15", start: 4, dur: 0 },
+  { name: "Shoot", color: "#38bdf8", start: 4, dur: 5 },
+  { name: "Offload / DIT", color: "#22d3ee", start: 4, dur: 6 },
+  { name: "Offline", color: "#a78bfa", start: 5, dur: 12 },
+  { name: "Lock", color: "#facc15", start: 17, dur: 0 },
+  { name: "Conform", color: "#f87171", start: 17, dur: 1 },
+  { name: "VFX", color: "#94a3b8", start: 10, dur: 13 },
+  { name: "Grade", color: "#f59e0b", start: 17, dur: 3 },
+  { name: "Audio Post", color: "#2dd4bf", start: 16, dur: 7 },
+  { name: "Online", color: "#e879f9", start: 23, dur: 3 },
+  { name: "QC", color: "#fb7185", start: 26, dur: 2 },
+  { name: "Delivery", color: "#34d399", start: 28, dur: 2 },
 ];
 const PALETTE = ["#94a3b8", "#38bdf8", "#22d3ee", "#a78bfa", "#facc15", "#f59e0b", "#e879f9", "#f87171", "#34d399", "#fb7185"];
 
@@ -468,7 +474,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
           <div className="max-w-md text-center flex flex-col items-center gap-4">
             <CalendarClock className="size-10 text-suite-text-dim" strokeWidth={1.2} />
             <p className="font-mono text-[11px] text-suite-text-dim leading-relaxed">
-              Set a project start, then drop the standard post template — Prep, Shoot, Offload, Offline, Lock, Grade, Online, QC, Delivery (laid down from the current week) — and drag the bars to block out durations in weeks. Add your own phases and keyframes too.
+              Set a project start, then drop the standard post template — Prep, Camera Test, Show Look, PP, Shoot, Offload/DIT, Offline, Lock, Conform, VFX, Grade, Audio Post, Online, QC, Delivery (laid down from the current week) — and drag the bars to block out durations in weeks. Add your own phases and keyframes too.
             </p>
             <button type="button" onClick={applyTemplate} className={cn(btn, "text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 px-3 py-2 text-[11px]")}>
               <Wand2 className="size-3.5" strokeWidth={1.6} /> Use standard template

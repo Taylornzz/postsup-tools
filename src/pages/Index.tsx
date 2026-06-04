@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.68";
+const VERSION = "v1.9.69";
 const CHANGELOG = [
+  "v1.9.69 — Planner: the Template now lays down the full 15-item post schedule — Prep, Camera Test, Show Look, PP (keyframe), Shoot, Offload/DIT, Offline, Lock (keyframe), Conform, VFX, Grade, Audio Post, Online, QC, Delivery — with realistic overlapping durations, still anchored to the current week.",
   "v1.9.68 — Tools: the EDL Converter is now a full multi-format sequence converter. It auto-detects and reads CMX3600 EDL, FCP7 / Premiere / Resolve XML, FCPXML (best-effort) and CSV, shows a clean preview table, and converts out to XLSX (native Excel), CSV, EDL (CMX3600, with a reel-name>8 toggle), PDF cut list, or JSON. Drop-frame aware. Like editingtools.io it targets cut lists (transitions become cuts, audio-only tracks skipped). New parsers/writers are unit-tested; XLSX loads on demand so it doesn't bloat startup.",
   "v1.9.67 — New Tools tab: post-production calculators + an EDL converter. Timecode (TC↔frames↔seconds and add/subtract, with proper SMPTE drop-frame for 29.97/59.94), Frame Rate / conform (re-time a duration to a new rate with speed %, audio pull and pitch-shift — the 24→25 PAL speed-up, NTSC 0.1% pull, etc.), Aspect Ratio (W×H → ratio/standard name, and solve a dimension for a target ratio), and an EDL Converter (paste/load a CMX3600 EDL → clean event table → copy/export CSV). Timecode and EDL maths are unit-tested.",
   "v1.9.66 — Glossary: larger, bolder term headings for easier scanning.",
