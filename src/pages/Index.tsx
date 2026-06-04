@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.72";
+const VERSION = "v1.9.73";
 const CHANGELOG = [
+  "v1.9.73 — Added Vercel Web Analytics — privacy-first visitor counts, page views, referrers and country (no IPs, no cookies). Needs enabling once in the Vercel dashboard.",
   "v1.9.72 — Planner now opens pre-filled with the standard post template on a first visit, instead of an empty canvas with a button. Clearing the schedule still gives you the blank empty-state.",
   "v1.9.71 — Private-preview password gate is now continuous (no 24h auto-lift) — it stays on until removed; visitors who enter the password are remembered on their device.",
   "v1.9.70 — Added a temporary private-preview password gate on the live site (auto-lifts after ~24h). Soft wall for sharing, not real security.",
