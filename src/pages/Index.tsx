@@ -109,8 +109,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.84";
+const VERSION = "v1.9.85";
 const CHANGELOG = [
+  "v1.9.85 — Planner: zoom in far enough and the timeline switches to a day view — day columns (weekends tinted) and a 'Day view' badge — and dragging / resizing bars now snaps to whole days instead of weeks. Bar labels and the duration field read in days when a phase isn't a whole number of weeks.",
   "v1.9.84 — Capture: added the new GoPro Mission 1 (compact 1-inch 50MP 8K cinema cam) — 8K 16:9 and 4K 16:9 modes, 10-bit HLG.",
   "v1.9.83 — Glossary: fixed 'see also' links that pointed to a verbose label (e.g. 'ODT (Output Transform)') failing to find the page — they now resolve to the real entry (ODT) and land on it.",
   "v1.9.82 — Capture: expanded the DJI line (Air 3S 1-inch, Air 3, Mini 4 Pro, Avata 2 FPV, Osmo Pocket 3 1-inch + Pocket 2), and added GoPro Hero 11 / 12 / 13 Black (1/1.9-inch 8:7 sensor, 5.3K in 8:7 and 16:9; GP-Log on 12/13, HLG on 11). Each maps to its real codec set in Storage (HEVC/H.264 for the consumer drones, Osmo and GoPro).",

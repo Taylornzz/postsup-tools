@@ -17,7 +17,8 @@ const WEEK_H = 20;
 const HEAD_H = MONTH_H + WEEK_H;
 const WEEK_W_DEFAULT = 44;
 const WEEK_W_MIN = 16;
-const WEEK_W_MAX = 130;
+const WEEK_W_MAX = 420;
+const DAY_MODE_AT = 154; // weekW px at/above which the grid + snapping switch to days (≥22px/day)
 const POP_W = 216;
 
 const SEED: Omit<Bar, "id">[] = [
@@ -128,6 +129,10 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
 
   const weekWRef = useRef(weekW);
   weekWRef.current = weekW;
+  const dayMode = weekW >= DAY_MODE_AT;     // zoomed in far enough to work in days
+  const dayW = weekW / 7;
+  const dayModeRef = useRef(dayMode);
+  dayModeRef.current = dayMode;
   const selRef = useRef(selectedIds);
   selRef.current = selectedIds;
 
@@ -167,7 +172,11 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const onMove = useCallback((e: MouseEvent) => {
     const d = drag.current;
     if (!d) return;
-    const dw = Math.round((e.clientX - d.x0) / weekWRef.current);
+    // Snap to whole days when zoomed in, otherwise whole weeks.
+    const unitPx = dayModeRef.current ? weekWRef.current / 7 : weekWRef.current;
+    const unitW = dayModeRef.current ? 1 / 7 : 1;
+    const minDur = dayModeRef.current ? 1 / 7 : 1;
+    const dw = Math.round((e.clientX - d.x0) / unitPx) * unitW;
     if (d.mode === "move") {
       const dwc = d.minS0 + dw < 0 ? -d.minS0 : dw;
       setBars((bs) => bs.map((b) => {
@@ -178,8 +187,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
       const it = d.items[0];
       setBars((bs) => bs.map((b) => {
         if (b.id !== it.id) return b;
-        if (d.mode === "r") return { ...b, dur: clamp(it.d0 + dw, 1, 104) };
-        const ns = Math.min(Math.max(0, it.s0 + dw), it.s0 + it.d0 - 1);
+        if (d.mode === "r") return { ...b, dur: clamp(it.d0 + dw, minDur, 104) };
+        const ns = Math.min(Math.max(0, it.s0 + dw), it.s0 + it.d0 - minDur);
         return { ...b, start: ns, dur: it.d0 - (ns - it.s0) };
       }));
     }
@@ -375,9 +384,19 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
     scrollRef.current.scrollTo({ left: Math.max(0, todayWeeks * weekW - 200), behavior: "smooth" });
   }
 
-  const gridBg = `repeating-linear-gradient(to right, transparent, transparent ${weekW - 1}px, rgba(148,163,184,0.10) ${weekW - 1}px, rgba(148,163,184,0.10) ${weekW}px)`;
+  // Grid lines per day when zoomed into day mode, per week otherwise.
+  const gridStep = dayMode ? dayW : weekW;
+  const gridBg = `repeating-linear-gradient(to right, transparent, transparent ${gridStep - 1}px, rgba(148,163,184,0.10) ${gridStep - 1}px, rgba(148,163,184,0.10) ${gridStep}px)`;
   const timelineW = weeksToShow * weekW;
   const bodyH = bars.length * ROW_H;
+  // Day cells for the header when zoomed in (Mon-anchored; weekends tinted).
+  const days = dayMode
+    ? Array.from({ length: weeksToShow * 7 }, (_, i) => {
+        const d = new Date(anchor + "T00:00:00");
+        d.setDate(d.getDate() + i);
+        return { i, date: d, dom: d.getDate(), weekend: ((d.getDay() + 6) % 7) >= 5 };
+      })
+    : [];
 
   const selected = editId ? bars.find((b) => b.id === editId) || null : null;
   const selIdx = selected ? bars.findIndex((b) => b.id === selected.id) : -1;
@@ -393,7 +412,8 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
           <CalendarClock className="size-4 text-guide-target" strokeWidth={1.6} />
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Post Schedule</span>
           {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[18ch]">· {projectName.trim()}</span>}
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag bar to move · edges resize · grip reorders · click sets a date · shift-click multi-select · wheel zooms · drag canvas to pan</span>
+          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to move · edges resize · grip reorders · click sets a date · wheel zooms (in far = days) · drag canvas to pan</span>
+          {dayMode && <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-guide-target border border-guide-target/40 rounded-sm px-1.5 py-0.5">Day view</span>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-suite-text-muted">
@@ -529,12 +549,21 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                 Phase
               </div>
               <div className="flex bg-suite-panel border-b border-suite-border">
-                {weeks.map((w) => (
-                  <div key={w.i} className="flex items-center justify-center border-r border-suite-border/60 font-mono text-[9px] text-suite-text-dim tabular overflow-hidden"
-                    style={{ width: weekW }} title={fmtDate(w.date)}>
-                    {weekW >= 30 ? `W${w.wk}` : w.wk}
-                  </div>
-                ))}
+                {dayMode
+                  ? days.map((d) => (
+                      <div key={d.i} className={cn(
+                        "flex items-center justify-center border-r font-mono text-[9px] tabular overflow-hidden",
+                        d.weekend ? "text-suite-text-dim/45 border-suite-border/40 bg-suite-bg/40" : "text-suite-text-dim border-suite-border/50",
+                      )} style={{ width: dayW }} title={fmtDate(d.date)}>
+                        {d.dom}
+                      </div>
+                    ))
+                  : weeks.map((w) => (
+                      <div key={w.i} className="flex items-center justify-center border-r border-suite-border/60 font-mono text-[9px] text-suite-text-dim tabular overflow-hidden"
+                        style={{ width: weekW }} title={fmtDate(w.date)}>
+                        {weekW >= 30 ? `W${w.wk}` : w.wk}
+                      </div>
+                    ))}
               </div>
             </div>
 
@@ -591,7 +620,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                         style={{ left, width, backgroundColor: b.color }}>
                         <div onMouseDown={(e) => onDown(e, b.id, "l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
                         <div onMouseDown={(e) => onDown(e, b.id, "move")} className="flex-1 h-full cursor-grab active:cursor-grabbing flex items-center justify-center overflow-hidden">
-                          {b.dur >= 2 && weekW >= 26 && <span className="font-mono text-[9px] text-black/70 font-semibold tabular">{b.dur}w</span>}
+                          {width >= 30 && <span className="font-mono text-[9px] text-black/70 font-semibold tabular">{Number.isInteger(b.dur) ? `${b.dur}w` : `${Math.round(b.dur * 7)}d`}</span>}
                         </div>
                         <div onMouseDown={(e) => onDown(e, b.id, "r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
                         <span className="absolute left-full ml-1.5 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">
@@ -637,12 +666,12 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
                     <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim">Duration</span>
                     <span className="flex items-center gap-1">
                       <input
-                        type="number" min={1} max={104}
-                        value={selected.dur}
-                        onChange={(e) => patch(selected.id, { dur: clamp(parseInt(e.target.value || "1", 10) || 1, 1, 104) })}
+                        type="number" min={1} max={728}
+                        value={Math.round(selected.dur * 7)}
+                        onChange={(e) => patch(selected.id, { dur: clamp((parseInt(e.target.value || "1", 10) || 1) / 7, 1 / 7, 104) })}
                         className="w-16 bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target"
                       />
-                      <span className="font-mono text-[10px] text-suite-text-dim">weeks</span>
+                      <span className="font-mono text-[10px] text-suite-text-dim">days</span>
                     </span>
                   </label>
                 )}
