@@ -20,6 +20,7 @@ import { STAGES, NODES as PIPE_NODES, KIND_ACCENT } from "@/lib/pipeline";
  *  rename and edit each node. Undo/redo, save named versions, export. Saves to the browser. */
 
 type StepData = { label: string; owner?: string; detail?: string; color: string };
+type EdgeData = { label?: string };
 type Snapshot = { nodes: Node[]; edges: Edge[] };
 type Version = { id: string; name: string; savedAt: number; nodes: Node[]; edges: Edge[] };
 
@@ -52,37 +53,77 @@ function StepNode({ data, selected }: NodeProps) {
 }
 const nodeTypes = { step: StepNode };
 
-// ---- edge with a delete (×) button that appears only on hover ----
-function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, selected }: EdgeProps) {
-  const { deleteElements } = useReactFlow();
+// ---- edge with an editable label + a delete (×) that appear on hover ----
+function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, selected, data }: EdgeProps) {
+  const { deleteElements, setEdges } = useReactFlow();
   const [hovered, setHovered] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  const skipBlur = useRef(false);
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
-  const show = hovered || !!selected;
-  // brief delay on leave so crossing the gap from line → × button doesn't hide it
+  const label = (data as EdgeData | undefined)?.label ?? "";
+  const show = hovered || !!selected || editing;
+  // brief delay on leave so crossing the gap from line → controls doesn't hide them
   const enter = () => { if (hideTimer.current) clearTimeout(hideTimer.current); setHovered(true); };
   const leave = () => { if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => setHovered(false), 80); };
   useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current); }, []);
+
+  const writeLabel = (val: string) =>
+    setEdges((es) => es.map((e) => (e.id === id ? { ...e, data: { ...(e.data as EdgeData), label: val.trim() || undefined } } : e)));
+  const startEdit = () => { setDraft(label); setEditing(true); };
+  const commitEdit = () => { if (skipBlur.current) { skipBlur.current = false; return; } writeLabel(draft); setEditing(false); };
+
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd}
         style={{ ...style, stroke: show ? "#94a3b8" : (style?.stroke as string), strokeWidth: show ? 2 : (style?.strokeWidth as number) }} />
-      {/* invisible wide ribbon over the line so the thin edge is easy to hover */}
+      {/* invisible wide ribbon over the line: hover to reveal controls, click to label */}
       <path d={path} fill="none" stroke="transparent" strokeWidth={24}
         style={{ pointerEvents: "stroke", cursor: "pointer" }}
-        onMouseEnter={enter} onMouseLeave={leave} />
+        onMouseEnter={enter} onMouseLeave={leave}
+        onClick={(e) => { e.stopPropagation(); startEdit(); }} />
       <EdgeLabelRenderer>
-        <button
-          className={cn(
-            "nodrag nopan grid place-items-center size-4 rounded-full border bg-suite-panel transition-opacity duration-150",
-            "border-suite-border text-suite-text-dim hover:text-destructive hover:border-destructive/60",
-            show ? "opacity-100" : "opacity-0",
-          )}
-          style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: show ? "all" : "none", fontSize: 10, lineHeight: 1 }}
-          title="Remove connection"
-          onMouseEnter={enter} onMouseLeave={leave}
-          onClick={(e) => { e.stopPropagation(); void deleteElements({ edges: [{ id }] }); }}
-        >×</button>
+        {(label || show) && (
+          <div
+            className="nodrag nopan flex flex-col items-center gap-1"
+            style={{ position: "absolute", transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`, pointerEvents: "all" }}
+            onMouseEnter={enter} onMouseLeave={leave}
+          >
+            {editing ? (
+              <input
+                autoFocus value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") commitEdit();
+                  else if (e.key === "Escape") { skipBlur.current = true; setEditing(false); }
+                }}
+                onBlur={commitEdit}
+                placeholder="handoff…"
+                className="w-32 bg-suite-bg border border-guide-target rounded-sm px-1.5 py-0.5 text-[9px] font-mono text-suite-text text-center focus:outline-none"
+              />
+            ) : label ? (
+              <button onClick={startEdit} title="Edit this connection's label"
+                className="max-w-[170px] truncate font-mono text-[9px] px-1.5 py-0.5 rounded-sm border border-suite-border bg-suite-panel text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong">
+                {label}
+              </button>
+            ) : (
+              <button onClick={startEdit} title="Add a label to this connection"
+                className="font-mono text-[8.5px] px-1.5 py-0.5 rounded-sm border border-dashed border-suite-border text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong">
+                + label
+              </button>
+            )}
+            {show && !editing && (
+              <button
+                className="grid place-items-center size-4 rounded-full border border-suite-border bg-suite-panel text-suite-text-dim hover:text-destructive hover:border-destructive/60 transition-colors"
+                style={{ fontSize: 10, lineHeight: 1 }}
+                title="Remove connection"
+                onClick={(e) => { e.stopPropagation(); void deleteElements({ edges: [{ id }] }); }}
+              >×</button>
+            )}
+          </div>
+        )}
       </EdgeLabelRenderer>
     </>
   );
@@ -165,7 +206,11 @@ function buildCSV(nodes: Node[], edges: Edge[]): string {
   const header = ["#", "Step", "Owner", "Detail", "Connects To"];
   const rows = nodes.map((n, i) => {
     const d = n.data as StepData;
-    const outs = edges.filter((e) => e.source === n.id).map((e) => labelOf(e.target));
+    const outs = edges.filter((e) => e.source === n.id).map((e) => {
+      const t = labelOf(e.target);
+      const el = (e.data as EdgeData | undefined)?.label;
+      return el ? `${t} (${el})` : t;
+    });
     return [i + 1, d.label, d.owner ?? "", d.detail ?? "", outs.join(" ; ")].map(csvCell).join(",");
   });
   return [header.map(csvCell).join(","), ...rows].join("\r\n");
@@ -415,7 +460,7 @@ function Builder() {
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold flex items-center gap-1.5">
             <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.6} /> Custom Workflow
           </span>
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to arrange · port → port to connect · hover a line for its × · ⌘Z undo</span>
+          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to arrange · port → port to connect · click a line to label it · ⌘Z undo</span>
           <span className="flex-1" />
 
           {/* undo / redo */}
