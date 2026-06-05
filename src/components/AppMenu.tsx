@@ -132,6 +132,22 @@ function About() {
       <P>Camera &amp; codec specs and framing, storage &amp; media planning, ACES mastering and deliverables, editable workflow node-graphs, a post-term glossary, and post calculators (timecode, frame-rate, EDL).</P>
       <H>Why it exists</H>
       <P>To turn the chaos of a modern post pipeline into something you can see, plan and hand off — instead of it living only in one person's head.</P>
+      <H>Why "Kaos Theory"</H>
+      <P>Chaos theory studies systems that look random but actually run on strict, hidden rules. That's modern post exactly — so the name is a working metaphor, not just a vibe:</P>
+      <ul className="space-y-2 mb-3 list-none">
+        {[
+          ["The butterfly effect", "One unapproved frame slip or metadata change in the offline can blow up weeks later — broken VFX plates, drifting audio, a failed conform."],
+          ["Deterministic, but unpredictable", "The rules are rigid — codecs, timecode math, media management — yet with hundreds of hands on the same files, no two runs play out the same."],
+          ["Strange attractors", "However wild it gets, a job always pulls toward the same fixed points: the delivery date, the budget, the spec. That orbit is the logo."],
+          ["Self-similar", "The shape repeats at every scale — a three-act feature mirrors the scene, mirrors a single VFX shot."],
+        ].map(([t, d]) => (
+          <li key={t} className="font-mono text-[12px] leading-relaxed text-suite-text-muted flex gap-2">
+            <span className="text-guide-target mt-0.5 shrink-0">·</span>
+            <span><span className="text-suite-text">{t}.</span> {d}</span>
+          </li>
+        ))}
+      </ul>
+      <P>The point isn't to kill the chaos — it's to see the system, plan for the butterfly, and ride it to the attractor.</P>
     </div>
   );
 }
