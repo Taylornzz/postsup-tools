@@ -111,8 +111,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.93";
+const VERSION = "v1.9.94";
 const CHANGELOG = [
+  "v1.9.94 — Custom Mastering: a small amber hint now appears when your Derived settings (strategy, deliverables, peak nits or ACES version) have changed since you seeded the custom copy — so it's obvious when ‘Re-seed from Mastering’ is worth a click. It clears the moment you re-seed.",
   "v1.9.93 — Mastering Workflow is now customisable: a Derived / Custom toggle. Derived is the same smart auto-built tree (Hero + deliverables → correct order, red up-volume flags). Custom unlocks a fully editable copy of it — drag, rename, connect, add/remove nodes, undo/redo, save named versions and export (PNG/PDF/CSV/JSON), seeded from your current derived tree. Edge colours carry the meaning across (cyan = ACES-managed, red = up-volume re-grade). 'Re-seed from Mastering' refreshes the canvas from Derived after you change strategy or deliverables.",
   "v1.9.92 — Custom Workflow: connections can now carry a label describing the handoff (e.g. 'approved show LUT', 'locked EDL + plates'). Click any line to type one; it shows on the curve and flows through to the CSV and image/PDF exports.",
   "v1.9.91 — Custom Workflow: connections between nodes are now smooth curves (bezier) instead of right-angle steps — easier to follow when nodes branch and cross.",
@@ -448,6 +449,28 @@ const Index = () => {
   );
   const makeMasteringSeed = useCallback(() => masterGraphToFlow(masteringGraph), [masteringGraph]);
   const masteringPalette = useMemo(() => masteringPaletteGroups(), []);
+  // Flag when the live Derived settings have drifted from what the custom copy was seeded with.
+  const masteringSig = useMemo(
+    () => JSON.stringify({ s: masteringStrategy, c: masteringCustom, n: masterNits, v: acesVersion }),
+    [masteringStrategy, masteringCustom, masterNits, acesVersion],
+  );
+  const [masteringSeededSig, setMasteringSeededSig] = useState<string | null>(null);
+  useEffect(() => {
+    if (masteringView !== "custom") return;
+    let stored: string | null = null;
+    try { stored = localStorage.getItem("postsup-mastering-seed-sig"); } catch { /* ignore */ }
+    if (stored == null) {
+      try { localStorage.setItem("postsup-mastering-seed-sig", masteringSig); } catch { /* ignore */ }
+      setMasteringSeededSig(masteringSig);
+    } else {
+      setMasteringSeededSig(stored);
+    }
+  }, [masteringView, masteringSig]);
+  const masteringStale = masteringView === "custom" && masteringSeededSig !== null && masteringSeededSig !== masteringSig;
+  const recordMasteringSeed = useCallback(() => {
+    try { localStorage.setItem("postsup-mastering-seed-sig", masteringSig); } catch { /* ignore */ }
+    setMasteringSeededSig(masteringSig);
+  }, [masteringSig]);
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -1132,11 +1155,18 @@ const Index = () => {
                 {label}
               </button>
             ))}
-            <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline ml-1">
-              {masteringView === "derived"
-                ? "Auto-built from your Hero + deliverables — switch to Custom to edit it freely."
-                : "Editable copy of the derived tree — drag, rename, connect, add/remove, save & export. ‘Re-seed’ refreshes it from Derived."}
-            </span>
+            {masteringStale ? (
+              <span className="font-mono text-[10px] ml-1 flex items-center gap-1.5 text-status-warn">
+                <span className="size-1.5 rounded-full bg-status-warn shrink-0" />
+                Derived settings changed since you seeded this — hit “Re-seed from Mastering” to refresh.
+              </span>
+            ) : (
+              <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline ml-1">
+                {masteringView === "derived"
+                  ? "Auto-built from your Hero + deliverables — switch to Custom to edit it freely."
+                  : "Editable copy of the derived tree — drag, rename, connect, add/remove, save & export. ‘Re-seed’ refreshes it from Derived."}
+              </span>
+            )}
           </div>
           <div className="flex-1 flex min-h-0 min-w-0">
             {masteringView === "custom" ? (
@@ -1147,7 +1177,7 @@ const Index = () => {
                   title="Custom Mastering"
                   makeSeed={makeMasteringSeed}
                   paletteGroups={masteringPalette}
-                  seedActions={[{ label: "Re-seed from Mastering", confirm: "Replace the canvas with a fresh copy of the current derived Mastering tree? (this is undoable)", make: makeMasteringSeed }]}
+                  seedActions={[{ label: "Re-seed from Mastering", confirm: "Replace the canvas with a fresh copy of the current derived Mastering tree? (this is undoable)", make: () => { recordMasteringSeed(); return makeMasteringSeed(); } }]}
                 />
               </Suspense>
             ) : (
