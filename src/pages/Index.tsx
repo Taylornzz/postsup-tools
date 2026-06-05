@@ -80,7 +80,8 @@ import {
   CalendarClock,
   BookText,
   Calculator,
-  Loader2,
+  FolderOpen,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -94,8 +95,7 @@ import { Tools } from "@/components/Tools";
 import { AppMenu } from "@/components/AppMenu";
 import { Vendors } from "@/components/Vendors";
 import { Home, type HomeTab } from "@/components/Home";
-import { ProjectManager } from "@/components/ProjectManager";
-import { getActiveProjectId, setActiveProjectId as persistActiveProjectId, getProject, type Project } from "@/lib/projects";
+import { updateProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
 import { masterGraphToFlow, masteringPaletteGroups } from "@/lib/masteringFlow";
 import referencePerson from "@/assets/reference-bg.jpg";
@@ -117,7 +117,7 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.100";
+export const VERSION = "v1.9.100";
 const CHANGELOG = [
   "v1.9.100 — Removed the tagline strip from the header for a cleaner top bar.",
   "v1.9.99 — New Vendor Directory (top-right menu): 139 verified post-production vendors — facilities, film labs, colour, VFX, audio, DCP/QC, camera rental, plus the global software & hardware the post world runs on. Searchable and filterable by region (AU, NZ, UK, France, Germany, Singapore, Global) and type. Built from the NZ post-super reference + web research, each verified as operating at research time; links open the vendor's site. Confirm current details before relying on a listing.",
@@ -320,7 +320,7 @@ function readSavedSetups(): SavedSetup[] {
   }
 }
 
-const Index = () => {
+const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject: () => void }) => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
@@ -622,7 +622,9 @@ const Index = () => {
   // than the delivery — Netflix-preferred path (8K → 4K, 6K → 4K, etc.).
   const isSupersampled = ext.scale < 0.999;
 
-  // Persist core state to URL (debounced via microtask)
+  // Persist core state to the URL, and (debounced) into the active project's record.
+  const projectRef = useRef(project); projectRef.current = project;
+  const projectSaveTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams();
@@ -658,8 +660,13 @@ const Index = () => {
     if (projectName.trim()) params.set(URL_KEYS.proj, projectName.trim());
     if (authorName.trim()) params.set(URL_KEYS.auth, authorName.trim());
     if (acesVersion !== "2.0") params.set(URL_KEYS.aces, acesVersion);
-    const next = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({}, "", next);
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}?${query}`);
+    // Save this project's full capture state (the URL query) into its record, debounced.
+    if (projectSaveTimer.current) clearTimeout(projectSaveTimer.current);
+    projectSaveTimer.current = setTimeout(() => {
+      updateProject(projectRef.current.id, { data: { ...(projectRef.current.data || {}), url: query } });
+    }, 800);
   }, [
     appTab, sourceId, targetId, codecId, fps, fitMode, viewMode,
     desqueeze, showThirds, showSafeArea, showMask, showGuides, pixelTrue,
@@ -1104,25 +1111,6 @@ const Index = () => {
     acesRef, acesVersion,
   ]);
 
-  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(() => getActiveProjectId());
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
-  const [projectLoading, setProjectLoading] = useState(true);
-  const openProject = (id: string) => { persistActiveProjectId(id); setActiveProjectIdState(id); setAppTab("home"); };
-  const closeProject = () => { persistActiveProjectId(null); setActiveProjectIdState(null); };
-  useEffect(() => {
-    let cancelled = false;
-    if (!activeProjectId) { setActiveProject(null); setProjectLoading(false); return; }
-    setProjectLoading(true);
-    getProject(activeProjectId).then((p) => { if (!cancelled) { setActiveProject(p); setProjectLoading(false); } });
-    return () => { cancelled = true; };
-  }, [activeProjectId]);
-  if (projectLoading) {
-    return <div className="h-dvh w-full bg-suite-bg grid place-items-center"><Loader2 className="size-5 text-suite-text-dim animate-spin" strokeWidth={1.8} /></div>;
-  }
-  if (!activeProject) {
-    return <ProjectManager onOpen={openProject} version={VERSION} />;
-  }
-
   return (
     <div className="h-dvh w-full bg-suite-bg text-suite-text flex flex-col overflow-hidden">
       {/* Top bar */}
@@ -1132,7 +1120,11 @@ const Index = () => {
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
             <button onClick={() => setAppTab("home")} className="text-guide-target hover:opacity-80 transition-opacity" title="Home">KAOS THEORY</button>
             <span className="text-suite-text-dim mx-1">/</span>
-            <button onClick={closeProject} className="text-suite-text hover:text-guide-target transition-colors max-w-[160px] truncate align-bottom" title="Switch project">{activeProject.name}</button>
+            <button onClick={onSwitchProject} className="inline-flex items-center gap-1 text-suite-text hover:text-guide-target hover:border-suite-border-strong transition-colors max-w-[200px] border border-suite-border rounded-sm px-1.5 py-0.5 -my-0.5 align-middle" title="Switch project — back to all projects">
+              <FolderOpen className="size-3 shrink-0 opacity-70" strokeWidth={1.8} />
+              <span className="truncate normal-case tracking-normal">{project.name}</span>
+              <ChevronDown className="size-3 shrink-0 opacity-60" strokeWidth={2} />
+            </button>
             {appTab !== "home" && (
               <>
                 <span className="text-suite-text-dim mx-1">/</span>
@@ -1154,7 +1146,7 @@ const Index = () => {
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
-        <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} />
+        <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onProjects={onSwitchProject} />
       </header>
 
       {appTab === "home" ? (

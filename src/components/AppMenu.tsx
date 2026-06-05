@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight,
+  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ const MENU: { id: Panel; label: string; icon: typeof Info; group: 1 | 2 }[] = [
   { id: "terms", label: "Terms & disclaimer", icon: FileText, group: 2 },
 ];
 
-export function AppMenu({ version, onOpenVendors }: { version: string; onOpenVendors: () => void }) {
+export function AppMenu({ version, onOpenVendors, onProjects }: { version: string; onOpenVendors: () => void; onProjects?: () => void }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
 
@@ -53,6 +53,14 @@ export function AppMenu({ version, onOpenVendors }: { version: string; onOpenVen
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
             <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col">
+              {onProjects && (
+                <>
+                  <button onClick={() => { setOpen(false); onProjects(); }} className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left">
+                    <FolderOpen className="size-3.5 shrink-0 text-suite-text-dim" strokeWidth={1.6} /> All projects
+                  </button>
+                  <div className="my-1 border-t border-suite-border/60" />
+                </>
+              )}
               {MENU.map((m, i) => (
                 <div key={m.id}>
                   {i > 0 && MENU[i - 1].group !== m.group && <div className="my-1 border-t border-suite-border/60" />}
