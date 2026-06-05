@@ -94,6 +94,7 @@ import { Glossary } from "@/components/Glossary";
 import { Tools } from "@/components/Tools";
 import { AppMenu } from "@/components/AppMenu";
 import { Vendors } from "@/components/Vendors";
+import { NewsWatches } from "@/components/NewsWatches";
 import { Home, type HomeTab } from "@/components/Home";
 import { updateProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
@@ -233,7 +234,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors";
+type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news";
 type WorkflowView = "production" | "custom";
 type MasteringView = "derived" | "custom";
 
@@ -324,7 +325,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "frame" ? t : "home";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "frame" ? t : "home";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
     try { return localStorage.getItem(`postsup-workflow-view-${project.id}`) === "custom" ? "custom" : "production"; } catch { return "production"; }
@@ -1136,7 +1137,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
               <>
                 <span className="text-suite-text-dim mx-1">/</span>
                 <span className="text-suite-text">
-                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : "STORAGE"}
+                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : appTab === "news" ? "NEWS WATCHES" : "STORAGE"}
                 </span>
               </>
             )}
@@ -1153,7 +1154,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
-        <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onProjects={onSwitchProject} />
+        <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onOpenNews={() => setAppTab("news")} onProjects={onSwitchProject} />
       </header>
 
       {appTab === "home" ? (
@@ -1171,6 +1172,10 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
       ) : appTab === "vendors" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <Vendors />
+        </main>
+      ) : appTab === "news" ? (
+        <main className="flex-1 flex min-h-0 min-w-0">
+          <NewsWatches />
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">

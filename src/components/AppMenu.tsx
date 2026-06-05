@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen,
+  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen, Newspaper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Panel = "about" | "vendors" | "feedback" | "privacy" | "terms";
 
-const MENU: { id: Panel; label: string; icon: typeof Info; group: 1 | 2 }[] = [
+const MENU: { id: Panel | "news"; label: string; icon: typeof Info; group: 1 | 2 }[] = [
   { id: "about", label: "About", icon: Info, group: 1 },
   { id: "vendors", label: "Vendor directory", icon: Building2, group: 1 },
+  { id: "news", label: "News watches", icon: Newspaper, group: 1 },
   { id: "feedback", label: "Send feedback", icon: MessageSquare, group: 1 },
   { id: "privacy", label: "Privacy", icon: Shield, group: 2 },
   { id: "terms", label: "Terms & disclaimer", icon: FileText, group: 2 },
 ];
 
-export function AppMenu({ version, onOpenVendors, onProjects }: { version: string; onOpenVendors: () => void; onProjects?: () => void }) {
+export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects }: { version: string; onOpenVendors: () => void; onOpenNews?: () => void; onProjects?: () => void }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
 
@@ -65,7 +66,7 @@ export function AppMenu({ version, onOpenVendors, onProjects }: { version: strin
                 <div key={m.id}>
                   {i > 0 && MENU[i - 1].group !== m.group && <div className="my-1 border-t border-suite-border/60" />}
                   <button
-                    onClick={() => { setOpen(false); if (m.id === "vendors") onOpenVendors(); else setPanel(m.id); }}
+                    onClick={() => { setOpen(false); if (m.id === "vendors") onOpenVendors(); else if (m.id === "news") onOpenNews?.(); else setPanel(m.id); }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left"
                   >
                     <m.icon className="size-3.5 shrink-0 text-suite-text-dim" strokeWidth={1.6} /> {m.label}
