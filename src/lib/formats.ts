@@ -2241,9 +2241,9 @@ export type CardSpec = {
   vendors?: string[];
 };
 export const CARDS: CardSpec[] = [
-  { id: "cfx-512",   name: "CFexpress Type B 512 GB", gb: 512,  kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "cfx-1tb",   name: "CFexpress Type B 1 TB",   gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
-  { id: "cfx-2tb",   name: "CFexpress Type B 2 TB",   gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
+  { id: "cfx-512",   name: "CFexpress Type B 512 GB", gb: 512,  kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm"] },
+  { id: "cfx-1tb",   name: "CFexpress Type B 1 TB",   gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm"] },
+  { id: "cfx-2tb",   name: "CFexpress Type B 2 TB",   gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm"] },
   { id: "cfx4-1tb",  name: "CFexpress 4.0 Type B 1 TB", gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
   { id: "cfx4-2tb",  name: "CFexpress 4.0 Type B 2 TB", gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
   { id: "codex-1tb", name: "Codex Compact Drive 1 TB", gb: 1000, kind: "mag",  vendors: ["ARRI"] },
