@@ -90,6 +90,7 @@ import { WorkflowPipeline } from "@/components/WorkflowPipeline";
 import { PostSchedule } from "@/components/PostSchedule";
 import { Glossary } from "@/components/Glossary";
 import { Tools } from "@/components/Tools";
+import { AppMenu } from "@/components/AppMenu";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
 import { masterGraphToFlow, masteringPaletteGroups } from "@/lib/masteringFlow";
 import referencePerson from "@/assets/reference-bg.jpg";
@@ -111,8 +112,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.97";
+const VERSION = "v1.9.98";
 const CHANGELOG = [
+  "v1.9.98 — Header: a Login button (placeholder — accounts coming soon) and a top-right menu. Menu has About (who it's for / what it does / why it exists), Send feedback, Privacy, and Terms & disclaimer — the last one is explicit that every figure is reference-only, things change fast so verify against source, and there's no liability for getting it wrong. Vendor directory is in the menu and is the next build.",
   "v1.9.97 — New favicon to match Kaos Theory: a particle tracing a strange-attractor orbit in the brand orange on the dark tile (SVG + 32px PNG + multi-size .ico), replacing the old framing-bracket icon.",
   "v1.9.96 — Wordmark: “KAOS THEORY” now reads in a single orange across the header and entry screen.",
   "v1.9.95 — Renamed to Kaos Theory — tagline “what you're shooting · who it's for · how it gets there”. The app outgrew “post super”: it's now for the whole capture-to-delivery crew — DITs, camera, editorial, online/assists and audio. Updated the wordmark, entry screen, browser tab + social meta and every export brand mark (framing chart, spec sheet, Camera Report PDF, schedule JSON/iCal, FDL creator). Your saved schedules, custom workflows and plates are untouched.",
@@ -1112,8 +1114,7 @@ const Index = () => {
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
-        {/* Reserved for user login / account (future). */}
-        <div className="flex items-center gap-3" />
+        <AppMenu version={VERSION} />
       </header>
 
       {appTab === "tools" ? (
