@@ -14,7 +14,7 @@ function rank(v: Vendor, n: string): number {
   if (name === n) return 0;
   if (name.startsWith(n)) return 1;
   if (name.includes(n)) return 2;
-  if (v.type.toLowerCase().includes(n)) return 3;
+  if (v.types.some((t) => t.toLowerCase().includes(n))) return 3;
   if ((v.city || "").toLowerCase().includes(n)) return 4;
   if (v.blurb.toLowerCase().includes(n)) return 5;
   return 6;
@@ -31,7 +31,7 @@ export function Vendors() {
 
   const typeCounts = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const v of VENDORS) m[v.type] = (m[v.type] || 0) + 1;
+    for (const v of VENDORS) for (const t of v.types) m[t] = (m[t] || 0) + 1;
     return m;
   }, []);
   const regionCounts = useMemo(() => {
@@ -43,11 +43,11 @@ export function Vendors() {
   const filtered = useMemo(() => {
     return VENDORS.filter((v) => {
       if (region !== "All" && v.region !== region) return false;
-      if (type !== "All" && v.type !== type) return false;
+      if (type !== "All" && !v.types.includes(type)) return false;
       if (!needle) return true;
       return (
         v.name.toLowerCase().includes(needle) ||
-        v.type.toLowerCase().includes(needle) ||
+        v.types.some((t) => t.toLowerCase().includes(needle)) ||
         v.blurb.toLowerCase().includes(needle) ||
         (v.city || "").toLowerCase().includes(needle) ||
         VENDOR_REGION_LABEL[v.region].toLowerCase().includes(needle)
@@ -68,7 +68,7 @@ export function Vendors() {
     if (searching) return [];
     return VENDOR_REGIONS.map((r) => ({
       region: r,
-      items: filtered.filter((v) => v.region === r).sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name)),
+      items: filtered.filter((v) => v.region === r).sort((a, b) => a.types[0].localeCompare(b.types[0]) || a.name.localeCompare(b.name)),
     })).filter((g) => g.items.length > 0);
   }, [filtered, searching]);
 
@@ -80,14 +80,16 @@ export function Vendors() {
       rel="noopener noreferrer"
       className="group flex items-start gap-2.5 py-2.5 hover:bg-suite-panel-elevated/40 -mx-2 px-2 rounded-sm transition-colors"
     >
-      <span className="mt-1 size-2 rounded-full shrink-0" style={{ backgroundColor: VENDOR_TYPE_COLOR[v.type] }} />
+      <span className="mt-1 size-2 rounded-full shrink-0" style={{ backgroundColor: VENDOR_TYPE_COLOR[v.types[0]] }} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2 flex-wrap">
+        <div className="flex items-baseline gap-1.5 flex-wrap">
           <span className="font-mono text-[13px] text-suite-text font-semibold group-hover:text-guide-target">{v.name}</span>
-          <span className="font-mono text-[8.5px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full border"
-            style={{ color: VENDOR_TYPE_COLOR[v.type], borderColor: VENDOR_TYPE_COLOR[v.type] + "66" }}>
-            {v.type}
-          </span>
+          {v.types.map((t) => (
+            <span key={t} className="font-mono text-[8.5px] uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full border"
+              style={{ color: VENDOR_TYPE_COLOR[t], borderColor: VENDOR_TYPE_COLOR[t] + "66" }}>
+              {t}
+            </span>
+          ))}
           <span className="font-mono text-[9.5px] text-suite-text-dim">{VENDOR_REGION_LABEL[v.region]}{v.city ? ` · ${v.city}` : ""}</span>
         </div>
         <p className="font-mono text-[11px] text-suite-text-muted leading-relaxed mt-0.5">{v.blurb}</p>
