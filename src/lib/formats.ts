@@ -2256,6 +2256,20 @@ export const CARDS: CardSpec[] = [
   { id: "axs-2tb",   name: "Sony AXSM A-Series 2 TB",  gb: 2000, kind: "mag",  vendors: ["Sony"] },
   { id: "sd-uhsii-256", name: "SD UHS-II 256 GB",      gb: 256,  kind: "card", vendors: ["Sony", "Canon", "Panasonic", "Blackmagic"] },
   { id: "sd-uhsii-512", name: "SD UHS-II 512 GB",      gb: 512,  kind: "card", vendors: ["Sony", "Canon", "Panasonic", "Blackmagic"] },
+  // microSD — GoPro & DJI consumer/prosumer cameras and drones
+  { id: "msd-256",   name: "microSD UHS-I 256 GB",     gb: 256,  kind: "card", vendors: ["GoPro", "DJI"] },
+  { id: "msd-512",   name: "microSD UHS-I 512 GB",     gb: 512,  kind: "card", vendors: ["GoPro", "DJI"] },
+  { id: "msd-1tb",   name: "microSD UHS-I 1 TB",       gb: 1000, kind: "card", vendors: ["GoPro", "DJI"] },
+  // Panavision Millennium DXL2 — Panavision MINI-MAG (RED MONSTRO sensor, R3D)
+  { id: "pana-mag-480", name: "Panavision MINI-MAG 480 GB", gb: 480, kind: "mag", vendors: ["Panavision"] },
+  { id: "pana-mag-960", name: "Panavision MINI-MAG 960 GB", gb: 960, kind: "mag", vendors: ["Panavision"] },
+  // Phantom Flex4K — CineMag IV
+  { id: "cinemag-1tb", name: "Phantom CineMag IV 1 TB", gb: 1000, kind: "mag", vendors: ["Phantom"] },
+  { id: "cinemag-2tb", name: "Phantom CineMag IV 2 TB", gb: 2000, kind: "mag", vendors: ["Phantom"] },
+  // iPhone — internal storage / USB-C SSD (no removable card slot)
+  { id: "iphone-512", name: "Internal / USB-C SSD 512 GB", gb: 512,  kind: "drive", vendors: ["iPhone"] },
+  { id: "iphone-1tb", name: "Internal / USB-C SSD 1 TB",   gb: 1000, kind: "drive", vendors: ["iPhone"] },
+  { id: "iphone-2tb", name: "Internal / USB-C SSD 2 TB",   gb: 2000, kind: "drive", vendors: ["iPhone"] },
 ];
 
 /** Filter CARDS to those used in a given camera brand (e.g. "ARRI", "RED"). */
