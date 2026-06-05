@@ -15,7 +15,7 @@ const MENU: { id: Panel; label: string; icon: typeof Info; group: 1 | 2 }[] = [
   { id: "terms", label: "Terms & disclaimer", icon: FileText, group: 2 },
 ];
 
-export function AppMenu({ version }: { version: string }) {
+export function AppMenu({ version, onOpenVendors }: { version: string; onOpenVendors: () => void }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
 
@@ -57,7 +57,7 @@ export function AppMenu({ version }: { version: string }) {
                 <div key={m.id}>
                   {i > 0 && MENU[i - 1].group !== m.group && <div className="my-1 border-t border-suite-border/60" />}
                   <button
-                    onClick={() => { setPanel(m.id); setOpen(false); }}
+                    onClick={() => { setOpen(false); if (m.id === "vendors") onOpenVendors(); else setPanel(m.id); }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left"
                   >
                     <m.icon className="size-3.5 shrink-0 text-suite-text-dim" strokeWidth={1.6} /> {m.label}
@@ -96,7 +96,6 @@ function Modal({ panel, onClose, version }: { panel: Panel; onClose: () => void;
         </div>
         <div className="overflow-y-auto px-5 py-4">
           {panel === "about" && <About />}
-          {panel === "vendors" && <VendorsPlaceholder />}
           {panel === "feedback" && <Feedback />}
           {panel === "privacy" && <Privacy />}
           {panel === "terms" && <Terms />}
@@ -124,18 +123,6 @@ function About() {
       <P>Camera &amp; codec specs and framing, storage &amp; media planning, ACES mastering and deliverables, editable workflow node-graphs, a post-term glossary, and post calculators (timecode, frame-rate, EDL).</P>
       <H>Why it exists</H>
       <P>To turn the chaos of a modern post pipeline into something you can see, plan and hand off — instead of it living only in one person's head.</P>
-    </div>
-  );
-}
-
-function VendorsPlaceholder() {
-  return (
-    <div>
-      <P>A searchable, tagged directory of post-production vendors — facilities, film labs, and tools &amp; software — focused on <span className="text-suite-text">Australia, New Zealand, Singapore, the UK, France and Germany</span>.</P>
-      <div className="flex gap-2 rounded-sm border border-suite-border bg-suite-bg px-3 py-2">
-        <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
-        <p className="font-mono text-[11px] leading-relaxed text-suite-text-dim">Building this next — researched and fact-checked, the same way the glossary was. It'll live here as a full searchable list with category + region tags.</p>
-      </div>
     </div>
   );
 }

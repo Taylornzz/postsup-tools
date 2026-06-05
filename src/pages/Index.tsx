@@ -91,6 +91,7 @@ import { PostSchedule } from "@/components/PostSchedule";
 import { Glossary } from "@/components/Glossary";
 import { Tools } from "@/components/Tools";
 import { AppMenu } from "@/components/AppMenu";
+import { Vendors } from "@/components/Vendors";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
 import { masterGraphToFlow, masteringPaletteGroups } from "@/lib/masteringFlow";
 import referencePerson from "@/assets/reference-bg.jpg";
@@ -112,8 +113,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.98";
+const VERSION = "v1.9.99";
 const CHANGELOG = [
+  "v1.9.99 — New Vendor Directory (top-right menu): 139 verified post-production vendors — facilities, film labs, colour, VFX, audio, DCP/QC, camera rental, plus the global software & hardware the post world runs on. Searchable and filterable by region (AU, NZ, UK, France, Germany, Singapore, Global) and type. Built from the NZ post-super reference + web research, each verified as operating at research time; links open the vendor's site. Confirm current details before relying on a listing.",
   "v1.9.98 — Header: a Login button (placeholder — accounts coming soon) and a top-right menu. Menu has About (who it's for / what it does / why it exists), Send feedback, Privacy, and Terms & disclaimer — the last one is explicit that every figure is reference-only, things change fast so verify against source, and there's no liability for getting it wrong. Vendor directory is in the menu and is the next build.",
   "v1.9.97 — New favicon to match Kaos Theory: a particle tracing a strange-attractor orbit in the brand orange on the dark tile (SVG + 32px PNG + multi-size .ico), replacing the old framing-bracket icon.",
   "v1.9.96 — Wordmark: “KAOS THEORY” now reads in a single orange across the header and entry screen.",
@@ -226,7 +228,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools";
+type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors";
 type WorkflowView = "production" | "custom";
 type MasteringView = "derived" | "custom";
 
@@ -317,7 +319,7 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" ? t : "frame";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
     try { return localStorage.getItem("postsup-workflow-view") === "custom" ? "custom" : "production"; } catch { return "production"; }
@@ -1098,7 +1100,7 @@ const Index = () => {
             <span className="text-guide-target">KAOS THEORY</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : "STORAGE"}
+              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
@@ -1114,7 +1116,7 @@ const Index = () => {
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
-        <AppMenu version={VERSION} />
+        <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} />
       </header>
 
       {appTab === "tools" ? (
@@ -1124,6 +1126,10 @@ const Index = () => {
       ) : appTab === "glossary" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <Glossary />
+        </main>
+      ) : appTab === "vendors" ? (
+        <main className="flex-1 flex min-h-0 min-w-0">
+          <Vendors />
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
