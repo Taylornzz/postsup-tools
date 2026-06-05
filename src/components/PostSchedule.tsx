@@ -45,9 +45,9 @@ const KEY_START = "postsup-gantt-start";
 const KEY_VERSIONS = "postsup-gantt-versions";
 
 type Version = { id: string; name: string; savedAt: string; startDate: string; bars: Bar[] };
-function loadVersions(): Version[] {
+function loadVersions(key: string): Version[] {
   try {
-    const arr = JSON.parse(localStorage.getItem(KEY_VERSIONS) || "[]");
+    const arr = JSON.parse(localStorage.getItem(key) || "[]");
     return Array.isArray(arr) ? arr.filter((v) => v && Array.isArray(v.bars)) : [];
   } catch { return []; }
 }
@@ -103,9 +103,9 @@ function fmtDate(d: Date): string {
 
 const seedBars = (): Bar[] => SEED.map((b) => ({ ...b, id: uid() }));
 
-function loadBars(): Bar[] {
+function loadBars(key: string): Bar[] {
   try {
-    const raw = localStorage.getItem(KEY_BARS);
+    const raw = localStorage.getItem(key);
     if (raw === null) return seedBars(); // first visit → start pre-filled with the template
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return seedBars();
@@ -115,13 +115,15 @@ function loadBars(): Bar[] {
   }
 }
 
-export function PostSchedule({ projectName }: { projectName?: string }) {
-  const [bars, setBars] = useState<Bar[]>(loadBars);
-  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(KEY_START) || mondayOf(localISO(new Date())));
+export function PostSchedule({ projectName, projectId }: { projectName?: string; projectId?: string }) {
+  const suffix = projectId ? `-${projectId}` : "";
+  const kBars = KEY_BARS + suffix, kStart = KEY_START + suffix, kVersions = KEY_VERSIONS + suffix;
+  const [bars, setBars] = useState<Bar[]>(() => loadBars(kBars));
+  const [startDate, setStartDate] = useState<string>(() => localStorage.getItem(kStart) || mondayOf(localISO(new Date())));
   const [weekW, setWeekW] = useState<number>(WEEK_W_DEFAULT);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null); // which bar's date editor is open (plain click only)
-  const [versions, setVersions] = useState<Version[]>(loadVersions);
+  const [versions, setVersions] = useState<Version[]>(() => loadVersions(kVersions));
   const [verName, setVerName] = useState("");
   const [showSave, setShowSave] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -136,9 +138,9 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
   const selRef = useRef(selectedIds);
   selRef.current = selectedIds;
 
-  useEffect(() => { try { localStorage.setItem(KEY_BARS, JSON.stringify(bars)); } catch { /* ignore */ } }, [bars]);
-  useEffect(() => { try { localStorage.setItem(KEY_START, startDate); } catch { /* ignore */ } }, [startDate]);
-  useEffect(() => { try { localStorage.setItem(KEY_VERSIONS, JSON.stringify(versions)); } catch { /* ignore */ } }, [versions]);
+  useEffect(() => { try { localStorage.setItem(kBars, JSON.stringify(bars)); } catch { /* ignore */ } }, [bars, kBars]);
+  useEffect(() => { try { localStorage.setItem(kStart, startDate); } catch { /* ignore */ } }, [startDate, kStart]);
+  useEffect(() => { try { localStorage.setItem(kVersions, JSON.stringify(versions)); } catch { /* ignore */ } }, [versions, kVersions]);
 
   const anchor = useMemo(() => mondayOf(startDate || localISO(new Date())), [startDate]);
   const maxEnd = bars.reduce((m, b) => Math.max(m, b.start + Math.max(b.dur, 1)), 0);

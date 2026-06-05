@@ -327,13 +327,13 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
     return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "frame" ? t : "home";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
-    try { return localStorage.getItem("postsup-workflow-view") === "custom" ? "custom" : "production"; } catch { return "production"; }
+    try { return localStorage.getItem(`postsup-workflow-view-${project.id}`) === "custom" ? "custom" : "production"; } catch { return "production"; }
   });
-  useEffect(() => { try { localStorage.setItem("postsup-workflow-view", workflowView); } catch { /* ignore */ } }, [workflowView]);
+  useEffect(() => { try { localStorage.setItem(`postsup-workflow-view-${project.id}`, workflowView); } catch { /* ignore */ } }, [workflowView, project.id]);
   const [masteringView, setMasteringView] = useState<MasteringView>(() => {
-    try { return localStorage.getItem("postsup-mastering-view") === "custom" ? "custom" : "derived"; } catch { return "derived"; }
+    try { return localStorage.getItem(`postsup-mastering-view-${project.id}`) === "custom" ? "custom" : "derived"; } catch { return "derived"; }
   });
-  useEffect(() => { try { localStorage.setItem("postsup-mastering-view", masteringView); } catch { /* ignore */ } }, [masteringView]);
+  useEffect(() => { try { localStorage.setItem(`postsup-mastering-view-${project.id}`, masteringView); } catch { /* ignore */ } }, [masteringView, project.id]);
   const [lastTab, setLastTab] = useState<HomeTab | null>(() => {
     try { const v = localStorage.getItem("kaos-last-tab"); return v ? (v as HomeTab) : null; } catch { return null; }
   });
@@ -455,12 +455,19 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   );
   // Mastering config — lifted here so the Mastering tab AND the Workflow tab
   // (which reflects it) share one source of truth.
-  const [masteringStrategy, setMasteringStrategy] = useState<MasteringStrategy>("hdr-first");
-  const [masterNits, setMasterNits] = useState<MasterNits>(1000);
-  const [masteringCustom, setMasteringCustom] = useState<CustomConfig>({
+  const mConfigKey = `postsup-mastering-config-${project.id}`;
+  const readMConfig = (): { strategy?: MasteringStrategy; nits?: MasterNits; custom?: CustomConfig } => {
+    try { const r = localStorage.getItem(mConfigKey); return r ? JSON.parse(r) : {}; } catch { return {}; }
+  };
+  const [masteringStrategy, setMasteringStrategy] = useState<MasteringStrategy>(() => readMConfig().strategy ?? "hdr-first");
+  const [masterNits, setMasterNits] = useState<MasterNits>(() => readMConfig().nits ?? 1000);
+  const [masteringCustom, setMasteringCustom] = useState<CustomConfig>(() => readMConfig().custom ?? {
     hero: "streaming-hdr",
     deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"],
   });
+  useEffect(() => {
+    try { localStorage.setItem(mConfigKey, JSON.stringify({ strategy: masteringStrategy, nits: masterNits, custom: masteringCustom })); } catch { /* ignore */ }
+  }, [masteringStrategy, masterNits, masteringCustom, mConfigKey]);
   // Derived mastering graph → editable-builder seed (for the Custom mastering view).
   const masteringGraph = useMemo(
     () => masteringStrategy === "custom"
@@ -479,9 +486,9 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   useEffect(() => {
     if (masteringView !== "custom") return;
     let stored: string | null = null;
-    try { stored = localStorage.getItem("postsup-mastering-seed-sig"); } catch { /* ignore */ }
+    try { stored = localStorage.getItem(`postsup-mastering-seed-sig-${project.id}`); } catch { /* ignore */ }
     if (stored == null) {
-      try { localStorage.setItem("postsup-mastering-seed-sig", masteringSig); } catch { /* ignore */ }
+      try { localStorage.setItem(`postsup-mastering-seed-sig-${project.id}`, masteringSig); } catch { /* ignore */ }
       setMasteringSeededSig(masteringSig);
     } else {
       setMasteringSeededSig(stored);
@@ -489,7 +496,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   }, [masteringView, masteringSig]);
   const masteringStale = masteringView === "custom" && masteringSeededSig !== null && masteringSeededSig !== masteringSig;
   const recordMasteringSeed = useCallback(() => {
-    try { localStorage.setItem("postsup-mastering-seed-sig", masteringSig); } catch { /* ignore */ }
+    try { localStorage.setItem(`postsup-mastering-seed-sig-${project.id}`, masteringSig); } catch { /* ignore */ }
     setMasteringSeededSig(masteringSig);
   }, [masteringSig]);
   // Delivery-intent crop (drawn on top of the source extraction frame)
@@ -1167,7 +1174,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
-          <PostSchedule projectName={projectName} />
+          <PostSchedule projectName={projectName} projectId={project.id} />
         </main>
       ) : appTab === "workflow" ? (
         <main className="flex-1 flex flex-col min-h-0 min-w-0">
@@ -1183,7 +1190,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <div className="flex-1 flex min-h-0 min-w-0">
             {workflowView === "custom" ? (
               <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading…</div>}>
-                <WorkflowBuilder />
+                <WorkflowBuilder storageKey={`postsup-builder-${project.id}`} versionsKey={`postsup-builder-versions-${project.id}`} />
               </Suspense>
             ) : (
               <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} config={pipelineConfig} />
@@ -1217,8 +1224,8 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
             {masteringView === "custom" ? (
               <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading…</div>}>
                 <WorkflowBuilder
-                  storageKey="postsup-mastering-builder-v1"
-                  versionsKey="postsup-mastering-builder-versions"
+                  storageKey={`postsup-mastering-builder-${project.id}`}
+                  versionsKey={`postsup-mastering-builder-versions-${project.id}`}
                   title="Custom Mastering"
                   makeSeed={makeMasteringSeed}
                   paletteGroups={masteringPalette}
