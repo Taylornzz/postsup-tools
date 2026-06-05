@@ -52,7 +52,7 @@ export const VENDORS: Vendor[] = [
   // ---- New Zealand ----
   { name: "Park Road Post", types: ["Post facility", "Colour", "Audio", "DIT/Dailies", "Film lab", "DCP/QC", "Studio"], region: "NZ", city: "Wellington", blurb: "Premier feature finishing — sound, DI, film lab, DCP", url: "https://www.parkroad.co.nz" },
   { name: "Department of Post", types: ["Post facility", "Colour", "VFX", "Audio", "DIT/Dailies", "DCP/QC"], region: "NZ", city: "Auckland", blurb: "End-to-end editorial, picture finishing and audio", url: "https://www.departmentofpost.com" },
-  { name: "Images & Sound", types: ["Post facility", "Colour", "VFX", "Animation", "Audio"], region: "NZ", city: "Auckland", blurb: "Complete post: grade, VFX, Atmos sound, ADR", url: "https://www.imagesandsound.co.nz" },
+  { name: "Images & Sound", types: ["Post facility", "Colour", "VFX", "Animation", "Audio", "DIT/Dailies"], region: "NZ", city: "Auckland", blurb: "Complete post: grade, VFX, Atmos sound, ADR", url: "https://www.imagesandsound.co.nz" },
   { name: "Pinnacle Post", types: ["Post facility", "Colour", "Audio", "VFX"], region: "NZ", city: "Auckland", blurb: "Boutique sound and picture for film/episodic", url: "https://www.pinnaclepost.co.nz" },
   { name: "Toybox", types: ["Post facility", "VFX", "Animation", "Colour"], region: "NZ", city: "Auckland", blurb: "VFX, animation and post for screen", url: "https://www.toybox.co.nz" },
   { name: "POW Studios", types: ["Post facility", "VFX", "Colour", "Animation"], region: "NZ", city: "Wellington", blurb: "VFX, picture post, grading, projection", url: "https://powpost.co.nz" },
@@ -83,6 +83,8 @@ export const VENDORS: Vendor[] = [
   { name: "Bigpop Studios", types: ["Audio"], region: "NZ", city: "Auckland", blurb: "Music recording and sound post studio", url: "https://www.bigpopstudios.com" },
   { name: "Nektar", types: ["DIT/Dailies"], region: "NZ", city: "Wellington", blurb: "DIT and dailies, video playback systems", url: "https://nektar.co.nz" },
   { name: "The Rebel Fleet", types: ["DIT/Dailies", "Post facility"], region: "NZ", city: "Auckland", blurb: "Video assist, DIT and dailies services", url: "https://www.rebelfleet.co.nz" },
+  { name: "Halcyon Digital", types: ["DIT/Dailies"], region: "NZ", city: "Auckland", blurb: "DIT, data management and QTake video playback", url: "https://halcyon.digital" },
+  { name: "DVANZ", types: ["DIT/Dailies", "Camera rental"], region: "NZ", city: "Auckland", blurb: "Video assist, DIT and on-set data management", url: "https://www.dvanz.co.nz" },
   { name: "Philmhaus", types: ["DCP/QC"], region: "NZ", city: "Wellington", blurb: "Digital cinema package creation and QC", url: "https://www.philmhaus.com" },
   { name: "Able", types: ["Captions"], region: "NZ", city: "Auckland", blurb: "NZ's leading captioning and subtitling service", url: "https://able.co.nz" },
   { name: "Portsmouth", types: ["Camera rental"], region: "NZ", city: "Wellington", blurb: "Camera, lighting and grip equipment rental", url: "https://portsmouth.co.nz" },
@@ -100,6 +102,10 @@ export const VENDORS: Vendor[] = [
 
   // ---- Australia ----
   { name: "Spectrum Films", types: ["Post facility", "Colour", "VFX", "Audio", "DCP/QC"], region: "AU", city: "Sydney", blurb: "Picture, sound and VFX; family-run since 1964", url: "https://spectrumfilms.com.au" },
+  { name: "Cutting Edge", types: ["Post facility", "DIT/Dailies", "VFX", "Colour", "Audio"], region: "AU", city: "Brisbane", blurb: "Full-service post with dailies and DIT", url: "https://www.cuttingedge.com.au" },
+  { name: "KOJO", types: ["Post facility", "DIT/Dailies", "VFX", "Colour"], region: "AU", city: "Adelaide", blurb: "Lens-to-screen post, data management and DI", url: "https://kojo.co" },
+  { name: "The Post Lounge", types: ["Post facility", "DIT/Dailies", "Colour", "VFX", "Audio"], region: "AU", city: "Sydney", blurb: "Near-set and in-facility dailies, data services", url: "https://www.thepostlounge.com" },
+  { name: "ZIGZAG Post", types: ["Post facility", "DIT/Dailies", "Colour", "Audio", "DCP/QC"], region: "AU", city: "Sydney", blurb: "Dailies processing, colour grade and mastering", url: "https://www.zigzagpost.com" },
   { name: "Eden Studios", types: ["Colour"], region: "AU", city: "Sydney", blurb: "Dolby Vision / Atmos grade and finish facility", url: "https://edenstudios.com.au" },
   { name: "Rising Sun Pictures", types: ["VFX"], region: "AU", city: "Adelaide", blurb: "Hollywood feature VFX; Adelaide and Brisbane", url: "https://rsp.com.au" },
   { name: "FIN Design + Effects", types: ["VFX"], region: "AU", city: "Sydney", blurb: "VFX and design; Sydney, Melbourne, Gold Coast", url: "https://www.findesign.com.au" },
@@ -129,8 +135,12 @@ export const VENDORS: Vendor[] = [
   { name: "Picture Shop", types: ["Post facility", "Colour", "VFX", "Audio", "DIT/Dailies", "Studio"], region: "UK", city: "London", blurb: "Editorial, colour, sound, VFX, dailies", url: "https://www.pictureshop.com" },
   { name: "Films at 59", types: ["Post facility", "Colour", "Audio", "DIT/Dailies"], region: "UK", city: "Bristol", blurb: "Picture/sound post and equipment hire", url: "https://filmsat59.com" },
   { name: "Twickenham Film Studios", types: ["Post facility"], region: "UK", city: "London", blurb: "Sound dubbing, ADR, cutting rooms", url: "https://www.twickenhamstudios.com" },
-  { name: "Company 3 London", types: ["Colour"], region: "UK", city: "London", blurb: "Feature/episodic colour grading, Chancery Lane", url: "https://www.company3.com/locations/london" },
-  { name: "Mission Digital", types: ["Colour"], region: "UK", city: "Shepperton", blurb: "HDR grading, dailies and DIT services", url: "https://www.missiondigital.co.uk" },
+  { name: "Company 3 London", types: ["Colour", "DIT/Dailies"], region: "UK", city: "London", blurb: "Feature/episodic colour grading, Chancery Lane", url: "https://www.company3.com/locations/london" },
+  { name: "Mission Digital", types: ["DIT/Dailies", "Colour"], region: "UK", city: "Shepperton", blurb: "HDR grading, dailies and DIT services", url: "https://www.missiondigital.co.uk" },
+  { name: "HIJACK Post Production", types: ["DIT/Dailies", "Post facility", "DCP/QC"], region: "UK", city: "London", blurb: "On-set DIT, data management and digital dailies", url: "https://hijackpost.com" },
+  { name: "Notorious DIT", types: ["DIT/Dailies"], region: "UK", city: "London", blurb: "On-set DIT, data management and dailies lab", url: "https://notorious-dit.co.uk" },
+  { name: "Digital Orchard Group", types: ["DIT/Dailies", "Film lab"], region: "UK", city: "Chalfont St Giles", blurb: "DITs, data managers, dailies and film scanning", url: "https://digitalorchardgroup.com" },
+  { name: "Pixel and Process", types: ["DIT/Dailies"], region: "UK", city: "Cardiff", blurb: "Digital dailies, DIT and camera-to-post workflow", url: "https://pixelandprocess.co.uk" },
   { name: "Coffee & TV", types: ["Colour"], region: "UK", city: "London", blurb: "Colour, VFX and finishing for film/TV", url: "https://coffeeand.tv" },
   { name: "Framestore", types: ["VFX"], region: "UK", city: "London", blurb: "Oscar-winning feature and episodic VFX", url: "https://www.framestore.com" },
   { name: "DNEG", types: ["VFX"], region: "UK", city: "London", blurb: "Academy Award-winning VFX, Fitzrovia", url: "https://www.dneg.com" },
@@ -170,6 +180,7 @@ export const VENDORS: Vendor[] = [
   { name: "RVZ", types: ["Camera rental"], region: "France", city: "Ivry-sur-Seine", blurb: "Camera, lens and lighting rental, Paris", url: "https://rvz-location.fr" },
   { name: "TSF", types: ["Camera rental"], region: "France", city: "Paris", blurb: "Camera, grip, lighting, studios and backlots", url: "https://groupe-tsf.com" },
   { name: "Transpacam", types: ["Camera rental"], region: "France", city: "Gennevilliers", blurb: "Camera and lens rental for film, TV", url: "https://www.transpacam.com" },
+  { name: "Be4Post", types: ["DIT/Dailies", "Hardware", "Storage/transfer"], region: "France", city: "Paris", blurb: "DIT stations, dailies prep and data management", url: "https://www.be4post.com" },
 
   // ---- Germany ----
   { name: "Cine Plus", types: ["Post facility", "Colour", "VFX", "Animation", "Audio", "DCP/QC", "Camera rental", "Studio"], region: "Germany", city: "Berlin", blurb: "Full-service production, post and rental", url: "https://www.cine-plus.de" },
@@ -235,17 +246,22 @@ export const VENDORS: Vendor[] = [
 
   // ---- Global film labs ----
   { name: "Kodak", types: ["Film lab"], region: "Global", city: "Rochester", blurb: "Motion picture film stock and processing", url: "https://www.kodak.com/en/motion" },
-  { name: "FotoKem", types: ["Film lab", "Colour", "DCP/QC"], region: "US", city: "Burbank", blurb: "Full-service film lab, post and finishing — LA", url: "https://fotokem.com" },
+  { name: "FotoKem", types: ["Film lab", "Colour", "DCP/QC", "DIT/Dailies"], region: "US", city: "Burbank", blurb: "Full-service film lab, post and finishing — LA", url: "https://fotokem.com" },
   { name: "Cinelab (US)", types: ["Film lab"], region: "US", city: "New Bedford", blurb: "8/16/35mm processing, scanning, film-out", url: "https://www.cinelab.com" },
 
   // ---- Global DCP / QC / finishing ----
-  { name: "Company 3", types: ["Colour", "VFX", "DCP/QC"], region: "US", city: "Los Angeles", blurb: "Leading global colour and finishing", url: "https://www.company3.com" },
+  { name: "Company 3", types: ["Colour", "VFX", "DCP/QC", "DIT/Dailies"], region: "US", city: "Los Angeles", blurb: "Leading global colour and finishing", url: "https://www.company3.com" },
   { name: "Deluxe", types: ["DCP/QC", "Captions"], region: "US", city: "Los Angeles", blurb: "Global post, localization and distribution", url: "https://www.bydeluxe.com" },
   { name: "Visual Data Media Services", types: ["DCP/QC", "Captions"], region: "US", city: "Burbank", blurb: "Media supply chain, QC, localization", url: "https://www.visualdatamedia.com" },
   { name: "Pixelogic", types: ["DCP/QC", "Captions"], region: "US", city: "Burbank", blurb: "Localization, DCP mastering and distribution", url: "https://pixelogicmedia.com" },
   { name: "Iyuno", types: ["DCP/QC", "Captions"], region: "US", city: "Burbank", blurb: "World's largest media localization company", url: "https://iyuno.com" },
   { name: "EIKON Group", types: ["DCP/QC", "Captions"], region: "UK", city: "London", blurb: "Content mastering, QC and localization", url: "https://eikon.group" },
-  { name: "Roundabout Entertainment", types: ["DCP/QC", "Audio"], region: "US", city: "Burbank", blurb: "Mastering, restoration, audio and DCP", url: "https://www.roundabout.com" },
+  { name: "Roundabout Entertainment", types: ["DCP/QC", "Audio", "DIT/Dailies"], region: "US", city: "Burbank", blurb: "Mastering, restoration, audio and DCP", url: "https://www.roundabout.com" },
+  { name: "Light Iron", types: ["DIT/Dailies", "Colour", "Post facility"], region: "US", city: "Los Angeles", blurb: "In-facility, near-set and remote dailies, colour", url: "https://www.lightiron.com" },
+  { name: "Pictureshop", types: ["DIT/Dailies", "Colour", "Post facility"], region: "US", city: "Los Angeles", blurb: "In-facility, near-set and remote dailies", url: "https://www.pictureshop.com" },
+  { name: "Nice Shoes", types: ["DIT/Dailies", "Colour"], region: "US", city: "New York", blurb: "On-location, near-set and remote dailies, colour", url: "https://www.niceshoes.com" },
+  { name: "Harbor", types: ["DIT/Dailies", "Colour", "Post facility"], region: "US", city: "New York", blurb: "Near-set and virtual-lab dailies, colour, finishing", url: "https://harborpicturecompany.com" },
+  { name: "Goldcrest Post New York", types: ["DIT/Dailies", "Post facility", "Audio"], region: "US", city: "New York", blurb: "On-set dailies and feature/TV picture finishing", url: "https://www.goldcrestpostny.com" },
 
   // ---- Captions / transcripts ----
   { name: "Rev", types: ["Captions"], region: "US", city: "Austin", blurb: "Human/AI transcription, captions, subtitles", url: "https://www.rev.com" },
