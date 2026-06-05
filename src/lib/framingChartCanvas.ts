@@ -42,7 +42,7 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
     protection = 0,
     showThirds = false,
     showSafeArea = false,
-    creator = "PostSup Tools",
+    creator = "Kaos Theory",
     projectName,
     authorName,
     referenceImage = null,
@@ -255,10 +255,10 @@ export function renderFramingChart(opts: ChartOptions): HTMLCanvasElement {
   const brandY = frame.y + frame.h * 0.28;
   ctx.fillStyle = TEXT;
   ctx.font = `700 ${font * 2.6}px ui-monospace, Menlo, Consolas, monospace`;
-  ctx.fillText("POSTSUP TOOLS", cx, brandY);
+  ctx.fillText("KAOS THEORY", cx, brandY);
   ctx.fillStyle = FRAME_LINE;
   ctx.font = `${font * 1.05}px ui-monospace, Menlo, Consolas, monospace`;
-  ctx.fillText("F R A M E   M A T R I X", cx, brandY + font * 2.1);
+  ctx.fillText("F R A M I N G   C H A R T", cx, brandY + font * 2.1);
   ctx.restore();
   ctx.textAlign = "left";
 

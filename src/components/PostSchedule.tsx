@@ -370,7 +370,7 @@ export function PostSchedule({ projectName }: { projectName?: string }) {
         if (!Array.isArray(bars)) throw new Error("no bars");
         applyImported(bars, typeof data.startDate === "string" ? data.startDate : undefined);
         setShowSave(false);
-      } catch { window.alert("That doesn't look like a PostSup schedule JSON file."); }
+      } catch { window.alert("That doesn't look like a Kaos Theory schedule JSON file."); }
     });
   }
   function deleteVersion(id: string) { setVersions((vs) => vs.filter((v) => v.id !== id)); }

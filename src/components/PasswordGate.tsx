@@ -30,9 +30,12 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-suite-bg px-6">
       <form onSubmit={submit} className="w-full max-w-xs flex flex-col gap-4 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
-          <span className="font-mono text-sm tracking-[0.22em] uppercase text-suite-text">PostSup Tools</span>
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex items-center justify-center gap-2">
+            <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
+            <span className="font-mono text-sm tracking-[0.22em] uppercase text-suite-text">KAOS<span className="text-guide-target"> THEORY</span></span>
+          </div>
+          <span className="font-mono text-[10px] text-suite-text-dim tracking-wide">what you're shooting · who it's for · how it gets there</span>
         </div>
         <p className="font-mono text-[11px] text-suite-text-dim leading-relaxed">Private preview — enter the password to continue.</p>
         <input

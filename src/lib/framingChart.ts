@@ -108,7 +108,7 @@ export function buildFdl({
   source,
   target,
   protection = 0,
-  creator = "PostSup Tools",
+  creator = "Kaos Theory",
   secondaryCropAR = null,
 }: FramingChartParams): Fdl {
   const W = source.width;

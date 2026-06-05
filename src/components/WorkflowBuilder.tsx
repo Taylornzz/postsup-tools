@@ -267,7 +267,7 @@ async function exportImage(kind: "png" | "pdf", base: string, nodes: Node[]) {
   const scale = Math.min((pw - margin * 2) / w, (ph - margin * 2) / h);
   const iw = w * scale, ih = h * scale;
   pdf.setFontSize(9); pdf.setTextColor(120);
-  pdf.text("PostSup Tools — Custom Workflow", margin, margin - 8);
+  pdf.text("Kaos Theory — Custom Workflow", margin, margin - 8);
   pdf.addImage(dataUrl, "PNG", (pw - iw) / 2, (ph - ih) / 2, iw, ih);
   pdf.save(`${base}.pdf`);
 }
@@ -430,7 +430,7 @@ function Builder({
     setShowExport(false);
     if (!nodesRef.current.length) { toast.error("Nothing to export."); return; }
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "workflow";
-    const base = `postsup-${slug}-${new Date().toISOString().slice(0, 10)}`;
+    const base = `kaos-${slug}-${new Date().toISOString().slice(0, 10)}`;
     try {
       if (fmt === "csv") downloadText(buildCSV(nodesRef.current, edgesRef.current), `${base}.csv`, "text/csv;charset=utf-8");
       else if (fmt === "json") downloadText(JSON.stringify({ nodes: clean(nodesRef.current), edges: edgesRef.current }, null, 2), `${base}.json`, "application/json");

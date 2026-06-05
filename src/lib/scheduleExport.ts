@@ -52,7 +52,7 @@ function downloadDataUrl(filename: string, dataUrl: string) {
 
 // ---- text builders ----
 function buildJSON(ctx: ExportCtx): string {
-  return JSON.stringify({ product: "PostSup Tools — Post Schedule", startDate: ctx.startDate, bars: ctx.bars }, null, 2);
+  return JSON.stringify({ product: "Kaos Theory — Post Schedule", startDate: ctx.startDate, bars: ctx.bars }, null, 2);
 }
 function buildCSV(ctx: ExportCtx): string {
   const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
@@ -70,7 +70,7 @@ function icsStamp(d: Date): string {
 function buildICS(ctx: ExportCtx): string {
   const esc = (s: string) => s.replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
   const stamp = icsStamp(new Date());
-  const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PostSup Tools//Post Schedule//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+  const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Kaos Theory//Post Schedule//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
   for (const b of ctx.bars) {
     const startISO = dateAtISO(ctx.anchor, b.start);
     const endISO = b.dur === 0 ? addDaysISO(startISO, 1) : dateAtISO(ctx.anchor, b.start + b.dur);

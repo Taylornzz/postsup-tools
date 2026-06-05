@@ -111,8 +111,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.94";
+const VERSION = "v1.9.95";
 const CHANGELOG = [
+  "v1.9.95 — Renamed to Kaos Theory — tagline “what you're shooting · who it's for · how it gets there”. The app outgrew “post super”: it's now for the whole capture-to-delivery crew — DITs, camera, editorial, online/assists and audio. Updated the wordmark, entry screen, browser tab + social meta and every export brand mark (framing chart, spec sheet, Camera Report PDF, schedule JSON/iCal, FDL creator). Your saved schedules, custom workflows and plates are untouched.",
   "v1.9.94 — Custom Mastering: a small amber hint now appears when your Derived settings (strategy, deliverables, peak nits or ACES version) have changed since you seeded the custom copy — so it's obvious when ‘Re-seed from Mastering’ is worth a click. It clears the moment you re-seed.",
   "v1.9.93 — Mastering Workflow is now customisable: a Derived / Custom toggle. Derived is the same smart auto-built tree (Hero + deliverables → correct order, red up-volume flags). Custom unlocks a fully editable copy of it — drag, rename, connect, add/remove nodes, undo/redo, save named versions and export (PNG/PDF/CSV/JSON), seeded from your current derived tree. Edge colours carry the meaning across (cyan = ACES-managed, red = up-volume re-grade). 'Re-seed from Mastering' refreshes the canvas from Derived after you change strategy or deliverables.",
   "v1.9.92 — Custom Workflow: connections can now carry a label describing the handoff (e.g. 'approved show LUT', 'locked EDL + plates'). Click any line to type one; it shows on the curve and flows through to the CSV and image/PDF exports.",
@@ -850,7 +851,7 @@ const Index = () => {
       ? `  Aspect     : Sensor ${sensorAspectName} (${sensorAspectDec}) · Image ${srcAspectName} (${srcAspectDec})`
       : `  Aspect     : ${srcAspectName} (${srcAspectDec})`;
     const lines = [
-      `POSTSUP TOOLS — SPEC SHEET ${VERSION}`,
+      `KAOS THEORY — SPEC SHEET ${VERSION}`,
       projectName.trim() ? `  Project    : ${projectName.trim()}` : "",
       authorName.trim() ? `  Author     : ${authorName.trim()}` : "",
       `  Date       : ${new Date().toISOString().slice(0, 10)}`,
@@ -920,7 +921,7 @@ const Index = () => {
         const proj = projectName.trim();
         const author = authorName.trim();
         // FDL/text creator string carries project + DP so the metadata travels.
-        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}PostSup Tools ${VERSION}`;
+        const creator = `${proj ? proj + " — " : ""}${author ? author + " — " : ""}Kaos Theory ${VERSION}`;
         // The chart/FDL is the NEUTRAL delivery framing reference (ASC convention) —
         // live punch-in / reframe are shot-level previews and are not baked in. Warn
         // so the operator isn't misled into thinking the export captured them.
@@ -957,7 +958,7 @@ const Index = () => {
           protection,
           showThirds,
           showSafeArea,
-          creator: `PostSup Tools ${VERSION}`,
+          creator: `Kaos Theory ${VERSION}`,
           projectName: proj || undefined,
           authorName: author || undefined,
           referenceImage: refEl,
@@ -1090,13 +1091,14 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
-            <span className="text-suite-text-muted">POSTSUP TOOLS</span>
+            <span className="text-suite-text">KAOS<span className="text-guide-target"> THEORY</span></span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
               {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : "STORAGE"}
             </span>
           </h1>
           <VersionBadge />
+          <span className="hidden xl:inline font-mono text-[10px] text-suite-text-dim tracking-wide ml-1 normal-case">what you're shooting · who it's for · how it gets there</span>
         </div>
         <div className="flex items-center gap-2">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
