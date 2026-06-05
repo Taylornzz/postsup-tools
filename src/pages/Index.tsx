@@ -111,8 +111,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.95";
+const VERSION = "v1.9.96";
 const CHANGELOG = [
+  "v1.9.96 — Wordmark: “KAOS THEORY” now reads in a single orange across the header and entry screen.",
   "v1.9.95 — Renamed to Kaos Theory — tagline “what you're shooting · who it's for · how it gets there”. The app outgrew “post super”: it's now for the whole capture-to-delivery crew — DITs, camera, editorial, online/assists and audio. Updated the wordmark, entry screen, browser tab + social meta and every export brand mark (framing chart, spec sheet, Camera Report PDF, schedule JSON/iCal, FDL creator). Your saved schedules, custom workflows and plates are untouched.",
   "v1.9.94 — Custom Mastering: a small amber hint now appears when your Derived settings (strategy, deliverables, peak nits or ACES version) have changed since you seeded the custom copy — so it's obvious when ‘Re-seed from Mastering’ is worth a click. It clears the moment you re-seed.",
   "v1.9.93 — Mastering Workflow is now customisable: a Derived / Custom toggle. Derived is the same smart auto-built tree (Hero + deliverables → correct order, red up-volume flags). Custom unlocks a fully editable copy of it — drag, rename, connect, add/remove nodes, undo/redo, save named versions and export (PNG/PDF/CSV/JSON), seeded from your current derived tree. Edge colours carry the meaning across (cyan = ACES-managed, red = up-volume re-grade). 'Re-seed from Mastering' refreshes the canvas from Derived after you change strategy or deliverables.",
@@ -1091,7 +1092,7 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
-            <span className="text-suite-text">KAOS<span className="text-guide-target"> THEORY</span></span>
+            <span className="text-guide-target">KAOS THEORY</span>
             <span className="text-suite-text-dim mx-1">/</span>
             <span className="text-suite-text">
               {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : "STORAGE"}

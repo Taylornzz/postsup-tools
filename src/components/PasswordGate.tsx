@@ -33,7 +33,7 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center justify-center gap-2">
             <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
-            <span className="font-mono text-sm tracking-[0.22em] uppercase text-suite-text">KAOS<span className="text-guide-target"> THEORY</span></span>
+            <span className="font-mono text-sm tracking-[0.22em] uppercase text-guide-target">KAOS THEORY</span>
           </div>
           <span className="font-mono text-[10px] text-suite-text-dim tracking-wide">what you're shooting · who it's for · how it gets there</span>
         </div>
