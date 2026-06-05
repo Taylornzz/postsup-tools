@@ -80,6 +80,7 @@ import {
   CalendarClock,
   BookText,
   Calculator,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -92,6 +93,9 @@ import { Glossary } from "@/components/Glossary";
 import { Tools } from "@/components/Tools";
 import { AppMenu } from "@/components/AppMenu";
 import { Vendors } from "@/components/Vendors";
+import { Home, type HomeTab } from "@/components/Home";
+import { ProjectManager } from "@/components/ProjectManager";
+import { getActiveProjectId, setActiveProjectId as persistActiveProjectId, getProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
 import { masterGraphToFlow, masteringPaletteGroups } from "@/lib/masteringFlow";
 import referencePerson from "@/assets/reference-bg.jpg";
@@ -229,7 +233,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors";
+type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors";
 type WorkflowView = "production" | "custom";
 type MasteringView = "derived" | "custom";
 
@@ -320,7 +324,7 @@ const Index = () => {
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" ? t : "frame";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "frame" ? t : "home";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
     try { return localStorage.getItem("postsup-workflow-view") === "custom" ? "custom" : "production"; } catch { return "production"; }
@@ -330,6 +334,15 @@ const Index = () => {
     try { return localStorage.getItem("postsup-mastering-view") === "custom" ? "custom" : "derived"; } catch { return "derived"; }
   });
   useEffect(() => { try { localStorage.setItem("postsup-mastering-view", masteringView); } catch { /* ignore */ } }, [masteringView]);
+  const [lastTab, setLastTab] = useState<HomeTab | null>(() => {
+    try { const v = localStorage.getItem("kaos-last-tab"); return v ? (v as HomeTab) : null; } catch { return null; }
+  });
+  useEffect(() => {
+    if (appTab !== "home") {
+      setLastTab(appTab as HomeTab);
+      try { localStorage.setItem("kaos-last-tab", appTab); } catch { /* ignore */ }
+    }
+  }, [appTab]);
   const [sourceId, setSourceId] = useState<string>(() => {
     const id = readParam(URL_KEYS.src);
     return id && SOURCE_FORMATS.some((s) => s.id === id) ? id : SOURCE_FORMATS[0].id;
@@ -1091,6 +1104,25 @@ const Index = () => {
     acesRef, acesVersion,
   ]);
 
+  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(() => getActiveProjectId());
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [projectLoading, setProjectLoading] = useState(true);
+  const openProject = (id: string) => { persistActiveProjectId(id); setActiveProjectIdState(id); setAppTab("home"); };
+  const closeProject = () => { persistActiveProjectId(null); setActiveProjectIdState(null); };
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeProjectId) { setActiveProject(null); setProjectLoading(false); return; }
+    setProjectLoading(true);
+    getProject(activeProjectId).then((p) => { if (!cancelled) { setActiveProject(p); setProjectLoading(false); } });
+    return () => { cancelled = true; };
+  }, [activeProjectId]);
+  if (projectLoading) {
+    return <div className="h-dvh w-full bg-suite-bg grid place-items-center"><Loader2 className="size-5 text-suite-text-dim animate-spin" strokeWidth={1.8} /></div>;
+  }
+  if (!activeProject) {
+    return <ProjectManager onOpen={openProject} version={VERSION} />;
+  }
+
   return (
     <div className="h-dvh w-full bg-suite-bg text-suite-text flex flex-col overflow-hidden">
       {/* Top bar */}
@@ -1098,11 +1130,17 @@ const Index = () => {
         <div className="flex items-center gap-3">
           <div className="size-2 rounded-full bg-guide-source shadow-[0_0_8px_hsl(var(--guide-source))]" />
           <h1 className="font-mono text-xs tracking-[0.22em] uppercase">
-            <span className="text-guide-target">KAOS THEORY</span>
+            <button onClick={() => setAppTab("home")} className="text-guide-target hover:opacity-80 transition-opacity" title="Home">KAOS THEORY</button>
             <span className="text-suite-text-dim mx-1">/</span>
-            <span className="text-suite-text">
-              {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : "STORAGE"}
-            </span>
+            <button onClick={closeProject} className="text-suite-text hover:text-guide-target transition-colors max-w-[160px] truncate align-bottom" title="Switch project">{activeProject.name}</button>
+            {appTab !== "home" && (
+              <>
+                <span className="text-suite-text-dim mx-1">/</span>
+                <span className="text-suite-text">
+                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : "STORAGE"}
+                </span>
+              </>
+            )}
           </h1>
           <VersionBadge />
         </div>
@@ -1119,7 +1157,11 @@ const Index = () => {
         <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} />
       </header>
 
-      {appTab === "tools" ? (
+      {appTab === "home" ? (
+        <main className="flex-1 flex min-h-0 min-w-0">
+          <Home onNavigate={(t) => setAppTab(t)} lastTab={lastTab} />
+        </main>
+      ) : appTab === "tools" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <Tools />
         </main>
