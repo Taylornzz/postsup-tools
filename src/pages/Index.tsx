@@ -111,8 +111,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-const VERSION = "v1.9.96";
+const VERSION = "v1.9.97";
 const CHANGELOG = [
+  "v1.9.97 — New favicon to match Kaos Theory: a particle tracing a strange-attractor orbit in the brand orange on the dark tile (SVG + 32px PNG + multi-size .ico), replacing the old framing-bracket icon.",
   "v1.9.96 — Wordmark: “KAOS THEORY” now reads in a single orange across the header and entry screen.",
   "v1.9.95 — Renamed to Kaos Theory — tagline “what you're shooting · who it's for · how it gets there”. The app outgrew “post super”: it's now for the whole capture-to-delivery crew — DITs, camera, editorial, online/assists and audio. Updated the wordmark, entry screen, browser tab + social meta and every export brand mark (framing chart, spec sheet, Camera Report PDF, schedule JSON/iCal, FDL creator). Your saved schedules, custom workflows and plates are untouched.",
   "v1.9.94 — Custom Mastering: a small amber hint now appears when your Derived settings (strategy, deliverables, peak nits or ACES version) have changed since you seeded the custom copy — so it's obvious when ‘Re-seed from Mastering’ is worth a click. It clears the moment you re-seed.",
