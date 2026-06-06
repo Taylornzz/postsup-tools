@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
-  ReactFlow, Background, Controls, MiniMap, Position,
-  useNodesState, useEdgesState, type Node, type Edge,
+  ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Position,
+  useNodesState, useEdgesState, useReactFlow, useNodesInitialized,
+  type Node, type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 /** Inline workflow preview beside the deliverables list. Nodes are draggable and
- *  their positions persist per-project. The built-in `fitView` frames it once on
- *  open; there's no constant re-fitting, so it sits still while you arrange it.
- *  The Controls "fit view" button re-frames on demand. */
+ *  their positions persist per-project. It frames itself once on open — both via
+ *  React Flow's `fitView` and a guaranteed re-fit the moment the nodes are
+ *  measured — then stays put. The Controls "fit view" button re-frames on demand. */
 
 export type FlowGraph = {
   nodes: { id: string; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string } }[];
@@ -53,10 +54,13 @@ function toEdges(g: FlowGraph): Edge[] {
   }));
 }
 
-export default function DeliverablesFlow({ graph, projectId }: { graph: FlowGraph; projectId?: string }) {
+function Flow({ graph, projectId }: { graph: FlowGraph; projectId?: string }) {
   const saved = useRef<Record<string, { x: number; y: number }>>(loadPos(projectId));
   const [nodes, setNodes, onNodesChange] = useNodesState(toNodes(graph, saved.current));
   const [edges, setEdges, onEdgesChange] = useEdgesState(toEdges(graph));
+  const rf = useReactFlow();
+  const initialized = useNodesInitialized();
+  const didFit = useRef(false);
 
   // content stays live (labels/structure update) but keeps any dragged positions
   useEffect(() => {
@@ -65,6 +69,14 @@ export default function DeliverablesFlow({ graph, projectId }: { graph: FlowGrap
   }, [graph, setNodes, setEdges]);
 
   useEffect(() => { saved.current = loadPos(projectId); }, [projectId]);
+
+  // guaranteed one-time fit once the nodes have real measured dimensions
+  useEffect(() => {
+    if (initialized && !didFit.current) {
+      didFit.current = true;
+      requestAnimationFrame(() => rf.fitView({ padding: 0.15 }));
+    }
+  }, [initialized, rf]);
 
   const onDragStop = useCallback((_e: unknown, node: Node) => {
     saved.current = { ...saved.current, [node.id]: { x: Math.round(node.position.x), y: Math.round(node.position.y) } };
@@ -92,5 +104,13 @@ export default function DeliverablesFlow({ graph, projectId }: { graph: FlowGrap
       <Controls showInteractive={false} />
       <MiniMap pannable zoomable maskColor="rgba(10,14,19,0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
     </ReactFlow>
+  );
+}
+
+export default function DeliverablesFlow(props: { graph: FlowGraph; projectId?: string }) {
+  return (
+    <ReactFlowProvider>
+      <Flow {...props} />
+    </ReactFlowProvider>
   );
 }
