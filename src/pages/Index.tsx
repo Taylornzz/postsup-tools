@@ -124,8 +124,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v1.9.100";
+export const VERSION = "v2.0.0";
 const CHANGELOG = [
+  "v2.0.0 — Accounts & cloud sync: sign in and your projects sync per-user with row-level security, plus a Resolve-style project manager and a Home launcher. New tools — Multicam Planner (per-camera data + combined rig storage), Task Board (kanban + checklists, with imports from the schedule, workflow and deliverables, and multi-select drag, PDF/CSV/JSON export), Deliverables (multi-recipient delivery plan → make-order, a per-variable checklist, a live workflow chart, and attach contracts/specs per recipient), and News Watches. Vendor directory deepened (DIT/dailies, NZ, captions — 200+ verified). Mastering made customisable. Every tool is now per-project.",
   "v1.9.100 — Removed the tagline strip from the header for a cleaner top bar.",
   "v1.9.99 — New Vendor Directory (top-right menu): 139 verified post-production vendors — facilities, film labs, colour, VFX, audio, DCP/QC, camera rental, plus the global software & hardware the post world runs on. Searchable and filterable by region (AU, NZ, UK, France, Germany, Singapore, Global) and type. Built from the NZ post-super reference + web research, each verified as operating at research time; links open the vendor's site. Confirm current details before relying on a listing.",
   "v1.9.98 — Header: a Login button (placeholder — accounts coming soon) and a top-right menu. Menu has About (who it's for / what it does / why it exists), Send feedback, Privacy, and Terms & disclaimer — the last one is explicit that every figure is reference-only, things change fast so verify against source, and there's no liability for getting it wrong. Vendor directory is in the menu and is the next build.",
