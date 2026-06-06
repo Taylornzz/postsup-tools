@@ -234,24 +234,31 @@ type WFNode = { id: string; type: "step"; position: { x: number; y: number }; da
 type WFEdge = { id: string; source: string; target: string; data?: { label?: string } };
 
 export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes: WFNode[]; edges: WFEdge[] } {
+  // Laid out TOP-DOWN (Conform → grades → per-recipient Package → QC → Deliver),
+  // so it fills the tall side-pane rather than stretching wide.
   const nodes: WFNode[] = [];
   const edges: WFEdge[] = [];
-  const COL = { src: 40, grade: 340, pkg: 660, qc: 960, del: 1240 };
-  const ROW = 130, top = 40;
-  let n = 0;
-  const nid = (p: string) => `dlv-${p}-${n++}`;
+  const COLW = 200, ROWH = 150, GW = 210;
+  let k = 0;
+  const nid = (p: string) => `dlv-${p}-${k++}`;
   const link = (s: string, t: string, label?: string) => edges.push({ id: `e-${s}-${t}`, source: s, target: t, data: label ? { label } : undefined });
 
-  const midY = top + (Math.max(recipients.length, 1) - 1) * ROW / 2;
+  const n = Math.max(recipients.length, 1);
+  const totalW = (n - 1) * COLW;
+  const cx = totalW / 2;
+  const yConform = 0, yGrade = ROWH, yPkg = ROWH * 2, yQc = ROWH * 3, yDel = ROWH * 4;
+
   const srcId = nid("src");
-  nodes.push({ id: srcId, type: "step", position: { x: COL.src, y: midY }, data: { label: "Conformed master", owner: "Online / Conform", detail: "Graded-ready timeline → the grade", color: "#94a3b8" } });
+  nodes.push({ id: srcId, type: "step", position: { x: cx, y: yConform }, data: { label: "Conformed master", owner: "Online / Conform", detail: "Graded-ready timeline → the grade", color: "#94a3b8" } });
 
   const gradeForName: Record<string, string> = {};
   let heroId: string | null = null;
+  const ng = Math.max(plan.passes.length, 1);
   plan.passes.forEach((p, i) => {
     const gid = nid("grade");
     const color = p.flag ? "#f87171" : p.kind === "hero" ? "#f59e0b" : "#34d399";
-    nodes.push({ id: gid, type: "step", position: { x: COL.grade, y: top + i * ROW }, data: { label: p.label, owner: "Colourist", detail: p.note || "", color } });
+    const gx = cx + (i - (ng - 1) / 2) * GW;
+    nodes.push({ id: gid, type: "step", position: { x: gx, y: yGrade }, data: { label: p.label, owner: "Colourist", detail: p.note || "", color } });
     if (p.kind === "derive") link(heroId ?? srcId, gid, "trim");
     else link(srcId, gid, p.flag ? "fresh re-grade" : undefined);
     if (p.kind === "hero") heroId = gid;
@@ -259,13 +266,13 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
   });
 
   recipients.forEach((r, i) => {
-    const y = top + i * ROW;
+    const x = i * COLW;
     const name = r.name || "Untitled";
     const master = gradeForName[name] ?? heroId ?? srcId;
     const pkg = nid("pkg"), qc = nid("qc"), del = nid("del");
-    nodes.push({ id: pkg, type: "step", position: { x: COL.pkg, y }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`, color: "#38bdf8" } });
-    nodes.push({ id: qc, type: "step", position: { x: COL.qc, y }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
-    nodes.push({ id: del, type: "step", position: { x: COL.del, y }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.textless ? "textless" : "", r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
+    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`, color: "#38bdf8" } });
+    nodes.push({ id: qc, type: "step", position: { x, y: yQc }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
+    nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.textless ? "textless" : "", r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
     link(master, pkg, "master");
     link(pkg, qc);
     link(qc, del);

@@ -129,7 +129,8 @@ function About() {
       <H>Who it's for</H>
       <P>Post supervisors, DITs, camera, editorial, online editors &amp; assists, colour, audio — and anyone in the vicinity of post who needs to plan, cost, or simply understand the workflow.</P>
       <H>What it does</H>
-      <P>Camera &amp; codec specs and framing, storage &amp; media planning, ACES mastering and deliverables, editable workflow node-graphs, a post-term glossary, and post calculators (timecode, frame-rate, EDL).</P>
+      <P>Plan the whole pipeline: camera &amp; codec specs and framing, storage &amp; media planning, and a multicam planner for a full rig's combined data. ACES mastering, plus a deliverables planner that works out the make-order and a variable checklist for every recipient — then fans it out into a workflow chart.</P>
+      <P>Editable workflow node-graphs, a post schedule, and a kanban task board with checklists. A verified vendor directory, AI-driven news watches, a post-term glossary, and post calculators (timecode, frame-rate, EDL). Sign in and your projects sync to your account.</P>
       <H>Why it exists</H>
       <P>To turn the chaos of a modern post pipeline into something you can see, plan and hand off — instead of it living only in one person's head.</P>
       <H>Why "Kaos Theory"</H>

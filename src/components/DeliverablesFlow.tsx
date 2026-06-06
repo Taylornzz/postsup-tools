@@ -1,13 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap, Position,
-  useNodesState, useEdgesState, type Node, type Edge,
+  useNodesState, useEdgesState, type Node, type Edge, type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-/** Read-only inline preview of the delivery workflow, rendered right beside the
- *  list. Live: rebuilds whenever the recipients/plan change. The full editable
- *  builder still lives in the Workflow tab ("Open in builder"). */
+/** Read-only inline preview of the delivery workflow, beside the list. Live:
+ *  rebuilds whenever the recipients/plan change, and re-fits the view on open
+ *  and on every pane resize so it always fills the panel (no empty gap). */
 
 export type FlowGraph = {
   nodes: { id: string; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string } }[];
@@ -19,8 +19,8 @@ function toNodes(g: FlowGraph): Node[] {
     id: n.id,
     position: n.position,
     data: { label: n.data.label, color: n.data.color },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
+    sourcePosition: Position.Bottom,
+    targetPosition: Position.Top,
     draggable: false,
     connectable: false,
     selectable: false,
@@ -30,10 +30,11 @@ function toNodes(g: FlowGraph): Node[] {
       color: "#e2e8f0",
       fontSize: 9,
       fontFamily: "ui-monospace, Menlo, monospace",
-      width: 154,
+      width: 150,
       borderRadius: 4,
       padding: "6px 8px",
       lineHeight: 1.2,
+      textAlign: "center" as const,
     },
   }));
 }
@@ -52,27 +53,50 @@ function toEdges(g: FlowGraph): Edge[] {
 export default function DeliverablesFlow({ graph }: { graph: FlowGraph }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(toNodes(graph));
   const [edges, setEdges, onEdgesChange] = useEdgesState(toEdges(graph));
-  useEffect(() => { setNodes(toNodes(graph)); setEdges(toEdges(graph)); }, [graph, setNodes, setEdges]);
+  const inst = useRef<ReactFlowInstance | null>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+  const fit = () => inst.current?.fitView({ padding: 0.12, duration: 150 });
+
+  // keep the graph in sync, then re-fit after the nodes update
+  useEffect(() => {
+    setNodes(toNodes(graph));
+    setEdges(toEdges(graph));
+    const id = requestAnimationFrame(fit);
+    return () => cancelAnimationFrame(id);
+  }, [graph, setNodes, setEdges]);
+
+  // re-fit whenever the pane resizes — on first open, lazy reveal, divider drag
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); });
+    ro.observe(el);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, []);
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      fitView
-      fitViewOptions={{ padding: 0.2 }}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      elementsSelectable={false}
-      minZoom={0.15}
-      maxZoom={1.5}
-      proOptions={{ hideAttribution: true }}
-      className="bg-suite-canvas"
-    >
-      <Background color="#1e293b" gap={18} />
-      <Controls showInteractive={false} />
-      <MiniMap pannable zoomable maskColor="rgba(10,14,19,0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
-    </ReactFlow>
+    <div ref={wrap} className="h-full w-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onInit={(i) => { inst.current = i; requestAnimationFrame(fit); }}
+        fitView
+        fitViewOptions={{ padding: 0.12 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        minZoom={0.1}
+        maxZoom={1.6}
+        proOptions={{ hideAttribution: true }}
+        className="bg-suite-canvas"
+      >
+        <Background color="#1e293b" gap={18} />
+        <Controls showInteractive={false} />
+        <MiniMap pannable zoomable maskColor="rgba(10,14,19,0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
+      </ReactFlow>
+    </div>
   );
 }
