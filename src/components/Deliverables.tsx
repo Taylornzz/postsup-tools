@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, AlertTriangle, ListChecks, Crown, ArrowDownToLine, Flame, Sparkles, Send,
   Paperclip, FileText, GitBranch, Cloud, X,
@@ -8,17 +8,20 @@ import { cn } from "@/lib/utils";
 import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
   loadRecipients, saveRecipients, newRecipient, buildPlan, recipientChecklist, sendToBoard,
-  commitToWorkflow, hasCustomWorkflow,
+  commitToWorkflow, hasCustomWorkflow, buildWorkflowGraph,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, isHdr,
   type Recipient, type Region, type DRId, type Pass, type DocMeta,
 } from "@/lib/deliverables";
+
+const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
 export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { projectName?: string; projectId?: string; onCommitToWorkflow?: () => void }) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
 
   const plan = useMemo(() => buildPlan(recipients), [recipients]);
+  const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
 
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "" });
@@ -86,17 +89,15 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
           <button onClick={push} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Send className="size-3" strokeWidth={1.6} /> To board
           </button>
-          <button onClick={commit} title="Fan the plan out into the Custom Workflow builder" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono rounded-sm text-suite-bg bg-guide-target hover:bg-guide-target/90 transition-colors">
-            <GitBranch className="size-3" strokeWidth={2} /> Commit → Workflow
-          </button>
           <button onClick={reset} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Reset
           </button>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-        <div className="max-w-5xl mx-auto flex flex-col gap-4">
+      <div className="flex-1 min-h-0 flex">
+        <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4">
+          <div className="flex flex-col gap-4 max-w-3xl">
           {/* Verify banner */}
           <div className="flex gap-2 rounded-sm border border-status-warn/40 bg-status-warn/5 px-3 py-2">
             <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
@@ -265,6 +266,22 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
             </p>
           </div>
         </div>
+        </div>
+        <aside className="hidden lg:flex w-[42%] max-w-[620px] min-w-[360px] shrink-0 flex-col border-l border-suite-border bg-suite-canvas">
+          <div className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 border-b border-suite-border">
+            <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.7} />
+            <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold">Workflow</span>
+            <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— live from the plan</span>
+            <button onClick={commit} title="Open this in the editable Workflow builder tab" className="ml-auto flex items-center gap-1.5 px-2 py-1 text-[9px] tracking-[0.12em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong">
+              <GitBranch className="size-3" strokeWidth={1.7} /> Open in builder
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <Suspense fallback={<div className="h-full grid place-items-center font-mono text-[10px] text-suite-text-dim">Loading chart…</div>}>
+              <DeliverablesFlow graph={graph} />
+            </Suspense>
+          </div>
+        </aside>
       </div>
     </div>
   );
