@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { STAGES } from "@/lib/pipeline";
 import { buildMasterGraph, buildCustomGraph, type CustomConfig, type MasteringStrategy, type MasterNits } from "@/lib/mastering";
+import { exportBoard, type BoardExportFormat } from "@/lib/boardExport";
 
 /** Kanban Board — a per-project task board with drag-between columns and a checklist
  *  (the "basic to-do") on every card. State is per-project in localStorage, like the
@@ -85,6 +86,7 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const [adding, setAddingCol] = useState<string | null>(null); // column id with an open quick-add
   const [addText, setAddText] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const drag = useRef<{ ids: string[] } | null>(null);
   const [draggingIds, setDraggingIds] = useState<string[]>([]);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -152,14 +154,7 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   };
   const resetBoard = () => { if (window.confirm("Reset the board to the starter template?")) setCols(seedBoard()); };
 
-  const exportJSON = () => {
-    const blob = new Blob([JSON.stringify(cols, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${(projectName || "board").trim().replace(/\s+/g, "-").toLowerCase()}-board.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  const doExport = (fmt: BoardExportFormat) => { exportBoard(fmt, cols, projectName?.trim() || ""); setShowExport(false); };
 
   // ---- opt-in imports (read other tools' per-project state; never modify them) ----
   const sfx = projectId ? `-${projectId}` : "";
@@ -261,7 +256,7 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="relative">
-            <button onClick={() => setShowImport((s) => !s)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+            <button onClick={() => { setShowImport((s) => !s); setShowExport(false); }} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
               Import <ChevronDown className="size-3" strokeWidth={2} />
             </button>
             {showImport && (
@@ -279,9 +274,21 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
           <button onClick={addColumn} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Plus className="size-3" strokeWidth={2} /> Column
           </button>
-          <button onClick={exportJSON} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
-            <Download className="size-3" strokeWidth={1.6} /> Export
-          </button>
+          <div className="relative">
+            <button onClick={() => { setShowExport((s) => !s); setShowImport(false); }} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+              <Download className="size-3" strokeWidth={1.6} /> Export <ChevronDown className="size-3" strokeWidth={2} />
+            </button>
+            {showExport && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExport(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col">
+                  {([["pdf", "PDF — printable"], ["csv", "CSV — spreadsheet"], ["json", "JSON — backup"]] as [BoardExportFormat, string][]).map(([fmt, label]) => (
+                    <button key={fmt} onClick={() => doExport(fmt)} className="text-left px-2.5 py-1.5 text-[11px] font-mono text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated rounded-sm">{label}</button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={resetBoard} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Reset
           </button>
