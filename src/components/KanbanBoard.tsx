@@ -85,11 +85,19 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const [adding, setAddingCol] = useState<string | null>(null); // column id with an open quick-add
   const [addText, setAddText] = useState("");
   const [showImport, setShowImport] = useState(false);
-  const drag = useRef<{ cardId: string; fromCol: string } | null>(null);
-  const [dragId, setDragId] = useState<string | null>(null);
+  const drag = useRef<{ ids: string[] } | null>(null);
+  const [draggingIds, setDraggingIds] = useState<string[]>([]);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(cols)); } catch { /* ignore */ } }, [cols, key]);
+  // Esc clears a multi-selection.
+  useEffect(() => {
+    if (selectedIds.length === 0) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedIds([]); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedIds.length]);
 
   const totals = useMemo(() => {
     const cards = cols.reduce((n, c) => n + c.cards.length, 0);
@@ -109,21 +117,26 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const removeCard = (colId: string, cardId: string) =>
     setCols((cs) => cs.map((c) => (c.id === colId ? { ...c, cards: c.cards.filter((k) => k.id !== cardId) } : c)));
 
-  const moveCard = (cardId: string, fromCol: string, toCol: string, beforeCardId: string | null) => {
-    if (cardId === beforeCardId) return;
+  const toggleSelect = (cardId: string) =>
+    setSelectedIds((ids) => (ids.includes(cardId) ? ids.filter((x) => x !== cardId) : [...ids, cardId]));
+
+  // Move a set of cards (gathered from wherever they live, in board order) into
+  // toCol at the drop point. Works for one card or a whole multi-selection.
+  const moveSelection = (ids: string[], toCol: string, beforeCardId: string | null) => {
+    const idset = new Set(ids);
     setCols((cs) => {
-      let moved: Card | undefined;
-      const without = cs.map((c) => {
-        if (c.id !== fromCol) return c;
-        moved = c.cards.find((k) => k.id === cardId);
-        return { ...c, cards: c.cards.filter((k) => k.id !== cardId) };
-      });
-      if (!moved) return cs;
+      const moved: Card[] = [];
+      const without = cs.map((c) => ({
+        ...c,
+        cards: c.cards.filter((k) => { if (idset.has(k.id)) { moved.push(k); return false; } return true; }),
+      }));
+      if (!moved.length) return cs;
       return without.map((c) => {
         if (c.id !== toCol) return c;
         const cards = c.cards.slice();
-        const at = beforeCardId ? cards.findIndex((k) => k.id === beforeCardId) : -1;
-        cards.splice(at < 0 ? cards.length : at, 0, moved!);
+        // drop position — ignore a beforeCardId that's itself being moved
+        const at = beforeCardId && !idset.has(beforeCardId) ? cards.findIndex((k) => k.id === beforeCardId) : -1;
+        cards.splice(at < 0 ? cards.length : at, 0, ...moved);
         return { ...c, cards };
       });
     });
@@ -207,22 +220,24 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   };
 
   // ---- drag handlers ----
-  const onDragStart = (e: React.DragEvent, cardId: string, fromCol: string) => {
-    drag.current = { cardId, fromCol };
-    setDragId(cardId);
+  const onDragStart = (e: React.DragEvent, cardId: string) => {
+    // Dragging a selected card moves the whole selection; otherwise just this card.
+    const ids = selectedIds.includes(cardId) && selectedIds.length > 1 ? selectedIds : [cardId];
+    drag.current = { ids };
+    setDraggingIds(ids);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", cardId);
   };
-  const onDragEnd = () => { drag.current = null; setDragId(null); setOverCol(null); };
+  const onDragEnd = () => { drag.current = null; setDraggingIds([]); setOverCol(null); };
   const allowDrop = (e: React.DragEvent) => e.preventDefault();
   const dropOnCard = (e: React.DragEvent, colId: string, beforeCardId: string) => {
     e.preventDefault(); e.stopPropagation();
-    const d = drag.current; if (d) moveCard(d.cardId, d.fromCol, colId, beforeCardId);
+    const d = drag.current; if (d) { moveSelection(d.ids, colId, beforeCardId); setSelectedIds([]); }
     onDragEnd();
   };
   const dropOnCol = (e: React.DragEvent, colId: string) => {
     e.preventDefault();
-    const d = drag.current; if (d) moveCard(d.cardId, d.fromCol, colId, null);
+    const d = drag.current; if (d) { moveSelection(d.ids, colId, null); setSelectedIds([]); }
     onDragEnd();
   };
 
@@ -238,7 +253,11 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
           {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[18ch]">· {projectName.trim()}</span>}
           <span className="font-mono text-[10px] text-suite-text-dim tabular">{totals.done}/{totals.cards} done</span>
           {totals.overdue > 0 && <span className="font-mono text-[10px] text-destructive tabular">· {totals.overdue} overdue</span>}
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag cards between columns · click a card for notes &amp; checklist</span>
+          {selectedIds.length > 0 ? (
+            <button onClick={() => setSelectedIds([])} className="font-mono text-[10px] text-guide-target hover:underline">{selectedIds.length} selected · drag any to move all · clear</button>
+          ) : (
+            <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— shift-click to multi-select · drag to move · click to edit</span>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="relative">
@@ -271,7 +290,7 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
 
       {/* Columns */}
       <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-5 py-4">
-        <div className="flex gap-3 h-full items-start">
+        <div className="flex gap-3 h-full items-start" onClick={(e) => { if (e.target === e.currentTarget) setSelectedIds([]); }}>
           {cols.map((col) => (
             <div
               key={col.id}
@@ -303,14 +322,18 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
                     <div
                       key={card.id}
                       draggable
-                      onDragStart={(e) => onDragStart(e, card.id, col.id)}
+                      onDragStart={(e) => onDragStart(e, card.id)}
                       onDragEnd={onDragEnd}
                       onDragOver={allowDrop}
                       onDrop={(e) => dropOnCard(e, col.id, card.id)}
-                      onClick={() => setEditing({ colId: col.id, cardId: card.id })}
+                      onClick={(e) => {
+                        if (e.shiftKey || e.metaKey || e.ctrlKey) { e.stopPropagation(); toggleSelect(card.id); }
+                        else { setSelectedIds([]); setEditing({ colId: col.id, cardId: card.id }); }
+                      }}
                       className={cn(
-                        "group/card rounded-sm border border-suite-border bg-suite-panel px-2.5 py-2 cursor-pointer hover:border-suite-border-strong transition-colors",
-                        dragId === card.id && "opacity-40",
+                        "group/card rounded-sm border bg-suite-panel px-2.5 py-2 cursor-pointer transition-colors",
+                        selectedIds.includes(card.id) ? "border-guide-target ring-1 ring-guide-target/60" : "border-suite-border hover:border-suite-border-strong",
+                        draggingIds.includes(card.id) && "opacity-40",
                       )}
                       style={{ borderLeft: `3px solid ${card.color}` }}
                     >
