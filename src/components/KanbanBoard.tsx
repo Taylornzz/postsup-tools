@@ -297,14 +297,14 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
 
       {/* Columns */}
       <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-5 py-4">
-        <div className="flex gap-3 h-full items-start" onClick={(e) => { if (e.target === e.currentTarget) setSelectedIds([]); }}>
+        <div className="flex gap-3 h-full items-stretch" onClick={(e) => { if (e.target === e.currentTarget) setSelectedIds([]); }}>
           {cols.map((col) => (
             <div
               key={col.id}
               onDragOver={(e) => { allowDrop(e); setOverCol(col.id); }}
               onDragLeave={() => setOverCol((o) => (o === col.id ? null : o))}
               onDrop={(e) => dropOnCol(e, col.id)}
-              className={cn("shrink-0 w-64 max-h-full flex flex-col rounded-md border bg-suite-panel/40", overCol === col.id ? "border-guide-target/50" : "border-suite-border")}
+              className={cn("shrink-0 w-64 h-full flex flex-col rounded-md border bg-suite-panel/40", overCol === col.id ? "border-guide-target/50" : "border-suite-border")}
             >
               {/* Column header */}
               <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 border-b border-suite-border">
