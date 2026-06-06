@@ -1196,7 +1196,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
         </main>
       ) : appTab === "deliverables" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
-          <Deliverables projectName={projectName} projectId={project.id} />
+          <Deliverables projectName={projectName} projectId={project.id} onCommitToWorkflow={() => { setWorkflowView("custom"); setAppTab("workflow"); }} />
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">

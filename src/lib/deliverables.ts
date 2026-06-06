@@ -16,6 +16,10 @@ export type Region = "US" | "UK" | "EU" | "AU" | "NZ" | "Other";
 export type DRTier = "hdr" | "theatrical" | "sdr";
 export type DRId = "dolby-vision" | "hdr10" | "hlg" | "sdr" | "theatrical";
 
+/** An uploaded document attached to a recipient. Bytes live in IndexedDB (keyed
+ *  by id, see fileStore); only this metadata is persisted with the recipient. */
+export interface DocMeta { id: string; name: string; type: string; size: number; addedAt: string; }
+
 export interface Recipient {
   id: string;
   name: string;
@@ -32,6 +36,7 @@ export interface Recipient {
   naming: string;
   qc: string;
   notes: string;
+  documents?: DocMeta[];
 }
 
 // ---- option sets (selects) ----
@@ -80,7 +85,7 @@ export function newRecipient(name = "New recipient"): Recipient {
     id: uid(), name, region: "US", dr: "sdr", peakNits: 1000,
     resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 422 HQ",
     audio: "5.1", loudness: LOUDNESS_BY_REGION.US, subtitles: "Closed captions (CEA-608/708)",
-    textless: true, naming: "", qc: "", notes: "",
+    textless: true, naming: "", qc: "", notes: "", documents: [],
   };
 }
 
@@ -220,4 +225,68 @@ export function loadRecipients(projectId?: string): Recipient[] {
 export function saveRecipients(projectId: string | undefined, recipients: Recipient[]) {
   const key = KEY + (projectId ? `-${projectId}` : "");
   try { localStorage.setItem(key, JSON.stringify(recipients)); } catch { /* ignore */ }
+}
+
+// ---- Commit → workflow graph (feeds the Custom Workflow builder) ----
+// Fans the make-plan out into a node-graph the existing WorkflowBuilder loads:
+// Conform → grade passes → per-recipient Package → QC → Deliver.
+type WFNode = { id: string; type: "step"; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string } };
+type WFEdge = { id: string; source: string; target: string; data?: { label?: string } };
+
+export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes: WFNode[]; edges: WFEdge[] } {
+  const nodes: WFNode[] = [];
+  const edges: WFEdge[] = [];
+  const COL = { src: 40, grade: 340, pkg: 660, qc: 960, del: 1240 };
+  const ROW = 130, top = 40;
+  let n = 0;
+  const nid = (p: string) => `dlv-${p}-${n++}`;
+  const link = (s: string, t: string, label?: string) => edges.push({ id: `e-${s}-${t}`, source: s, target: t, data: label ? { label } : undefined });
+
+  const midY = top + (Math.max(recipients.length, 1) - 1) * ROW / 2;
+  const srcId = nid("src");
+  nodes.push({ id: srcId, type: "step", position: { x: COL.src, y: midY }, data: { label: "Conformed master", owner: "Online / Conform", detail: "Graded-ready timeline → the grade", color: "#94a3b8" } });
+
+  const gradeForName: Record<string, string> = {};
+  let heroId: string | null = null;
+  plan.passes.forEach((p, i) => {
+    const gid = nid("grade");
+    const color = p.flag ? "#f87171" : p.kind === "hero" ? "#f59e0b" : "#34d399";
+    nodes.push({ id: gid, type: "step", position: { x: COL.grade, y: top + i * ROW }, data: { label: p.label, owner: "Colourist", detail: p.note || "", color } });
+    if (p.kind === "derive") link(heroId ?? srcId, gid, "trim");
+    else link(srcId, gid, p.flag ? "fresh re-grade" : undefined);
+    if (p.kind === "hero") heroId = gid;
+    p.covers.forEach((name) => { gradeForName[name] = gid; });
+  });
+
+  recipients.forEach((r, i) => {
+    const y = top + i * ROW;
+    const name = r.name || "Untitled";
+    const master = gradeForName[name] ?? heroId ?? srcId;
+    const pkg = nid("pkg"), qc = nid("qc"), del = nid("del");
+    nodes.push({ id: pkg, type: "step", position: { x: COL.pkg, y }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`, color: "#38bdf8" } });
+    nodes.push({ id: qc, type: "step", position: { x: COL.qc, y }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
+    nodes.push({ id: del, type: "step", position: { x: COL.del, y }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.textless ? "textless" : "", r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
+    link(master, pkg, "master");
+    link(pkg, qc);
+    link(qc, del);
+  });
+
+  return { nodes, edges };
+}
+
+const BUILDER_KEY = (projectId?: string) => `postsup-builder-${projectId ?? "default"}`;
+
+export function hasCustomWorkflow(projectId?: string): boolean {
+  try {
+    const raw = localStorage.getItem(BUILDER_KEY(projectId));
+    if (!raw) return false;
+    const g = JSON.parse(raw);
+    return Array.isArray(g.nodes) && g.nodes.length > 1;
+  } catch { return false; }
+}
+
+export function commitToWorkflow(projectId: string | undefined, recipients: Recipient[], plan: Plan): { nodes: WFNode[]; edges: WFEdge[] } {
+  const graph = buildWorkflowGraph(recipients, plan);
+  try { localStorage.setItem(BUILDER_KEY(projectId), JSON.stringify(graph)); } catch { /* ignore */ }
+  return graph;
 }

@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, AlertTriangle, ListChecks, Crown, ArrowDownToLine, Flame, Sparkles, Send,
+  Paperclip, FileText, GitBranch, Cloud, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
   loadRecipients, saveRecipients, newRecipient, buildPlan, recipientChecklist, sendToBoard,
+  commitToWorkflow, hasCustomWorkflow,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, isHdr,
-  type Recipient, type Region, type DRId, type Pass,
+  type Recipient, type Region, type DRId, type Pass, type DocMeta,
 } from "@/lib/deliverables";
 
-export function Deliverables({ projectName, projectId }: { projectName?: string; projectId?: string }) {
+export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { projectName?: string; projectId?: string; onCommitToWorkflow?: () => void }) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
 
@@ -20,7 +23,11 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "" });
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
-  const remove = (id: string) => setRecipients((rs) => rs.filter((r) => r.id !== id));
+  const remove = (id: string) => {
+    const r = recipients.find((x) => x.id === id);
+    (r?.documents || []).forEach((d) => { delFile(d.id).catch(() => {}); });
+    setRecipients((rs) => rs.filter((r) => r.id !== id));
+  };
   const reset = () => { if (window.confirm("Reset recipients to the starter examples?")) setRecipients(loadRecipientsSeed()); };
 
   const push = () => {
@@ -28,6 +35,36 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
     const { added } = sendToBoard(projectId, recipients, plan);
     if (added === 0) toast("Already on the board", { description: "Nothing new to add — open Task Board to see it." });
     else toast.success(`Sent ${added} card${added === 1 ? "" : "s"} to the Task Board`, { description: "Grade passes + a checklist per recipient." });
+  };
+
+  const commit = () => {
+    if (!recipients.length) { toast("Add a recipient first."); return; }
+    if (hasCustomWorkflow(projectId) && !window.confirm("This replaces your current Custom Workflow with the delivery plan. Your saved workflow versions are kept. Continue?")) return;
+    commitToWorkflow(projectId, recipients, plan);
+    toast.success("Committed to the Custom Workflow", { description: "Opening the builder…" });
+    onCommitToWorkflow?.();
+  };
+  const cloudSoon = (name: string) => toast(`${name} import is coming soon`, { description: "For now add the file directly — cloud connect arrives with the AI ingest." });
+
+  const addFiles = async (recipientId: string, fileList: FileList) => {
+    const metas: DocMeta[] = [];
+    for (const f of Array.from(fileList)) {
+      const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      try { await putFile(id, f); } catch { toast.error(`Couldn't store ${f.name}.`); continue; }
+      metas.push({ id, name: f.name, type: f.type || f.name.split(".").pop() || "file", size: f.size, addedAt: new Date().toISOString() });
+    }
+    if (metas.length) {
+      setRecipients((rs) => rs.map((r) => (r.id === recipientId ? { ...r, documents: [...(r.documents || []), ...metas] } : r)));
+      toast.success(`Attached ${metas.length} file${metas.length === 1 ? "" : "s"}`);
+    }
+  };
+  const openFile = async (doc: DocMeta) => {
+    try { const blob = await getFile(doc.id); if (!blob) { toast.error("File not found."); return; } const url = URL.createObjectURL(blob); window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 30000); }
+    catch { toast.error("Couldn't open the file."); }
+  };
+  const removeFile = async (recipientId: string, doc: DocMeta) => {
+    try { await delFile(doc.id); } catch { /* ignore */ }
+    setRecipients((rs) => rs.map((r) => (r.id === recipientId ? { ...r, documents: (r.documents || []).filter((d) => d.id !== doc.id) } : r)));
   };
 
   const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]";
@@ -48,6 +85,9 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
           </button>
           <button onClick={push} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Send className="size-3" strokeWidth={1.6} /> To board
+          </button>
+          <button onClick={commit} title="Fan the plan out into the Custom Workflow builder" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono rounded-sm text-suite-bg bg-guide-target hover:bg-guide-target/90 transition-colors">
+            <GitBranch className="size-3" strokeWidth={2} /> Commit → Workflow
           </button>
           <button onClick={reset} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Reset
@@ -176,7 +216,33 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
                       className="flex-1 min-w-[10rem] bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[10px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target" />
                   </div>
 
-                  <div className="mt-2 font-mono text-[9.5px] text-suite-text-dim">{checks.length} variables to confirm · {r.notes}</div>
+                  {/* Attachments — source docs for this recipient */}
+                  <div className="mt-2.5 pt-2.5 border-t border-suite-border/50">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim mr-0.5">Source docs</span>
+                      <label className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-suite-border text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong cursor-pointer font-mono text-[9.5px]">
+                        <Paperclip className="size-3" strokeWidth={1.7} /> Add file
+                        <input type="file" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) addFiles(r.id, e.target.files); e.target.value = ""; }} />
+                      </label>
+                      <CloudBtn label="Drive" onClick={() => cloudSoon("Google Drive")} />
+                      <CloudBtn label="Box" onClick={() => cloudSoon("Box")} />
+                      <CloudBtn label="OneDrive" onClick={() => cloudSoon("OneDrive")} />
+                    </div>
+                    {(r.documents || []).length > 0 && (
+                      <div className="mt-1.5 flex flex-col gap-1">
+                        {(r.documents || []).map((doc) => (
+                          <div key={doc.id} className="flex items-center gap-2 font-mono text-[10px]">
+                            <FileText className="size-3 text-suite-text-dim shrink-0" strokeWidth={1.6} />
+                            <button onClick={() => openFile(doc)} className="truncate text-suite-text-muted hover:text-guide-target text-left">{doc.name}</button>
+                            <span className="text-suite-text-dim shrink-0">{fmtSize(doc.size)} · {new Date(doc.addedAt).toLocaleDateString()}</span>
+                            <button onClick={() => removeFile(r.id, doc)} title="Remove" className="ml-auto text-suite-text-dim hover:text-destructive shrink-0"><X className="size-3" strokeWidth={2} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-2 font-mono text-[9.5px] text-suite-text-dim">{checks.length} variables to confirm{(r.documents || []).length ? ` · ${(r.documents || []).length} doc${(r.documents || []).length === 1 ? "" : "s"} attached` : ""}{r.notes ? ` · ${r.notes}` : ""}</div>
                 </div>
               );
             })}
@@ -195,7 +261,7 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
           <div className="flex gap-2 rounded-sm border border-guide-target/30 bg-guide-target/5 px-3 py-2">
             <Sparkles className="size-3.5 shrink-0 text-guide-target mt-0.5" strokeWidth={1.6} />
             <p className="font-mono text-[10px] leading-relaxed text-suite-text-dim">
-              Coming next: <span className="text-suite-text-muted">upload a contract, email or tech-spec and an AI pre-fills each recipient</span> — with the source line beside every field so you verify it. Needs the cloud backend; the matrix above is the deterministic core it fills.
+              Attach the contract / spec / email to a recipient — it's stored on this device. <span className="text-suite-text-muted">Coming next: an AI reads those docs and pre-fills each recipient</span> with the source line beside every field so you verify it. Cloud-drive connect (Drive / Box / OneDrive) lands then too.
             </p>
           </div>
         </div>
@@ -235,6 +301,16 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim">{label}</span>
       {children}
     </label>
+  );
+}
+
+const fmtSize = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b >= 1e3 ? `${Math.round(b / 1e3)} KB` : `${b} B`);
+
+function CloudBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} title={`${label} — coming soon`} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-dashed border-suite-border text-suite-text-dim hover:text-suite-text font-mono text-[9.5px]">
+      <Cloud className="size-3" strokeWidth={1.6} /> {label}
+    </button>
   );
 }
 
