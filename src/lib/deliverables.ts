@@ -239,8 +239,6 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
   const nodes: WFNode[] = [];
   const edges: WFEdge[] = [];
   const COLW = 200, ROWH = 150, GW = 210;
-  let k = 0;
-  const nid = (p: string) => `dlv-${p}-${k++}`;
   const link = (s: string, t: string, label?: string) => edges.push({ id: `e-${s}-${t}`, source: s, target: t, data: label ? { label } : undefined });
 
   const n = Math.max(recipients.length, 1);
@@ -248,14 +246,14 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
   const cx = totalW / 2;
   const yConform = 0, yGrade = ROWH, yPkg = ROWH * 2, yQc = ROWH * 3, yDel = ROWH * 4;
 
-  const srcId = nid("src");
+  const srcId = "dlv-src";
   nodes.push({ id: srcId, type: "step", position: { x: cx, y: yConform }, data: { label: "Conformed master", owner: "Online / Conform", detail: "Graded-ready timeline → the grade", color: "#94a3b8" } });
 
   const gradeForName: Record<string, string> = {};
   let heroId: string | null = null;
   const ng = Math.max(plan.passes.length, 1);
   plan.passes.forEach((p, i) => {
-    const gid = nid("grade");
+    const gid = `dlv-grade-${i}`;
     const color = p.flag ? "#f87171" : p.kind === "hero" ? "#f59e0b" : "#34d399";
     const gx = cx + (i - (ng - 1) / 2) * GW;
     nodes.push({ id: gid, type: "step", position: { x: gx, y: yGrade }, data: { label: p.label, owner: "Colourist", detail: p.note || "", color } });
@@ -269,7 +267,8 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
     const x = i * COLW;
     const name = r.name || "Untitled";
     const master = gradeForName[name] ?? heroId ?? srcId;
-    const pkg = nid("pkg"), qc = nid("qc"), del = nid("del");
+    const rid = r.id || `i${i}`;
+    const pkg = `dlv-pkg-${rid}`, qc = `dlv-qc-${rid}`, del = `dlv-del-${rid}`;
     nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`, color: "#38bdf8" } });
     nodes.push({ id: qc, type: "step", position: { x, y: yQc }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
     nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.textless ? "textless" : "", r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });

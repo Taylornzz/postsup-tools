@@ -1,29 +1,32 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ReactFlow, Background, Controls, MiniMap, Position,
-  useNodesState, useEdgesState, type Node, type Edge, type ReactFlowInstance,
+  useNodesState, useEdgesState, type Node, type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-/** Read-only inline preview of the delivery workflow, beside the list. Live:
- *  rebuilds whenever the recipients/plan change, and re-fits the view on open
- *  and on every pane resize so it always fills the panel (no empty gap). */
+/** Inline workflow preview beside the deliverables list. Nodes are draggable and
+ *  their positions persist per-project. The built-in `fitView` frames it once on
+ *  open; there's no constant re-fitting, so it sits still while you arrange it.
+ *  The Controls "fit view" button re-frames on demand. */
 
 export type FlowGraph = {
   nodes: { id: string; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string } }[];
   edges: { id: string; source: string; target: string; data?: { label?: string } }[];
 };
 
-function toNodes(g: FlowGraph): Node[] {
+const posKey = (pid?: string) => `kaos.deliverables.flowpos${pid ? `-${pid}` : ""}`;
+function loadPos(pid?: string): Record<string, { x: number; y: number }> {
+  try { return JSON.parse(localStorage.getItem(posKey(pid)) || "{}") || {}; } catch { return {}; }
+}
+
+function toNodes(g: FlowGraph, saved: Record<string, { x: number; y: number }>): Node[] {
   return g.nodes.map((n) => ({
     id: n.id,
-    position: n.position,
+    position: saved[n.id] ?? n.position,
     data: { label: n.data.label, color: n.data.color },
     sourcePosition: Position.Bottom,
     targetPosition: Position.Top,
-    draggable: false,
-    connectable: false,
-    selectable: false,
     style: {
       background: n.data.color + "22",
       border: `1px solid ${n.data.color}`,
@@ -50,53 +53,44 @@ function toEdges(g: FlowGraph): Edge[] {
   }));
 }
 
-export default function DeliverablesFlow({ graph }: { graph: FlowGraph }) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(toNodes(graph));
+export default function DeliverablesFlow({ graph, projectId }: { graph: FlowGraph; projectId?: string }) {
+  const saved = useRef<Record<string, { x: number; y: number }>>(loadPos(projectId));
+  const [nodes, setNodes, onNodesChange] = useNodesState(toNodes(graph, saved.current));
   const [edges, setEdges, onEdgesChange] = useEdgesState(toEdges(graph));
-  const inst = useRef<ReactFlowInstance | null>(null);
-  const wrap = useRef<HTMLDivElement>(null);
-  const fit = () => inst.current?.fitView({ padding: 0.12, duration: 150 });
 
-  // keep the graph in sync, then re-fit after the nodes update
+  // content stays live (labels/structure update) but keeps any dragged positions
   useEffect(() => {
-    setNodes(toNodes(graph));
+    setNodes(toNodes(graph, saved.current));
     setEdges(toEdges(graph));
-    const id = requestAnimationFrame(fit);
-    return () => cancelAnimationFrame(id);
   }, [graph, setNodes, setEdges]);
 
-  // re-fit whenever the pane resizes — on first open, lazy reveal, divider drag
-  useEffect(() => {
-    const el = wrap.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    let raf = 0;
-    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); });
-    ro.observe(el);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
-  }, []);
+  useEffect(() => { saved.current = loadPos(projectId); }, [projectId]);
+
+  const onDragStop = useCallback((_e: unknown, node: Node) => {
+    saved.current = { ...saved.current, [node.id]: { x: Math.round(node.position.x), y: Math.round(node.position.y) } };
+    try { localStorage.setItem(posKey(projectId), JSON.stringify(saved.current)); } catch { /* ignore */ }
+  }, [projectId]);
 
   return (
-    <div ref={wrap} className="h-full w-full">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onInit={(i) => { inst.current = i; requestAnimationFrame(fit); }}
-        fitView
-        fitViewOptions={{ padding: 0.12 }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        minZoom={0.1}
-        maxZoom={1.6}
-        proOptions={{ hideAttribution: true }}
-        className="bg-suite-canvas"
-      >
-        <Background color="#1e293b" gap={18} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable maskColor="rgba(10,14,19,0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
-      </ReactFlow>
-    </div>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onNodeDragStop={onDragStop}
+      fitView
+      fitViewOptions={{ padding: 0.15 }}
+      nodesDraggable
+      nodesConnectable={false}
+      elementsSelectable
+      minZoom={0.1}
+      maxZoom={1.6}
+      proOptions={{ hideAttribution: true }}
+      className="bg-suite-canvas"
+    >
+      <Background color="#1e293b" gap={18} />
+      <Controls showInteractive={false} />
+      <MiniMap pannable zoomable maskColor="rgba(10,14,19,0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
+    </ReactFlow>
   );
 }

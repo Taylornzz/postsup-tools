@@ -25,6 +25,11 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
 
   const plan = useMemo(() => buildPlan(recipients), [recipients]);
   const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
+  const [flowKey, setFlowKey] = useState(0);
+  const resetLayout = () => {
+    try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
+    setFlowKey((k) => k + 1);
+  };
 
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "" });
@@ -283,11 +288,12 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
           <div className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 border-b border-suite-border">
             <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.7} />
             <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold">Workflow</span>
-            <span className="font-mono text-[10px] text-suite-text-dim ml-auto">live from the plan</span>
+            <span className="font-mono text-[10px] text-suite-text-dim ml-auto hidden xl:inline">drag to arrange</span>
+            <button onClick={resetLayout} title="Reset the node layout" className="font-mono text-[9px] uppercase tracking-[0.1em] text-suite-text-dim hover:text-suite-text border border-suite-border rounded-sm px-1.5 py-0.5">Reset layout</button>
           </div>
           <div className="flex-1 min-h-0">
             <Suspense fallback={<div className="h-full grid place-items-center font-mono text-[10px] text-suite-text-dim">Loading chart…</div>}>
-              <DeliverablesFlow graph={graph} />
+              <DeliverablesFlow key={flowKey} graph={graph} projectId={projectId} />
             </Suspense>
           </div>
         </aside>
