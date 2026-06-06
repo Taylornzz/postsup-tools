@@ -1,9 +1,9 @@
 import {
-  Frame, Aperture, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, Video, SquareKanban,
+  Frame, Aperture, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, Video, SquareKanban, PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type HomeTab = "frame" | "optics" | "storage" | "multicam" | "mastering" | "workflow" | "planner" | "board" | "glossary" | "tools" | "vendors";
+export type HomeTab = "frame" | "optics" | "storage" | "multicam" | "mastering" | "workflow" | "planner" | "board" | "deliverables" | "glossary" | "tools" | "vendors";
 
 const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; color: string }[] = [
   { tab: "frame", title: "Capture & Framing", desc: "Camera, codec, sensor & framing — what you're shooting and how it extracts.", icon: Frame, color: "#22d3ee" },
@@ -14,6 +14,7 @@ const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; co
   { tab: "workflow", title: "Workflow", desc: "The whole pipeline as a node graph — plus your own editable build.", icon: Workflow, color: "#2dd4bf" },
   { tab: "planner", title: "Post Schedule", desc: "Plan the post timeline — Gantt + calendar, weeks down to days.", icon: CalendarClock, color: "#38bdf8" },
   { tab: "board", title: "Task Board", desc: "Kanban board for the project — columns, cards and checklists.", icon: SquareKanban, color: "#2dd4bf" },
+  { tab: "deliverables", title: "Deliverables", desc: "Multi-recipient delivery plan — grade once, derive the rest, checklist every variable.", icon: PackageCheck, color: "#fb7185" },
   { tab: "glossary", title: "Glossary", desc: "Post terms, standards & acronyms — searchable and cross-linked.", icon: BookText, color: "#818cf8" },
   { tab: "tools", title: "Post Tools", desc: "Timecode, frame-rate & aspect calculators, plus an EDL converter.", icon: Calculator, color: "#fbbf24" },
   { tab: "vendors", title: "Vendor Directory", desc: "Verified post vendors — facilities, labs, VFX, audio, software.", icon: Building2, color: "#f59e0b" },
@@ -21,7 +22,7 @@ const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; co
 
 const LABELS: Record<HomeTab, string> = {
   frame: "Capture & Framing", optics: "Optics", storage: "Storage", multicam: "Multicam Planner", mastering: "Mastering Workflow",
-  workflow: "Workflow", planner: "Post Schedule", board: "Task Board", glossary: "Glossary", tools: "Post Tools", vendors: "Vendor Directory",
+  workflow: "Workflow", planner: "Post Schedule", board: "Task Board", deliverables: "Deliverables", glossary: "Glossary", tools: "Post Tools", vendors: "Vendor Directory",
 };
 
 export function Home({ onNavigate, lastTab }: { onNavigate: (t: HomeTab) => void; lastTab?: HomeTab | null }) {

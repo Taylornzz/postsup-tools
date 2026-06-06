@@ -84,6 +84,7 @@ import {
   ChevronDown,
   Video,
   SquareKanban,
+  PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -99,6 +100,7 @@ import { Vendors } from "@/components/Vendors";
 import { NewsWatches } from "@/components/NewsWatches";
 import { MulticamPlanner } from "@/components/MulticamPlanner";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { Deliverables } from "@/components/Deliverables";
 import { Home, type HomeTab } from "@/components/Home";
 import { updateProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
@@ -238,7 +240,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news" | "multicam" | "board";
+type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news" | "multicam" | "board" | "deliverables";
 type WorkflowView = "production" | "custom";
 type MasteringView = "derived" | "custom";
 
@@ -329,7 +331,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "multicam" || t === "board" || t === "frame" ? t : "home";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "multicam" || t === "board" || t === "deliverables" || t === "frame" ? t : "home";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
     try { return localStorage.getItem(`postsup-workflow-view-${project.id}`) === "custom" ? "custom" : "production"; } catch { return "production"; }
@@ -1141,7 +1143,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
               <>
                 <span className="text-suite-text-dim mx-1">/</span>
                 <span className="text-suite-text">
-                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : appTab === "news" ? "NEWS WATCHES" : appTab === "multicam" ? "MULTICAM PLANNER" : appTab === "board" ? "TASK BOARD" : "STORAGE"}
+                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : appTab === "news" ? "NEWS WATCHES" : appTab === "multicam" ? "MULTICAM PLANNER" : appTab === "board" ? "TASK BOARD" : appTab === "deliverables" ? "DELIVERABLES" : "STORAGE"}
                 </span>
               </>
             )}
@@ -1157,6 +1159,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
           <PlannerTabButton active={appTab === "planner"} onClick={() => setAppTab("planner")} />
           <BoardTabButton active={appTab === "board"} onClick={() => setAppTab("board")} />
+          <DeliverablesTabButton active={appTab === "deliverables"} onClick={() => setAppTab("deliverables")} />
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
@@ -1190,6 +1193,10 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
       ) : appTab === "board" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <KanbanBoard projectName={projectName} projectId={project.id} />
+        </main>
+      ) : appTab === "deliverables" ? (
+        <main className="flex-1 flex min-h-0 min-w-0">
+          <Deliverables projectName={projectName} projectId={project.id} />
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
@@ -2389,6 +2396,25 @@ function StorageTabButton({ active, onClick }: { active: boolean; onClick: () =>
     >
       <HardDrive className="size-3" strokeWidth={1.5} />
       Storage
+    </button>
+  );
+}
+
+function DeliverablesTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Deliverables — multi-recipient delivery plan"
+    >
+      <PackageCheck className="size-3" strokeWidth={1.5} />
+      Delivery
     </button>
   );
 }
