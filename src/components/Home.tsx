@@ -1,14 +1,15 @@
 import {
-  Frame, Aperture, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight,
+  Frame, Aperture, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type HomeTab = "frame" | "optics" | "storage" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors";
+export type HomeTab = "frame" | "optics" | "storage" | "multicam" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors";
 
 const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; color: string }[] = [
   { tab: "frame", title: "Capture & Framing", desc: "Camera, codec, sensor & framing — what you're shooting and how it extracts.", icon: Frame, color: "#22d3ee" },
   { tab: "optics", title: "Optics", desc: "Lens coverage, depth of field & circle of confusion for your sensor.", icon: Aperture, color: "#a78bfa" },
   { tab: "storage", title: "Storage", desc: "Media & data plan — cards, offload, backups and bandwidth per day.", icon: HardDrive, color: "#4ade80" },
+  { tab: "multicam", title: "Multicam Planner", desc: "Plan an A/B/C-cam rig — combined data, cards and total shoot storage.", icon: Video, color: "#34d399" },
   { tab: "mastering", title: "Mastering Workflow", desc: "ACES masters & deliverables — HDR, theatrical, SDR and the derive order.", icon: Film, color: "#fb7185" },
   { tab: "workflow", title: "Workflow", desc: "The whole pipeline as a node graph — plus your own editable build.", icon: Workflow, color: "#2dd4bf" },
   { tab: "planner", title: "Post Schedule", desc: "Plan the post timeline — Gantt + calendar, weeks down to days.", icon: CalendarClock, color: "#38bdf8" },
@@ -18,7 +19,7 @@ const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; co
 ];
 
 const LABELS: Record<HomeTab, string> = {
-  frame: "Capture & Framing", optics: "Optics", storage: "Storage", mastering: "Mastering Workflow",
+  frame: "Capture & Framing", optics: "Optics", storage: "Storage", multicam: "Multicam Planner", mastering: "Mastering Workflow",
   workflow: "Workflow", planner: "Post Schedule", glossary: "Glossary", tools: "Post Tools", vendors: "Vendor Directory",
 };
 

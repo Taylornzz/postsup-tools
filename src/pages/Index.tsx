@@ -82,6 +82,7 @@ import {
   Calculator,
   FolderOpen,
   ChevronDown,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -95,6 +96,7 @@ import { Tools } from "@/components/Tools";
 import { AppMenu } from "@/components/AppMenu";
 import { Vendors } from "@/components/Vendors";
 import { NewsWatches } from "@/components/NewsWatches";
+import { MulticamPlanner } from "@/components/MulticamPlanner";
 import { Home, type HomeTab } from "@/components/Home";
 import { updateProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
@@ -234,7 +236,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news";
+type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news" | "multicam";
 type WorkflowView = "production" | "custom";
 type MasteringView = "derived" | "custom";
 
@@ -325,7 +327,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "frame" ? t : "home";
+    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "multicam" || t === "frame" ? t : "home";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
     try { return localStorage.getItem(`postsup-workflow-view-${project.id}`) === "custom" ? "custom" : "production"; } catch { return "production"; }
@@ -1137,7 +1139,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
               <>
                 <span className="text-suite-text-dim mx-1">/</span>
                 <span className="text-suite-text">
-                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : appTab === "news" ? "NEWS WATCHES" : "STORAGE"}
+                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : appTab === "news" ? "NEWS WATCHES" : appTab === "multicam" ? "MULTICAM PLANNER" : "STORAGE"}
                 </span>
               </>
             )}
@@ -1148,6 +1150,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
           <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
+          <MulticamTabButton active={appTab === "multicam"} onClick={() => setAppTab("multicam")} />
           <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
           <PlannerTabButton active={appTab === "planner"} onClick={() => setAppTab("planner")} />
@@ -1176,6 +1179,10 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
       ) : appTab === "news" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <NewsWatches />
+        </main>
+      ) : appTab === "multicam" ? (
+        <main className="flex-1 flex min-h-0 min-w-0">
+          <MulticamPlanner projectName={projectName} projectId={project.id} />
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
@@ -2375,6 +2382,25 @@ function StorageTabButton({ active, onClick }: { active: boolean; onClick: () =>
     >
       <HardDrive className="size-3" strokeWidth={1.5} />
       Storage
+    </button>
+  );
+}
+
+function MulticamTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
+        active
+          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
+          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
+      )}
+      title="Multicam planner — combined data &amp; storage across cameras"
+    >
+      <Video className="size-3" strokeWidth={1.5} />
+      Multicam
     </button>
   );
 }
