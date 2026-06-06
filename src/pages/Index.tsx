@@ -1140,14 +1140,6 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
               <span className="truncate normal-case tracking-normal">{project.name}</span>
               <ChevronDown className="size-3 shrink-0 opacity-60" strokeWidth={2} />
             </button>
-            {appTab !== "home" && (
-              <>
-                <span className="text-suite-text-dim mx-1">/</span>
-                <span className="text-suite-text">
-                  {appTab === "frame" ? "CAPTURE & FRAMING" : appTab === "optics" ? "OPTICS" : appTab === "mastering" ? "MASTERING WORKFLOW" : appTab === "workflow" ? "WORKFLOW" : appTab === "planner" ? "POST SCHEDULE" : appTab === "glossary" ? "GLOSSARY" : appTab === "tools" ? "POST TOOLS" : appTab === "vendors" ? "VENDOR DIRECTORY" : appTab === "news" ? "NEWS WATCHES" : appTab === "multicam" ? "MULTICAM PLANNER" : appTab === "board" ? "TASK BOARD" : appTab === "deliverables" ? "DELIVERABLES" : "STORAGE"}
-                </span>
-              </>
-            )}
           </h1>
           <VersionBadge />
         </div>
@@ -2415,7 +2407,7 @@ function DeliverablesTabButton({ active, onClick }: { active: boolean; onClick: 
       title="Deliverables — multi-recipient delivery plan"
     >
       <PackageCheck className="size-3" strokeWidth={1.5} />
-      Delivery
+      Deliverables
     </button>
   );
 }
