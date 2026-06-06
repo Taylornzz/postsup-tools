@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  SquareKanban, Plus, Trash2, X, Check, Square, CheckSquare, Download, GripVertical, ListChecks,
+  SquareKanban, Plus, Trash2, X, Check, Square, CheckSquare, Download, ListChecks,
+  CalendarClock, ChevronDown, CalendarRange, Film, Workflow as WorkflowIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { STAGES } from "@/lib/pipeline";
+import { buildMasterGraph, buildCustomGraph, type CustomConfig, type MasteringStrategy, type MasterNits } from "@/lib/mastering";
 
 /** Kanban Board — a per-project task board with drag-between columns and a checklist
  *  (the "basic to-do") on every card. State is per-project in localStorage, like the
  *  Post Schedule. Native HTML5 drag-and-drop; export to JSON. */
 
 type Check = { id: string; text: string; done: boolean };
-type Card = { id: string; title: string; notes: string; color: string; checks: Check[] };
+type Card = { id: string; title: string; notes: string; color: string; checks: Check[]; due?: string };
 type Column = { id: string; name: string; cards: Card[] };
 
 const PALETTE = ["#64748b", "#38bdf8", "#22d3ee", "#a78bfa", "#facc15", "#f59e0b", "#e879f9", "#f87171", "#34d399", "#fb7185"];
@@ -20,6 +24,16 @@ const uid = (p = "k") => `${p}${Date.now().toString(36)}${(_seq++).toString(36)}
 
 const mkCheck = (text: string, done = false): Check => ({ id: uid("ch"), text, done });
 const mkCard = (title: string, color = PALETTE[0], checks: Check[] = [], notes = ""): Card => ({ id: uid("cd"), title, notes, color, checks });
+
+// ---- date helpers (local-tz, ISO yyyy-mm-dd) ----
+const localISO = (d: Date) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
+const todayISO = () => localISO(new Date());
+const addDaysISO = (iso: string, n: number) => { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return localISO(d); };
+const mondayOf = (iso: string) => { const d = new Date(iso + "T00:00:00"); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); return localISO(d); };
+const daysUntil = (iso: string) => Math.round((new Date(iso + "T00:00:00").getTime() - new Date(todayISO() + "T00:00:00").getTime()) / 86400000);
+const fmtDue = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+const isDone = (name: string) => /done|complete/i.test(name);
+const TRACK_COLOR: Record<string, string> = { picture: "#38bdf8", audio: "#2dd4bf", data: "#f59e0b" };
 
 function seedBoard(): Column[] {
   return [
@@ -58,6 +72,7 @@ function loadBoard(key: string): Column[] {
           notes: typeof k.notes === "string" ? k.notes : "",
           color: typeof k.color === "string" ? k.color : PALETTE[0],
           checks: Array.isArray(k.checks) ? k.checks.filter((x: unknown): x is Check => !!x && typeof (x as Check).text === "string").map((x: Check) => ({ id: typeof x.id === "string" ? x.id : uid("ch"), text: x.text, done: !!x.done })) : [],
+          due: typeof k.due === "string" ? k.due : undefined,
         })),
       }));
   } catch { return seedBoard(); }
@@ -69,6 +84,7 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const [editing, setEditing] = useState<{ colId: string; cardId: string } | null>(null);
   const [adding, setAddingCol] = useState<string | null>(null); // column id with an open quick-add
   const [addText, setAddText] = useState("");
+  const [showImport, setShowImport] = useState(false);
   const drag = useRef<{ cardId: string; fromCol: string } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -77,8 +93,9 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
 
   const totals = useMemo(() => {
     const cards = cols.reduce((n, c) => n + c.cards.length, 0);
-    const done = cols.find((c) => /done|complete/i.test(c.name))?.cards.length ?? 0;
-    return { cards, done };
+    const done = cols.find((c) => isDone(c.name))?.cards.length ?? 0;
+    const overdue = cols.reduce((n, c) => (isDone(c.name) ? n : n + c.cards.filter((k) => k.due && daysUntil(k.due) < 0).length), 0);
+    return { cards, done, overdue };
   }, [cols]);
 
   // ---- card mutations ----
@@ -131,6 +148,64 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
     URL.revokeObjectURL(a.href);
   };
 
+  // ---- opt-in imports (read other tools' per-project state; never modify them) ----
+  const sfx = projectId ? `-${projectId}` : "";
+  // Add cards to the first column, skipping any whose title is already on the board.
+  const importCards = (incoming: Card[], source: string) => {
+    const have = new Set(cols.flatMap((c) => c.cards.map((k) => k.title.toLowerCase().trim())));
+    const fresh = incoming.filter((c) => !have.has(c.title.toLowerCase().trim()));
+    if (!fresh.length) { toast(`Nothing new from ${source}`, { description: "Those items are already on the board." }); return; }
+    setCols((cs) => (cs.length ? cs.map((c, i) => (i === 0 ? { ...c, cards: [...c.cards, ...fresh] } : c)) : cs));
+    toast.success(`Added ${fresh.length} card${fresh.length === 1 ? "" : "s"} from ${source}`);
+  };
+
+  const importFromSchedule = () => {
+    let bars: { name?: string; color?: string; start?: number; dur?: number }[] = [];
+    try { const r = JSON.parse(localStorage.getItem("postsup-gantt-v1" + sfx) || "[]"); if (Array.isArray(r)) bars = r; } catch { /* ignore */ }
+    if (!bars.length) { toast("No schedule yet", { description: "Build a Post Schedule first, then import." }); return; }
+    const rawStart = localStorage.getItem("postsup-gantt-start" + sfx);
+    const anchor = mondayOf(rawStart && /^\d{4}-\d{2}-\d{2}$/.test(rawStart) ? rawStart : todayISO());
+    const cards: Card[] = bars
+      .filter((b) => b && typeof b.name === "string" && Number.isFinite(b.start) && Number.isFinite(b.dur))
+      .map((b) => {
+        const isMs = b.dur === 0;
+        const off = isMs ? Math.round((b.start as number) * 7) : Math.round(((b.start as number) + (b.dur as number)) * 7) - 1;
+        return { id: uid("cd"), title: b.name as string, notes: "", color: typeof b.color === "string" ? b.color : PALETTE[0], checks: [], due: addDaysISO(anchor, Math.max(0, off)) };
+      });
+    importCards(cards, "the schedule");
+  };
+
+  const importFromWorkflow = () => {
+    const cards: Card[] = STAGES.map((s) => ({ id: uid("cd"), title: s.label, notes: s.summary, color: TRACK_COLOR[s.track] ?? PALETTE[0], checks: [] }));
+    importCards(cards, "the workflow");
+  };
+
+  const importFromDeliverables = () => {
+    let cfg: { strategy?: MasteringStrategy; nits?: MasterNits; custom?: CustomConfig } = {};
+    try { cfg = JSON.parse(localStorage.getItem(`postsup-mastering-config-${projectId}`) || "{}"); } catch { /* ignore */ }
+    const strategy = cfg.strategy ?? "hdr-first";
+    const nits = cfg.nits ?? 1000;
+    const custom = cfg.custom ?? { hero: "streaming-hdr" as const, deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"] as const };
+    let labels: string[] = [];
+    try {
+      const graph = strategy === "custom" ? buildCustomGraph(custom as CustomConfig, "2.0", nits) : buildMasterGraph(strategy, "2.0", nits);
+      labels = [...new Set(graph.nodes.filter((n) => n.type === "deliverable").map((n) => n.label))];
+    } catch { toast.error("Couldn't read your Mastering setup."); return; }
+    if (!labels.length) { toast("No deliverables found", { description: "Pick a strategy in Mastering first." }); return; }
+    const existing = cols.flatMap((c) => c.cards).find((k) => k.title.toLowerCase() === "deliverables");
+    if (existing) {
+      const have = new Set(existing.checks.map((c) => c.text.toLowerCase()));
+      const add = labels.filter((l) => !have.has(l.toLowerCase()));
+      if (!add.length) { toast("Deliverables already up to date"); return; }
+      setCols((cs) => cs.map((c) => ({ ...c, cards: c.cards.map((k) => (k.id === existing.id ? { ...k, checks: [...k.checks, ...add.map((l) => mkCheck(l))] } : k)) })));
+      toast.success(`Added ${add.length} deliverable${add.length === 1 ? "" : "s"}`, { description: "To your Deliverables card." });
+    } else {
+      const card: Card = { id: uid("cd"), title: "Deliverables", notes: "From Mastering", color: "#f472b6", checks: labels.map((l) => mkCheck(l)) };
+      setCols((cs) => (cs.length ? cs.map((c, i) => (i === 0 ? { ...c, cards: [...c.cards, card] } : c)) : cs));
+      toast.success("Added a Deliverables card", { description: `${labels.length} item${labels.length === 1 ? "" : "s"} from Mastering.` });
+    }
+  };
+
   // ---- drag handlers ----
   const onDragStart = (e: React.DragEvent, cardId: string, fromCol: string) => {
     drag.current = { cardId, fromCol };
@@ -162,9 +237,26 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Task Board</span>
           {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[18ch]">· {projectName.trim()}</span>}
           <span className="font-mono text-[10px] text-suite-text-dim tabular">{totals.done}/{totals.cards} done</span>
+          {totals.overdue > 0 && <span className="font-mono text-[10px] text-destructive tabular">· {totals.overdue} overdue</span>}
           <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag cards between columns · click a card for notes &amp; checklist</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <div className="relative">
+            <button onClick={() => setShowImport((s) => !s)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+              Import <ChevronDown className="size-3" strokeWidth={2} />
+            </button>
+            {showImport && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowImport(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col">
+                  <div className="px-2 pt-1 pb-1.5 font-mono text-[8.5px] uppercase tracking-[0.14em] text-suite-text-dim">Pull from another tool</div>
+                  <ImportItem icon={CalendarRange} title="From schedule" desc="Phases → cards with due dates" onClick={() => { setShowImport(false); importFromSchedule(); }} />
+                  <ImportItem icon={WorkflowIcon} title="From workflow" desc="Pipeline stages → cards" onClick={() => { setShowImport(false); importFromWorkflow(); }} />
+                  <ImportItem icon={Film} title="From deliverables" desc="Mastering → a checklist" onClick={() => { setShowImport(false); importFromDeliverables(); }} />
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={addColumn} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Plus className="size-3" strokeWidth={2} /> Column
           </button>
@@ -205,6 +297,8 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
               <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-2">
                 {col.cards.map((card) => {
                   const done = card.checks.filter((c) => c.done).length;
+                  const colDone = isDone(col.name);
+                  const du = card.due ? daysUntil(card.due) : null;
                   return (
                     <div
                       key={card.id}
@@ -230,11 +324,16 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
                           <Trash2 className="size-3" strokeWidth={1.6} />
                         </button>
                       </div>
-                      {(card.notes || card.checks.length > 0) && (
+                      {(card.notes || card.checks.length > 0 || card.due) && (
                         <div className="mt-1.5 flex items-center gap-2.5 font-mono text-[9px] text-suite-text-dim">
                           {card.checks.length > 0 && (
                             <span className={cn("inline-flex items-center gap-1", done === card.checks.length && "text-status-ok")}>
                               <ListChecks className="size-2.5" strokeWidth={1.8} /> {done}/{card.checks.length}
+                            </span>
+                          )}
+                          {card.due && (
+                            <span className={cn("inline-flex items-center gap-1 shrink-0", colDone ? "text-suite-text-dim" : du! < 0 ? "text-destructive" : du! <= 3 ? "text-status-warn" : "text-suite-text-dim")}>
+                              <CalendarClock className="size-2.5" strokeWidth={1.8} /> {fmtDue(card.due)}{!colDone && du! < 0 ? " · late" : ""}
                             </span>
                           )}
                           {card.notes && <span className="truncate">{card.notes}</span>}
@@ -296,6 +395,18 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
 }
 
 // ---- card editor (notes + checklist) ----
+function ImportItem({ icon: Icon, title, desc, onClick }: { icon: typeof CalendarRange; title: string; desc: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex items-start gap-2 px-2 py-1.5 rounded text-left hover:bg-suite-panel-elevated">
+      <Icon className="size-3.5 mt-0.5 shrink-0 text-guide-target" strokeWidth={1.6} />
+      <span className="min-w-0">
+        <span className="block font-mono text-[11px] text-suite-text">{title}</span>
+        <span className="block font-mono text-[9px] text-suite-text-dim">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
 function CardEditor({ card, onClose, onChange, onDelete }: {
   card: Card; onClose: () => void; onChange: (p: Partial<Card>) => void; onDelete: () => void;
 }) {
@@ -341,6 +452,17 @@ function CardEditor({ card, onClose, onChange, onDelete }: {
               className="w-full bg-suite-bg border border-suite-border rounded-sm px-2.5 py-1.5 text-[12px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target resize-y"
             />
           </label>
+          {/* Due date */}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim">Due</span>
+            <input
+              type="date"
+              value={card.due || ""}
+              onChange={(e) => onChange({ due: e.target.value || undefined })}
+              className="bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]"
+            />
+            {card.due && <button onClick={() => onChange({ due: undefined })} className="font-mono text-[9px] uppercase tracking-[0.1em] text-suite-text-dim hover:text-suite-text">Clear</button>}
+          </div>
           {/* Checklist */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
