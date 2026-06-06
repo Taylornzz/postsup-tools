@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, AlertTriangle, ListChecks, Crown, ArrowDownToLine, Flame, Sparkles, Send,
   Paperclip, FileText, GitBranch, Cloud, X,
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
   loadRecipients, saveRecipients, newRecipient, buildPlan, recipientChecklist, sendToBoard,
-  commitToWorkflow, hasCustomWorkflow, buildWorkflowGraph,
+  buildWorkflowGraph,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, isHdr,
   type Recipient, type Region, type DRId, type Pass, type DocMeta,
@@ -16,9 +16,12 @@ import {
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
-export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { projectName?: string; projectId?: string; onCommitToWorkflow?: () => void }) {
+export function Deliverables({ projectName, projectId }: { projectName?: string; projectId?: string }) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const [chartW, setChartW] = useState<number>(() => { const v = Number(localStorage.getItem("kaos.deliverables.chartW")); return v >= 320 ? v : 480; });
+  useEffect(() => { try { localStorage.setItem("kaos.deliverables.chartW", String(Math.round(chartW))); } catch { /* ignore */ } }, [chartW]);
 
   const plan = useMemo(() => buildPlan(recipients), [recipients]);
   const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
@@ -40,12 +43,18 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
     else toast.success(`Sent ${added} card${added === 1 ? "" : "s"} to the Task Board`, { description: "Grade passes + a checklist per recipient." });
   };
 
-  const commit = () => {
-    if (!recipients.length) { toast("Add a recipient first."); return; }
-    if (hasCustomWorkflow(projectId) && !window.confirm("This replaces your current Custom Workflow with the delivery plan. Your saved workflow versions are kept. Continue?")) return;
-    commitToWorkflow(projectId, recipients, plan);
-    toast.success("Committed to the Custom Workflow", { description: "Opening the builder…" });
-    onCommitToWorkflow?.();
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const onMove = (ev: MouseEvent) => {
+      const rect = splitRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setChartW(Math.max(320, Math.min(rect.right - ev.clientX, rect.width - 380)));
+    };
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   };
   const cloudSoon = (name: string) => toast(`${name} import is coming soon`, { description: "For now add the file directly — cloud connect arrives with the AI ingest." });
 
@@ -83,9 +92,6 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
           <span className="font-mono text-[10px] text-suite-text-dim tabular">{plan.gradeCount} grade{plan.gradeCount === 1 ? "" : "s"} → {plan.deliverableCount} deliverable{plan.deliverableCount === 1 ? "" : "s"}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={add} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
-            <Plus className="size-3" strokeWidth={2} /> Recipient
-          </button>
           <button onClick={push} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Send className="size-3" strokeWidth={1.6} /> To board
           </button>
@@ -95,7 +101,7 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex">
+      <div ref={splitRef} className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4">
           <div className="flex flex-col gap-4 max-w-3xl">
           {/* Verify banner */}
@@ -144,6 +150,11 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
 
           {/* Recipients */}
           <div className="flex flex-col gap-2.5">
+            {recipients.length > 0 && (
+              <button onClick={add} className="self-start flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+                <Plus className="size-3" strokeWidth={2} /> Add recipient
+              </button>
+            )}
             {recipients.map((r) => {
               const checks = recipientChecklist(r);
               return (
@@ -267,14 +278,12 @@ export function Deliverables({ projectName, projectId, onCommitToWorkflow }: { p
           </div>
         </div>
         </div>
-        <aside className="hidden lg:flex w-[42%] max-w-[620px] min-w-[360px] shrink-0 flex-col border-l border-suite-border bg-suite-canvas">
+        <div onMouseDown={startResize} title="Drag to resize" className="hidden lg:block w-1.5 shrink-0 cursor-col-resize bg-suite-border hover:bg-guide-target/60 transition-colors" />
+        <aside style={{ width: chartW }} className="hidden lg:flex shrink-0 flex-col bg-suite-canvas">
           <div className="shrink-0 flex items-center gap-2 px-3.5 py-2.5 border-b border-suite-border">
             <GitBranch className="size-3.5 text-guide-target" strokeWidth={1.7} />
             <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold">Workflow</span>
-            <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— live from the plan</span>
-            <button onClick={commit} title="Open this in the editable Workflow builder tab" className="ml-auto flex items-center gap-1.5 px-2 py-1 text-[9px] tracking-[0.12em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong">
-              <GitBranch className="size-3" strokeWidth={1.7} /> Open in builder
-            </button>
+            <span className="font-mono text-[10px] text-suite-text-dim ml-auto">live from the plan</span>
           </div>
           <div className="flex-1 min-h-0">
             <Suspense fallback={<div className="h-full grid place-items-center font-mono text-[10px] text-suite-text-dim">Loading chart…</div>}>
