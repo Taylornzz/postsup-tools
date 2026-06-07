@@ -2,6 +2,7 @@ import {
   Frame, Aperture, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, Video, SquareKanban, PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FEATURES } from "@/lib/features";
 
 export type HomeTab = "frame" | "optics" | "storage" | "multicam" | "mastering" | "workflow" | "planner" | "board" | "deliverables" | "glossary" | "tools" | "vendors";
 
@@ -25,7 +26,12 @@ const LABELS: Record<HomeTab, string> = {
   workflow: "Workflow", planner: "Post Schedule", board: "Task Board", deliverables: "Deliverables", glossary: "Glossary", tools: "Post Tools", vendors: "Vendor Directory",
 };
 
+// Cards currently visible (some tools can be hidden behind a feature flag).
+const VISIBLE_CARDS = CARDS.filter((c) => c.tab !== "vendors" || FEATURES.vendors);
+
 export function Home({ onNavigate, lastTab }: { onNavigate: (t: HomeTab) => void; lastTab?: HomeTab | null }) {
+  // Don't offer "Continue" for a tab that's been hidden.
+  const resumeTab = lastTab && VISIBLE_CARDS.some((c) => c.tab === lastTab) ? lastTab : null;
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-suite-canvas">
       <div className="max-w-5xl mx-auto px-6 py-12 sm:py-16">
@@ -35,19 +41,19 @@ export function Home({ onNavigate, lastTab }: { onNavigate: (t: HomeTab) => void
           <p className="font-mono text-[12px] text-suite-text-dim mt-4 max-w-2xl leading-relaxed">
             Post got complicated. This is the map — plan and reference the whole pipeline, capture to delivery. Pick a tool to start.
           </p>
-          {lastTab && (
+          {resumeTab && (
             <button
-              onClick={() => onNavigate(lastTab)}
+              onClick={() => onNavigate(resumeTab)}
               className="mt-5 inline-flex items-center gap-2 px-3.5 py-2 text-[11px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
             >
-              Continue → {LABELS[lastTab]} <ArrowRight className="size-3.5" strokeWidth={1.8} />
+              Continue → {LABELS[resumeTab]} <ArrowRight className="size-3.5" strokeWidth={1.8} />
             </button>
           )}
         </div>
 
         {/* Tool grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {CARDS.map((c) => (
+          {VISIBLE_CARDS.map((c) => (
             <button
               key={c.tab}
               onClick={() => onNavigate(c.tab)}

@@ -4,6 +4,7 @@ import {
   Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen, Newspaper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FEATURES } from "@/lib/features";
 
 type Panel = "about" | "vendors" | "feedback" | "privacy" | "terms";
 
@@ -62,9 +63,9 @@ export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects }: { ve
                   <div className="my-1 border-t border-suite-border/60" />
                 </>
               )}
-              {MENU.map((m, i) => (
+              {MENU.filter((m) => m.id !== "vendors" || FEATURES.vendors).map((m, i, items) => (
                 <div key={m.id}>
-                  {i > 0 && MENU[i - 1].group !== m.group && <div className="my-1 border-t border-suite-border/60" />}
+                  {i > 0 && items[i - 1].group !== m.group && <div className="my-1 border-t border-suite-border/60" />}
                   <button
                     onClick={() => { setOpen(false); if (m.id === "vendors") onOpenVendors(); else if (m.id === "news") onOpenNews?.(); else setPanel(m.id); }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left"

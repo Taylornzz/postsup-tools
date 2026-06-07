@@ -8,15 +8,20 @@ import { cn } from "@/lib/utils";
 import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
   loadRecipients, saveRecipients, newRecipient, buildPlan, recipientChecklist, sendToBoard,
-  buildWorkflowGraph,
+  buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, isHdr,
   type Recipient, type Region, type DRId, type Pass, type DocMeta,
 } from "@/lib/deliverables";
+import type { CustomConfig, MasterNits } from "@/lib/mastering";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
-export function Deliverables({ projectName, projectId }: { projectName?: string; projectId?: string }) {
+export function Deliverables({ projectName, projectId, onSendToMastering }: {
+  projectName?: string;
+  projectId?: string;
+  onSendToMastering?: (config: CustomConfig, nits: MasterNits) => void;
+}) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -25,6 +30,7 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
 
   const plan = useMemo(() => buildPlan(recipients), [recipients]);
   const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
+  const mastering = useMemo(() => recipientsToMasteringConfig(recipients), [recipients]);
   const [flowKey, setFlowKey] = useState(0);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
@@ -46,6 +52,13 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
     const { added } = sendToBoard(projectId, recipients, plan);
     if (added === 0) toast("Already on the board", { description: "Nothing new to add — open Task Board to see it." });
     else toast.success(`Sent ${added} card${added === 1 ? "" : "s"} to the Task Board`, { description: "Grade passes + a checklist per recipient." });
+  };
+
+  const openInMastering = () => {
+    if (!recipients.length) { toast("Add a recipient first."); return; }
+    if (!onSendToMastering) return;
+    onSendToMastering(mastering.config, mastering.masterNits);
+    toast.success("Opened in Mastering", { description: `Custom tree built from these recipients — hero: ${HERO_LABEL[mastering.config.hero]}.` });
   };
 
   const startResize = (e: React.MouseEvent) => {
@@ -122,14 +135,24 @@ export function Deliverables({ projectName, projectId }: { projectName?: string;
             <div className="flex items-center gap-2 mb-2.5">
               <ListChecks className="size-3.5 text-guide-target" strokeWidth={1.7} />
               <h3 className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold">Make plan</h3>
-              <span className="font-mono text-[10px] text-suite-text-dim">— grade once, derive the rest</span>
+              <span className="font-mono text-[10px] text-suite-text-dim hidden sm:inline">— grade once, derive the rest</span>
+              {onSendToMastering && recipients.length > 0 && (
+                <button onClick={openInMastering} title="Build this as a custom tree in the Mastering tab" className="ml-auto flex items-center gap-1.5 px-2 py-1 text-[9px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+                  <GitBranch className="size-3" strokeWidth={1.7} /> Open in Mastering
+                </button>
+              )}
             </div>
             {plan.passes.length === 0 ? (
               <p className="font-mono text-[11px] text-suite-text-dim">Add a recipient to see the plan.</p>
             ) : (
-              <ol className="flex flex-col gap-1.5">
-                {plan.passes.map((p, i) => <PassRow key={i} index={i} pass={p} />)}
-              </ol>
+              <>
+                <p className="font-mono text-[10px] text-suite-text-dim leading-relaxed mb-2">
+                  Computed by the mastering engine — grade the <span className="text-suite-text-muted">{HERO_LABEL[mastering.config.hero]}</span> hero first, then trim down. Anything above the hero's range, or a theatrical / SDR off the archive, is a <span className="text-status-warn">fresh pass</span>, not a clean transform.
+                </p>
+                <ol className="flex flex-col gap-1.5">
+                  {plan.passes.map((p, i) => <PassRow key={i} index={i} pass={p} />)}
+                </ol>
+              </>
             )}
             {(plan.common.length > 0 || plan.watchOuts.length > 0) && (
               <div className="mt-3 pt-3 border-t border-suite-border/60 grid sm:grid-cols-2 gap-3">

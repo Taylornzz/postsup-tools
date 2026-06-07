@@ -411,3 +411,46 @@ export function buildCustomGraph(
   const finalNodes = nodes.map((n) => ({ ...n, note: NODE_NOTES[n.id] ?? n.note }));
   return { strategy: "custom", version, nodes: finalNodes, edges };
 }
+
+// ============================================================================
+// Make-order summary — the grade passes a custom config implies, classified by
+// HOW the DAG actually produces each master family. Read straight off
+// buildCustomGraph's output (not a parallel rule-set) so the two can never
+// drift: an Output Transform off the grade is the hero pass; a `regrade` edge is
+// a FRESH pass (an up-volume master, or a dedicated dark-surround trim off the
+// archive); a content-map / trim is a clean down-volume derive. The Deliverables
+// make-plan reads this, so its make-order obeys the same doctrine as this tab.
+// ============================================================================
+export type MakeStepKind = "hero" | "derive" | "regrade";
+export type MasterFamily = "streaming-hdr" | "theatrical" | "broadcast";
+export interface MakeStep { family: MasterFamily; kind: MakeStepKind; flag: boolean; }
+
+/** The master node that represents each delivered family in the custom DAG. */
+const FAMILY_NODE: Record<MasterFamily, string> = {
+  "streaming-hdr": "hdrHero",
+  theatrical: "dcdm4k",
+  broadcast: "sdr",
+};
+
+export function makeOrder(cfg: CustomConfig, version: AcesVersion = "2.0", masterNits: MasterNits = 1000): MakeStep[] {
+  const g = buildCustomGraph(cfg, version, masterNits);
+  const families: MasterFamily[] = ["streaming-hdr", "theatrical", "broadcast"];
+  const steps: MakeStep[] = [];
+  for (const family of families) {
+    const nodeId = FAMILY_NODE[family];
+    if (!g.nodes.some((n) => n.id === nodeId)) continue; // family not in this delivery
+    const inbound = g.edges.filter((e) => e.to === nodeId);
+    // The pixel op that produces this master: OT (hero) > regrade (fresh) > derive.
+    const prod =
+      inbound.find((e) => e.op === "output-transform") ??
+      inbound.find((e) => e.op === "regrade") ??
+      inbound.find((e) => e.op === "cm-derive" || e.op === "trim" || e.op === "downscale");
+    const kind: MakeStepKind =
+      !prod || prod.op === "output-transform" ? "hero"
+      : prod.op === "regrade" ? "regrade"
+      : "derive";
+    steps.push({ family, kind, flag: kind === "regrade" });
+  }
+  const rank: Record<MakeStepKind, number> = { hero: 0, derive: 1, regrade: 2 };
+  return steps.sort((a, b) => rank[a.kind] - rank[b.kind]);
+}

@@ -12,6 +12,12 @@
 // Everything here is a planning aid — confirm every spec against the recipient's
 // own delivery document. Per-project (localStorage).
 
+import {
+  makeOrder, MASTER_NITS,
+  type CustomConfig, type CustomHero, type CustomDeliverable, type MasterNits,
+  type MakeStep, type MasterFamily,
+} from "./mastering";
+
 export type Region = "US" | "UK" | "EU" | "AU" | "NZ" | "Other";
 export type DRTier = "hdr" | "theatrical" | "sdr";
 export type DRId = "dolby-vision" | "hdr10" | "hlg" | "sdr" | "theatrical";
@@ -105,21 +111,65 @@ export interface Plan {
   watchOuts: string[]; // cross-recipient gotchas (fps, loudness, resolution spread)
 }
 
+// ---- bridge: recipients → the Mastering tab's custom config ----------------
+// Deliverables is the requirements layer; the make-order is the Mastering
+// engine's job. We translate the recipient list into a Custom mastering config
+// (hero + deliverable families) and let buildCustomGraph / makeOrder decide the
+// order. Doctrine: grade the highest dynamic range first and trim down.
+const FAMILY_TIER: Record<MasterFamily, DRTier> = { "streaming-hdr": "hdr", theatrical: "theatrical", broadcast: "sdr" };
+export const HERO_LABEL: Record<CustomHero, string> = { "streaming-hdr": "HDR PQ", theatrical: "DCI-P3 theatrical", broadcast: "SDR Rec.709" };
+
+export function recipientsToMasteringConfig(recipients: Recipient[]): { config: CustomConfig; masterNits: MasterNits } {
+  const tiers = new Set(recipients.map((r) => DR_TIER[r.dr]));
+  const deliverables: CustomDeliverable[] = [];
+  if (tiers.has("hdr")) deliverables.push("hdr");
+  if (tiers.has("theatrical")) deliverables.push("theatrical");
+  if (tiers.has("sdr")) deliverables.push("sdr");
+  // House masters you always keep on a multi-deliverable show: the graded ACES
+  // archive (what every up-volume / dedicated regrade derives from) + proxies.
+  deliverables.push("archive", "proxies");
+  const hero: CustomHero = tiers.has("hdr") ? "streaming-hdr" : tiers.has("theatrical") ? "theatrical" : "broadcast";
+  // Master to the highest HDR peak any recipient asks for, snapped up to a
+  // supported mastering-display tier (1000 / 2000 / 4000).
+  const hdrPeaks = recipients.filter((r) => isHdr(r.dr)).map((r) => r.peakNits || 1000);
+  const want = hdrPeaks.length ? Math.max(...hdrPeaks) : 1000;
+  const masterNits = (MASTER_NITS.find((n) => n >= want) ?? MASTER_NITS[MASTER_NITS.length - 1]) as MasterNits;
+  return { config: { hero, deliverables }, masterNits };
+}
+
+const FAMILY_FULL: Record<MasterFamily, string> = { "streaming-hdr": "HDR", theatrical: "Theatrical DCI-P3", broadcast: "SDR Rec.709" };
+
+/** Human label + note for one make-order step. Same doctrine as the Mastering tab. */
+function passText(step: MakeStep, masterNits: number): { label: string; note: string } {
+  const { family, kind } = step;
+  if (kind === "hero") {
+    if (family === "streaming-hdr") return { label: `HDR hero grade @ ${masterNits} nit`, note: "Grade once at the highest dynamic range — every lower tier trims from here." };
+    if (family === "theatrical") return { label: "Theatrical DCI-P3 grade", note: "Grade the hero in the cinema's dark-surround condition (48 nit, γ2.6)." };
+    return { label: "SDR Rec.709 grade", note: "One SDR grade covers every recipient." };
+  }
+  if (kind === "derive") {
+    if (family === "broadcast") return { label: "SDR Rec.709 trim", note: "Down-volume off the HDR hero — Dolby Vision TID1 map + manual per-shot trims. Budget a colourist QC pass." };
+    return { label: `${FAMILY_FULL[family]} derive`, note: "Clean down-volume derive off the hero." };
+  }
+  // regrade — a fresh colourist pass, not a clean transform
+  if (family === "theatrical") return { label: "Theatrical DCI-P3 pass", note: "Separate DI off the ACES archive — a 48-nit dark-surround grade, not a transform from the streaming hero." };
+  if (family === "streaming-hdr") return { label: `HDR PQ pass @ ${masterNits} nit`, note: "Up-volume regrade off the archive — a fresh grade, not a clean transform from a lower-range hero." };
+  return { label: "SDR Rec.709 pass", note: "Fresh dim-surround pass off the ACES archive — P3 theatrical doesn't trim cleanly to Rec.709 SDR." };
+}
+
 export function buildPlan(recipients: Recipient[]): Plan {
   const namesOf = (t: DRTier) => recipients.filter((r) => DR_TIER[r.dr] === t).map((r) => r.name || "Untitled");
-  const hdr = namesOf("hdr"), theat = namesOf("theatrical"), sdr = namesOf("sdr");
-  const passes: Pass[] = [];
 
-  if (hdr.length) {
-    const maxNits = Math.max(...recipients.filter((r) => DR_TIER[r.dr] === "hdr").map((r) => r.peakNits || 1000));
-    passes.push({ kind: "hero", label: `HDR hero grade @ ${maxNits} nit`, note: "Grade once at the highest dynamic range; everything below trims from here.", covers: hdr });
-    if (sdr.length) passes.push({ kind: "derive", label: "SDR Rec.709 trim", note: "Clean down-volume derive off the HDR hero.", covers: sdr });
-    if (theat.length) passes.push({ kind: "regrade", label: "Theatrical DCI-P3 pass", flag: true, note: "Separate DI — P3 theatrical isn't a clean transform from an HDR streaming hero.", covers: theat });
-  } else if (theat.length) {
-    passes.push({ kind: "hero", label: "Theatrical DCI-P3 grade", note: "Grade the theatrical hero first.", covers: theat });
-    if (sdr.length) passes.push({ kind: "derive", label: "SDR Rec.709 trim", note: "Derive from the P3 grade.", covers: sdr });
-  } else if (sdr.length) {
-    passes.push({ kind: "hero", label: "SDR Rec.709 grade", note: "One SDR grade covers every recipient.", covers: sdr });
+  // The make-order is computed by the Mastering engine, not by ad-hoc rules here,
+  // so a theatrical→SDR or up-volume step is correctly flagged as a fresh pass.
+  const { config, masterNits } = recipientsToMasteringConfig(recipients);
+  const steps = recipients.length ? makeOrder(config, "2.0", masterNits) : [];
+  const passes: Pass[] = [];
+  for (const step of steps) {
+    const covers = namesOf(FAMILY_TIER[step.family]);
+    if (covers.length === 0) continue; // a family the engine added that no recipient actually needs
+    const { label, note } = passText(step, masterNits);
+    passes.push({ kind: step.kind, label, note, flag: step.flag || undefined, covers });
   }
 
   const common: string[] = [];

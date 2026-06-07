@@ -124,8 +124,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.0.0";
+export const VERSION = "v2.0.1";
 const CHANGELOG = [
+  "v2.0.1 — Deliverables now drives the Mastering engine directly: the make-order is computed by the same custom-mastering logic as the Mastering tab (one source of truth), so a theatrical→SDR step — or any up-volume master — is correctly flagged as a fresh re-grade off the ACES archive, not a clean derive. New ‘Open in Mastering’ button hands your recipient list to the Mastering Custom tree with the hero, deliverables and peak nits inferred from your recipients. Vendor directory temporarily hidden while it’s refreshed.",
   "v2.0.0 — Accounts & cloud sync: sign in and your projects sync per-user with row-level security, plus a Resolve-style project manager and a Home launcher. New tools — Multicam Planner (per-camera data + combined rig storage), Task Board (kanban + checklists, with imports from the schedule, workflow and deliverables, and multi-select drag, PDF/CSV/JSON export), Deliverables (multi-recipient delivery plan → make-order, a per-variable checklist, a live workflow chart, and attach contracts/specs per recipient), and News Watches. Vendor directory deepened (DIT/dailies, NZ, captions — 200+ verified). Mastering made customisable. Every tool is now per-project.",
   "v1.9.100 — Removed the tagline strip from the header for a cleaner top bar.",
   "v1.9.99 — New Vendor Directory (top-right menu): 139 verified post-production vendors — facilities, film labs, colour, VFX, audio, DCP/QC, camera rental, plus the global software & hardware the post world runs on. Searchable and filterable by region (AU, NZ, UK, France, Germany, Singapore, Global) and type. Built from the NZ post-super reference + web research, each verified as operating at research time; links open the vendor's site. Confirm current details before relying on a listing.",
@@ -1189,7 +1190,19 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
         </main>
       ) : appTab === "deliverables" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
-          <Deliverables projectName={projectName} projectId={project.id} />
+          <Deliverables
+            projectName={projectName}
+            projectId={project.id}
+            onSendToMastering={(config, nits) => {
+              // Deliverables is the requirements layer; hand its derived plan to
+              // the Mastering tab's Custom strategy (the one shared source of truth).
+              setMasteringCustom(config);
+              setMasterNits(nits);
+              setMasteringStrategy("custom");
+              setMasteringView("derived");
+              setAppTab("mastering");
+            }}
+          />
         </main>
       ) : appTab === "planner" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
