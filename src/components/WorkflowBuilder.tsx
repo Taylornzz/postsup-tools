@@ -95,7 +95,7 @@ function DeletableEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition,
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd}
-        style={{ ...style, stroke: show ? "#94a3b8" : (style?.stroke as string), strokeWidth: show ? 2 : (style?.strokeWidth as number) }} />
+        style={{ ...style, stroke: show ? "hsl(var(--suite-text-muted))" : (style?.stroke as string), strokeWidth: show ? 2 : (style?.strokeWidth as number) }} />
       {/* invisible wide ribbon over the line: hover to reveal controls, click to label */}
       <path d={path} fill="none" stroke="transparent" strokeWidth={24}
         style={{ pointerEvents: "stroke", cursor: "pointer" }}
@@ -150,8 +150,8 @@ const edgeTypes = { deletable: DeletableEdge };
 
 const defaultEdgeOptions = {
   type: "deletable" as const,
-  markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#64748b" },
-  style: { stroke: "#64748b", strokeWidth: 1.5 },
+  markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "hsl(var(--suite-text-dim))" },
+  style: { stroke: "hsl(var(--suite-text-dim))", strokeWidth: 1.5 },
 };
 
 // A very basic 6-step template covering the whole process; add detail from there.
@@ -272,6 +272,18 @@ async function exportImage(kind: "png" | "pdf", base: string, nodes: Node[]) {
   pdf.save(`${base}.pdf`);
 }
 
+// Track the app's light/dark class so React Flow's own theme follows it.
+function useAppColorMode(): "light" | "dark" {
+  const [mode, setMode] = useState<"light" | "dark">(() => (typeof document !== "undefined" && document.documentElement.classList.contains("light")) ? "light" : "dark");
+  useEffect(() => {
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => setMode(el.classList.contains("light") ? "light" : "dark"));
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return mode;
+}
+
 function Builder({
   storageKey = KEY,
   versionsKey = KEY_VERSIONS,
@@ -286,6 +298,7 @@ function Builder({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initial.current.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.current.edges);
   const [selId, setSelId] = useState<string | null>(null);
+  const colorMode = useAppColorMode();
   const [showPalette, setShowPalette] = useState(true);
   const [openStages, setOpenStages] = useState<Set<string>>(() => new Set(paletteGroups.map((g) => g.stage)));
 
@@ -584,16 +597,16 @@ function Builder({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
-          colorMode="dark"
+          colorMode={colorMode}
           fitView
           deleteKeyCode={["Backspace", "Delete"]}
           onNodeClick={(_, n) => setSelId(n.id)}
           onPaneClick={() => setSelId(null)}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={20} color="#1e293b" />
+          <Background gap={20} color="hsl(var(--suite-border))" />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable nodeColor={(n) => (n.data as StepData).color} maskColor="rgba(10,14,19,0.7)" />
+          <MiniMap pannable zoomable nodeColor={(n) => (n.data as StepData).color} maskColor="hsl(var(--suite-canvas) / 0.7)" />
         </ReactFlow>
 
         {/* Edit panel */}

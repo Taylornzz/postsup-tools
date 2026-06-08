@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.4.0";
+export const VERSION = "v2.4.1";
 const CHANGELOG = [
+  "v2.4.1 — Light mode is now a softer mid-grey instead of stark white (it was too bright), and the node graphs work in it: the Deliverables / Workflow / Mastering builders had light-on-light node text, a dark minimap and a pinned-dark canvas — all now follow the theme (React Flow’s own light/dark tracks the toggle). Dark mode unchanged.",
   "v2.4.0 — Light mode. A sun/moon toggle in the header flips the whole site between dark and light; the choice persists and applies before first paint (no flash). Accent colours are darkened just enough to stay readable on light surfaces, dropdowns follow the theme, and the framing-chart preview keeps its dark field by design (you judge an image against neutral, like a scope).",
   "v2.3.0 — Storage rig, sharpened. Reset now clears the whole rig (build it back from scratch) and every camera has a Duplicate button for identical A/B/C bodies. The per-day footage is honest about mixed schedules: when cameras shoot different lengths it reads ‘Peak day’ (the busiest day, all rolling) with the shoot span in the header and a note explaining peak vs whole-shoot. Each camera card now shows its body (e.g. ARRI ALEXA 35), not just the mode. Proxies are first-class again — a totals tile, a per-camera figure, and folded into a prominent Total-storage-to-provision box (footage ×copies + proxies). All maths re-verified against the engine tests.",
   "v2.2.1 — Saved setups can be renamed: a rename (✎) button on each saved setup in Capture, alongside Load and Delete. The new name carries through to the Storage ‘From saved setups’ list too.",

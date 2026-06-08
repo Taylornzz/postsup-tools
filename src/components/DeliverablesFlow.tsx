@@ -31,7 +31,7 @@ function toNodes(g: FlowGraph, saved: Record<string, { x: number; y: number }>):
     style: {
       background: n.data.color + "22",
       border: `1px solid ${n.data.color}`,
-      color: "#e2e8f0",
+      color: "hsl(var(--suite-text))",
       fontSize: 9,
       fontFamily: "ui-monospace, Menlo, monospace",
       width: 150,
@@ -48,9 +48,9 @@ function toEdges(g: FlowGraph): Edge[] {
     source: e.source,
     target: e.target,
     label: e.data?.label,
-    style: { stroke: "#475569", strokeWidth: 1.2 },
-    labelStyle: { fontSize: 8, fill: "#94a3b8", fontFamily: "ui-monospace, monospace" },
-    labelBgStyle: { fill: "#0a0e13", fillOpacity: 0.85 },
+    style: { stroke: "hsl(var(--suite-text-dim))", strokeWidth: 1.2 },
+    labelStyle: { fontSize: 8, fill: "hsl(var(--suite-text-muted))", fontFamily: "ui-monospace, monospace" },
+    labelBgStyle: { fill: "hsl(var(--suite-canvas))", fillOpacity: 0.9 },
   }));
 }
 
@@ -100,9 +100,9 @@ function Flow({ graph, projectId }: { graph: FlowGraph; projectId?: string }) {
       proOptions={{ hideAttribution: true }}
       className="bg-suite-canvas"
     >
-      <Background color="#1e293b" gap={18} />
+      <Background color="hsl(var(--suite-border))" gap={18} />
       <Controls showInteractive={false} />
-      <MiniMap pannable zoomable maskColor="rgba(10,14,19,0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
+      <MiniMap pannable zoomable maskColor="hsl(var(--suite-canvas) / 0.6)" nodeColor={(n) => ((n.data as { color?: string })?.color) || "#475569"} className="!bg-suite-panel" />
     </ReactFlow>
   );
 }
