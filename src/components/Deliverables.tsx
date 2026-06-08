@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
   loadRecipients, saveRecipients, newRecipient, buildPlan, recipientChecklist, sendToBoard,
-  buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL,
+  buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL, DELIVERY_TEMPLATES, recipientFromTemplate,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
-  AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, isHdr,
-  type Recipient, type Region, type DRId, type Pass, type DocMeta,
+  AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, TRUEPEAK_OPTIONS, TRUEPEAK_BY_REGION, isHdr,
+  type Recipient, type Region, type DRId, type Pass, type DocMeta, type Conversion,
 } from "@/lib/deliverables";
 import type { CustomConfig, MasterNits } from "@/lib/mastering";
 
@@ -38,8 +38,14 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   };
 
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
-  const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "" });
+  const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "", truePeak: TRUEPEAK_BY_REGION[region] || "" });
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
+  const addTemplate = (id: string) => {
+    const t = DELIVERY_TEMPLATES.find((x) => x.id === id);
+    if (!t) return;
+    setRecipients((rs) => [...rs, recipientFromTemplate(t)]);
+    toast.success(`Added ${t.name}`, { description: "Starter spec — confirm against the platform's current delivery document." });
+  };
   const remove = (id: string) => {
     const r = recipients.find((x) => x.id === id);
     (r?.documents || []).forEach((d) => { delFile(d.id).catch(() => {}); });
@@ -154,6 +160,14 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                 </ol>
               </>
             )}
+            {plan.conversions.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-suite-border/60">
+                <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim mb-1.5">Conversions &amp; finishing</div>
+                <ul className="flex flex-col gap-1.5">
+                  {plan.conversions.map((c, i) => <ConversionRow key={i} conv={c} />)}
+                </ul>
+              </div>
+            )}
             {(plan.common.length > 0 || plan.watchOuts.length > 0) && (
               <div className="mt-3 pt-3 border-t border-suite-border/60 grid sm:grid-cols-2 gap-3">
                 {plan.common.length > 0 && (
@@ -179,9 +193,15 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
           {/* Recipients */}
           <div className="flex flex-col gap-2.5">
             {recipients.length > 0 && (
-              <button onClick={add} className="self-start flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
-                <Plus className="size-3" strokeWidth={2} /> Add recipient
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={add} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+                  <Plus className="size-3" strokeWidth={2} /> Add recipient
+                </button>
+                <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[16rem]")} title="Add a recipient pre-filled from a platform's delivery spec (a starter — always confirm)">
+                  <option value="">+ From template…</option>
+                  {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
             )}
             {recipients.map((r) => {
               const checks = recipientChecklist(r);
@@ -236,6 +256,11 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                     <Field label="Loudness">
                       <select value={r.loudness} onChange={(e) => patch(r.id, { loudness: e.target.value })} className={cn(sel, "max-w-[14rem]")}>
                         {[r.loudness, ...LOUDNESS_OPTIONS.filter((o) => o !== r.loudness)].filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="True-peak">
+                      <select value={r.truePeak} onChange={(e) => patch(r.id, { truePeak: e.target.value })} className={cn(sel, "max-w-[12rem]")} title="Maximum true-peak ceiling (dBTP)">
+                        {[r.truePeak, ...TRUEPEAK_OPTIONS.filter((o) => o !== r.truePeak)].filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
                     <Field label="Subtitles">
@@ -345,6 +370,26 @@ function PassRow({ index, pass }: { index: number; pass: Pass }) {
         </div>
         {pass.note && <p className="font-mono text-[10px] text-suite-text-muted leading-relaxed mt-0.5">{pass.note}</p>}
         {pass.covers.length > 0 && <p className="font-mono text-[9.5px] text-suite-text-dim mt-0.5">covers: {pass.covers.join(" · ")}</p>}
+      </div>
+    </li>
+  );
+}
+
+const CONV_META = {
+  standards: { color: "#fbbf24", tag: "STANDARDS" },
+  downscale: { color: "#38bdf8", tag: "DOWN-SCALE" },
+  reframe: { color: "#f87171", tag: "REFRAME" },
+} as const;
+
+function ConversionRow({ conv }: { conv: Conversion }) {
+  const m = CONV_META[conv.kind];
+  return (
+    <li className="flex items-start gap-2.5 rounded-sm border border-suite-border bg-suite-bg/50 px-2.5 py-1.5">
+      <span className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full border shrink-0" style={{ color: m.color, borderColor: m.color + "66" }}>{m.tag}</span>
+      <div className="min-w-0 flex-1">
+        <div className="font-mono text-[11px] text-suite-text">{conv.label}</div>
+        <div className="font-mono text-[9.5px] text-suite-text-muted leading-relaxed">{conv.detail}</div>
+        {conv.covers.length > 0 && <div className="font-mono text-[9px] text-suite-text-dim mt-0.5">covers: {conv.covers.join(" · ")}</div>}
       </div>
     </li>
   );

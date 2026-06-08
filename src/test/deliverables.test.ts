@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  buildPlan, recipientsToMasteringConfig, newRecipient,
+  buildPlan, recipientsToMasteringConfig, newRecipient, recipientChecklist,
+  DELIVERY_TEMPLATES, recipientFromTemplate,
   type Recipient, type DRId,
 } from "@/lib/deliverables";
 import { makeOrder } from "@/lib/mastering";
@@ -90,5 +91,75 @@ describe("makeOrder — classification reads straight off the DAG", () => {
   it("up-volume HDR off a theatrical hero is flagged as a regrade", () => {
     const steps = makeOrder({ hero: "theatrical", deliverables: ["theatrical", "hdr", "archive"] });
     expect(steps.find((s) => s.family === "streaming-hdr")?.kind).toBe("regrade");
+  });
+});
+
+describe("make-order conversions (#3)", () => {
+  it("mixed frame rates → a standards conversion step", () => {
+    const { conversions } = buildPlan([rcp("US", "sdr", { fps: 23.976 }), rcp("NZ", "sdr", { fps: 25 })]);
+    const std = conversions.find((c) => c.kind === "standards");
+    expect(std).toBeTruthy();
+    expect(std!.detail).toMatch(/PAL|NTSC/i); // 24-family ↔ 25 is a cross-standard conversion
+  });
+
+  it("lower resolution at the same aspect → a clean down-scale", () => {
+    const { conversions } = buildPlan([rcp("A", "sdr", { resolution: "UHD 3840×2160" }), rcp("B", "sdr", { resolution: "1080p 1920×1080" })]);
+    const ds = conversions.find((c) => c.kind === "downscale");
+    expect(ds?.covers).toContain("B");
+  });
+
+  it("different aspect (UHD vs DCI 4K) → a reframe", () => {
+    const { conversions } = buildPlan([rcp("Cinema", "sdr", { resolution: "DCI 4K 4096×2160" }), rcp("Stream", "sdr", { resolution: "UHD 3840×2160" })]);
+    expect(conversions.some((c) => c.kind === "reframe")).toBe(true);
+  });
+
+  it("identical formats → no conversions", () => {
+    expect(buildPlan([rcp("A", "sdr"), rcp("B", "sdr")]).conversions).toHaveLength(0);
+  });
+});
+
+describe("loudness QC fields (#4)", () => {
+  it("new recipients carry a true-peak default", () => {
+    expect(newRecipient().truePeak).toBe("-2 dBTP");
+  });
+
+  it("checklist surfaces true-peak, and dialnorm ONLY for AC-3 broadcast targets", () => {
+    const usBroadcast = recipientChecklist(rcp("US", "sdr", { loudness: "-24 LKFS (ATSC A/85)" }));
+    expect(usBroadcast.some((l) => /True-peak/.test(l))).toBe(true);
+    expect(usBroadcast.some((l) => /Dialnorm \(AC-3 emission only\)/.test(l))).toBe(true);
+
+    const ukStreaming = recipientChecklist(rcp("UK", "sdr", { loudness: "-23 LUFS (EBU R128)" }));
+    expect(ukStreaming.some((l) => /True-peak/.test(l))).toBe(true);
+    expect(ukStreaming.some((l) => /Dialnorm/.test(l))).toBe(false); // R128 master carries no dialnorm
+  });
+});
+
+describe("delivery templates (#11)", () => {
+  it("every template instantiates a complete recipient with a true-peak", () => {
+    expect(DELIVERY_TEMPLATES.length).toBeGreaterThanOrEqual(5);
+    for (const t of DELIVERY_TEMPLATES) {
+      const r = recipientFromTemplate(t);
+      expect(r.name).toBe(t.name);
+      expect(r.id).toBeTruthy();
+      expect(r.truePeak).toMatch(/dBTP|None/);
+      expect(r.resolution).toBeTruthy();
+      expect(r.container).toBeTruthy();
+    }
+  });
+
+  it("Netflix template is Dolby Vision IMF at -27 LKFS / -2 dBTP", () => {
+    const r = recipientFromTemplate(DELIVERY_TEMPLATES.find((t) => t.id === "netflix")!);
+    expect(r.dr).toBe("dolby-vision");
+    expect(r.container).toBe("IMF App 2E");
+    expect(r.loudness).toMatch(/-27/);
+    expect(r.truePeak).toBe("-2 dBTP");
+  });
+
+  it("Apple TV+ uses the tighter -1 dBTP ceiling", () => {
+    expect(recipientFromTemplate(DELIVERY_TEMPLATES.find((t) => t.id === "apple")!).truePeak).toBe("-1 dBTP");
+  });
+
+  it("each instantiation gets a unique id", () => {
+    expect(recipientFromTemplate(DELIVERY_TEMPLATES[0]).id).not.toBe(recipientFromTemplate(DELIVERY_TEMPLATES[0]).id);
   });
 });

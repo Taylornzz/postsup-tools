@@ -1,14 +1,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X, Save, Download, FolderOpen, Upload } from "lucide-react";
+import { CalendarClock, Plus, Trash2, Wand2, Crosshair, GripVertical, Diamond, ZoomIn, ZoomOut, X, Save, Download, FolderOpen, Upload, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportSchedule, type ExportFormat } from "@/lib/scheduleExport";
 
 /** Post Schedule — a drag-and-drop weekly Gantt. Each row is a phase bar with a start
  *  (week offset) and a duration (weeks); drag the body to move, drag an edge to resize,
  *  drag the grip to reorder, click to set an exact date, shift-click for multi-select.
- *  Duration 0 = a milestone / keyframe diamond. Wheel zooms; drag the canvas to pan. */
+ *  Phases link: hover a bar and drag a ○ handle onto another to connect (front handle =
+ *  start-to-start, back handle = finish-to-start). Linked phases ride along when you move
+ *  the source, keeping the gap. Duration 0 = a milestone diamond. Wheel zooms; drag to pan. */
 
-type Bar = { id: string; name: string; color: string; start: number; dur: number };
+/** A start-to-start (SS) or finish-to-start (FS) link to a predecessor bar. */
+type Link = { id: string; type: "FS" | "SS" };
+type Bar = { id: string; name: string; color: string; start: number; dur: number; deps?: Link[] };
+
+function normalizeDeps(raw: unknown): Link[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((d): Link | null =>
+      typeof d === "string" ? { id: d, type: "FS" }
+      : d && typeof (d as Link).id === "string" ? { id: (d as Link).id, type: (d as Link).type === "SS" ? "SS" : "FS" }
+      : null)
+    .filter((x): x is Link => !!x);
+}
+// Successor adjacency: predecessorId → [{ to, type }].
+function buildSucc(bars: Bar[]): Map<string, { to: string; type: "FS" | "SS" }[]> {
+  const m = new Map<string, { to: string; type: "FS" | "SS" }[]>();
+  bars.forEach((b) => (b.deps || []).forEach((l) => { (m.get(l.id) ?? m.set(l.id, []).get(l.id)!).push({ to: b.id, type: l.type }); }));
+  return m;
+}
+function transitiveFollowers(succ: Map<string, { to: string; type: "FS" | "SS" }[]>, seedIds: string[]): Set<string> {
+  const out = new Set<string>(); const stack = [...seedIds];
+  while (stack.length) { const id = stack.pop()!; for (const e of succ.get(id) || []) if (!out.has(e.to)) { out.add(e.to); stack.push(e.to); } }
+  return out;
+}
 
 const ROW_H = 34;
 const LABEL_W = 158;
@@ -21,23 +46,35 @@ const WEEK_W_MAX = 420;
 const DAY_MODE_AT = 154; // weekW px at/above which the grid + snapping switch to days (≥22px/day)
 const POP_W = 216;
 
-const SEED: Omit<Bar, "id">[] = [
-  { name: "Prep", color: "#94a3b8", start: 0, dur: 4 },
-  { name: "Camera Test", color: "#a78bfa", start: 0, dur: 1 },
-  { name: "Show Look", color: "#facc15", start: 0, dur: 1 },
-  { name: "PP", color: "#facc15", start: 4, dur: 0 },
-  { name: "Shoot", color: "#38bdf8", start: 4, dur: 5 },
-  { name: "Offload / DIT", color: "#22d3ee", start: 4, dur: 6 },
-  { name: "Offline", color: "#a78bfa", start: 5, dur: 12 },
-  { name: "Lock", color: "#facc15", start: 17, dur: 0 },
-  { name: "Conform", color: "#f87171", start: 17, dur: 1 },
-  { name: "VFX", color: "#94a3b8", start: 10, dur: 13 },
-  { name: "Grade", color: "#f59e0b", start: 17, dur: 3 },
-  { name: "Audio Post", color: "#2dd4bf", start: 16, dur: 7 },
-  { name: "Online", color: "#e879f9", start: 23, dur: 3 },
-  { name: "QC", color: "#fb7185", start: 26, dur: 2 },
-  { name: "Delivery", color: "#34d399", start: 28, dur: 2 },
+// Keyed seed with FS / SS links. Offload starts WITH the shoot (SS, "immediately
+// offloading"); editorial offlines after it wraps (FS). Starts already satisfy the
+// links so the template lands clean.
+type SeedBar = { key: string; name: string; color: string; start: number; dur: number; deps?: { k: string; type: "FS" | "SS" }[] };
+const SEED: SeedBar[] = [
+  { key: "prep", name: "Prep", color: "#94a3b8", start: 0, dur: 4 },
+  { key: "test", name: "Camera Test", color: "#a78bfa", start: 0, dur: 1 },
+  { key: "look", name: "Show Look", color: "#facc15", start: 1, dur: 1, deps: [{ k: "test", type: "FS" }] },
+  { key: "pp", name: "PP", color: "#facc15", start: 4, dur: 0, deps: [{ k: "prep", type: "FS" }, { k: "look", type: "FS" }] },
+  { key: "shoot", name: "Shoot", color: "#38bdf8", start: 4, dur: 5, deps: [{ k: "pp", type: "FS" }] },
+  { key: "offload", name: "Offload / DIT", color: "#22d3ee", start: 4, dur: 6, deps: [{ k: "shoot", type: "SS" }] },
+  { key: "offline", name: "Offline", color: "#a78bfa", start: 9, dur: 12, deps: [{ k: "shoot", type: "FS" }] },
+  { key: "lock", name: "Lock", color: "#facc15", start: 21, dur: 0, deps: [{ k: "offline", type: "FS" }] },
+  { key: "conform", name: "Conform", color: "#f87171", start: 21, dur: 1, deps: [{ k: "lock", type: "FS" }] },
+  { key: "vfx", name: "VFX", color: "#94a3b8", start: 21, dur: 13, deps: [{ k: "lock", type: "FS" }] },
+  { key: "grade", name: "Grade", color: "#f59e0b", start: 22, dur: 3, deps: [{ k: "conform", type: "FS" }] },
+  { key: "audio", name: "Audio Post", color: "#2dd4bf", start: 21, dur: 7, deps: [{ k: "lock", type: "FS" }] },
+  { key: "online", name: "Online", color: "#e879f9", start: 34, dur: 3, deps: [{ k: "vfx", type: "FS" }, { k: "grade", type: "FS" }, { k: "audio", type: "FS" }] },
+  { key: "qc", name: "QC", color: "#fb7185", start: 37, dur: 2, deps: [{ k: "online", type: "FS" }] },
+  { key: "delivery", name: "Delivery", color: "#34d399", start: 39, dur: 2, deps: [{ k: "qc", type: "FS" }] },
 ];
+// Resolve seed keys → fresh ids, offsetting every start by `base` weeks.
+function buildSeed(base = 0): Bar[] {
+  const ids = new Map(SEED.map((s) => [s.key, uid()]));
+  return SEED.map((s) => ({
+    id: ids.get(s.key)!, name: s.name, color: s.color, start: s.start + base, dur: s.dur,
+    deps: (s.deps || []).map((d) => ({ id: ids.get(d.k)!, type: d.type })).filter((l) => !!l.id),
+  }));
+}
 const PALETTE = ["#94a3b8", "#38bdf8", "#22d3ee", "#a78bfa", "#facc15", "#f59e0b", "#e879f9", "#f87171", "#34d399", "#fb7185"];
 
 const KEY_BARS = "postsup-gantt-v1";
@@ -101,7 +138,7 @@ function fmtDate(d: Date): string {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
 }
 
-const seedBars = (): Bar[] => SEED.map((b) => ({ ...b, id: uid() }));
+const seedBars = (): Bar[] => buildSeed(0);
 
 function loadBars(key: string): Bar[] {
   try {
@@ -109,7 +146,8 @@ function loadBars(key: string): Bar[] {
     if (raw === null) return seedBars(); // first visit → start pre-filled with the template
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return seedBars();
-    return arr.filter((b) => b && typeof b.name === "string" && Number.isFinite(b.start) && Number.isFinite(b.dur));
+    return arr.filter((b) => b && typeof b.name === "string" && Number.isFinite(b.start) && Number.isFinite(b.dur))
+      .map((b) => ({ ...b, deps: normalizeDeps(b.deps) }));
   } catch {
     return seedBars();
   }
@@ -127,7 +165,14 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
   const [verName, setVerName] = useState("");
   const [showSave, setShowSave] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showLinks, setShowLinks] = useState(true);
+  const [linkSource, setLinkSource] = useState<{ sourceId: string; anchor: "front" | "back" } | null>(null);
+  const [linkCursor, setLinkCursor] = useState<{ x: number; y: number } | null>(null);
+  const [hoverTargetId, setHoverTargetId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const linkDrag = useRef<{ sourceId: string; anchor: "front" | "back" } | null>(null);
+  const hoverRef = useRef<string | null>(null);
+  hoverRef.current = hoverTargetId;
 
   const weekWRef = useRef(weekW);
   weekWRef.current = weekW;
@@ -170,7 +215,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
   const todayInRange = todayWeeks >= 0 && todayWeeks <= weeksToShow;
 
   // ---- bar drag (move group / resize) + click-to-select ----
-  const drag = useRef<{ mode: "move" | "l" | "r"; clickedId: string; shift: boolean; x0: number; y0: number; items: { id: string; s0: number; d0: number }[]; minS0: number } | null>(null);
+  const drag = useRef<{ mode: "move" | "l" | "r"; clickedId: string; shift: boolean; x0: number; y0: number; items: { id: string; s0: number; d0: number }[]; follow: { id: string; s0: number }[]; minS0: number } | null>(null);
   const onMove = useCallback((e: MouseEvent) => {
     const d = drag.current;
     if (!d) return;
@@ -183,15 +228,19 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
       const dwc = d.minS0 + dw < 0 ? -d.minS0 : dw;
       setBars((bs) => bs.map((b) => {
         const it = d.items.find((x) => x.id === b.id);
-        return it ? { ...b, start: it.s0 + dwc } : b;
+        if (it) return { ...b, start: it.s0 + dwc };
+        const f = d.follow.find((x) => x.id === b.id); // linked phases ride along, keeping the gap
+        return f ? { ...b, start: Math.max(0, f.s0 + dwc) } : b;
       }));
     } else {
       const it = d.items[0];
+      let followDelta: number, patchBar: Partial<Bar>;
+      if (d.mode === "r") { const nd = clamp(it.d0 + dw, minDur, 104); followDelta = nd - it.d0; patchBar = { dur: nd }; }
+      else { const ns = Math.min(Math.max(0, it.s0 + dw), it.s0 + it.d0 - minDur); followDelta = ns - it.s0; patchBar = { start: ns, dur: it.d0 - (ns - it.s0) }; }
       setBars((bs) => bs.map((b) => {
-        if (b.id !== it.id) return b;
-        if (d.mode === "r") return { ...b, dur: clamp(it.d0 + dw, minDur, 104) };
-        const ns = Math.min(Math.max(0, it.s0 + dw), it.s0 + it.d0 - minDur);
-        return { ...b, start: ns, dur: it.d0 - (ns - it.s0) };
+        if (b.id === it.id) return { ...b, ...patchBar };
+        const f = d.follow.find((x) => x.id === b.id); // FS successors shift when the end moves; SS when the start moves
+        return f ? { ...b, start: Math.max(0, f.s0 + followDelta) } : b;
       }));
     }
   }, []);
@@ -216,16 +265,67 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
     e.preventDefault();
     e.stopPropagation();
     const sel = selRef.current;
+    const succ = buildSucc(bars);
     let groupIds: string[];
-    if (mode === "move") groupIds = sel.includes(id) && sel.length > 1 ? sel : [id];
-    else groupIds = [id];
+    let followSet: Set<string>;
+    if (mode === "move") {
+      groupIds = sel.includes(id) && sel.length > 1 ? sel : [id];
+      followSet = transitiveFollowers(succ, groupIds); // everything downstream follows a move
+      groupIds.forEach((g) => followSet.delete(g));
+    } else {
+      groupIds = [id];
+      // resize-right moves the end → FS successors follow; resize-left moves the start → SS successors follow
+      const direct = (succ.get(id) || []).filter((s) => (mode === "r" ? s.type === "FS" : s.type === "SS")).map((s) => s.to);
+      followSet = new Set(direct);
+      transitiveFollowers(succ, direct).forEach((x) => followSet.add(x));
+      followSet.delete(id);
+    }
     const items = groupIds.map((gid) => { const bb = bars.find((x) => x.id === gid)!; return { id: gid, s0: bb.start, d0: bb.dur }; });
-    const minS0 = Math.min(...items.map((i) => i.s0));
-    drag.current = { mode, clickedId: id, shift: e.shiftKey, x0: e.clientX, y0: e.clientY, items, minS0 };
+    const follow = [...followSet].map((fid) => { const bb = bars.find((x) => x.id === fid)!; return { id: fid, s0: bb.start }; });
+    const minS0 = Math.min(...items.map((i) => i.s0), ...(mode === "move" ? follow.map((f) => f.s0) : [Infinity]));
+    drag.current = { mode, clickedId: id, shift: e.shiftKey, x0: e.clientX, y0: e.clientY, items, follow, minS0 };
     document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [bars, onMove, onUp]);
+
+  // ---- link drag (connect phases by dragging a ○ handle onto another bar) ----
+  const onLinkMove = useCallback((e: MouseEvent) => {
+    const el = scrollRef.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    setLinkCursor({ x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop - HEAD_H });
+  }, []);
+  const addLink = useCallback((toId: string, fromId: string, type: "FS" | "SS") => {
+    if (toId === fromId) return;
+    setBars((bs) => {
+      if (transitiveFollowers(buildSucc(bs), [toId]).has(fromId)) return bs; // would create a cycle
+      return bs.map((b) => (b.id === toId ? { ...b, deps: [...(b.deps || []).filter((l) => l.id !== fromId), { id: fromId, type }] } : b));
+    });
+  }, []);
+  const onLinkUp = useCallback(() => {
+    const ld = linkDrag.current; linkDrag.current = null;
+    const target = hoverRef.current;
+    if (ld && target && target !== ld.sourceId) addLink(target, ld.sourceId, ld.anchor === "front" ? "SS" : "FS");
+    setLinkSource(null); setLinkCursor(null); setHoverTargetId(null);
+    document.body.style.cursor = "";
+    window.removeEventListener("mousemove", onLinkMove);
+    window.removeEventListener("mouseup", onLinkUp);
+  }, [addLink, onLinkMove]);
+  const onLinkDown = useCallback((e: React.MouseEvent, id: string, anchor: "front" | "back") => {
+    e.preventDefault();
+    e.stopPropagation();
+    linkDrag.current = { sourceId: id, anchor };
+    setLinkSource({ sourceId: id, anchor });
+    setHoverTargetId(null);
+    const el = scrollRef.current;
+    if (el) { const r = el.getBoundingClientRect(); setLinkCursor({ x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop - HEAD_H }); }
+    document.body.style.cursor = "crosshair";
+    window.addEventListener("mousemove", onLinkMove);
+    window.addEventListener("mouseup", onLinkUp);
+  }, [onLinkMove, onLinkUp]);
+  const removeLink = useCallback((toId: string, fromId: string) => {
+    setBars((bs) => bs.map((b) => (b.id === toId ? { ...b, deps: (b.deps || []).filter((l) => l.id !== fromId) } : b)));
+  }, []);
 
   // ---- pan (drag empty canvas) ----
   const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
@@ -326,7 +426,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
   }, [selectedIds.length, editId]);
 
   function patch(id: string, p: Partial<Bar>) { setBars((bs) => bs.map((b) => (b.id === id ? { ...b, ...p } : b))); }
-  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id)); setSelectedIds((ids) => ids.filter((x) => x !== id)); setEditId((e) => (e === id ? null : e)); }
+  function remove(id: string) { setBars((bs) => bs.filter((b) => b.id !== id).map((b) => ({ ...b, deps: (b.deps || []).filter((l) => l.id !== id) }))); setSelectedIds((ids) => ids.filter((x) => x !== id)); setEditId((e) => (e === id ? null : e)); }
   const newStart = () => Math.max(0, Math.floor(todayInRange ? todayWeeks : 0)); // start of the current week, never a week late
   function addRow() {
     const b = { id: uid(), name: "New phase", color: PALETTE[bars.length % PALETTE.length], start: newStart(), dur: 2 };
@@ -339,7 +439,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
   function applyTemplate() {
     if (bars.length && !window.confirm("Replace the schedule with the standard post template (starting from the current week)?")) return;
     const base = Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
-    setBars(SEED.map((b) => ({ ...b, id: uid(), start: b.start + base }))); setSelectedIds([]); setEditId(null);
+    setBars(buildSeed(base)); setSelectedIds([]); setEditId(null);
   }
   function clearAll() {
     if (bars.length && !window.confirm("Clear all phases?")) return;
@@ -357,7 +457,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
   function applyImported(rawBars: unknown, rawStart?: string) {
     const bars = (Array.isArray(rawBars) ? rawBars : [])
       .filter((b): b is Bar => !!b && typeof (b as Bar).name === "string" && Number.isFinite((b as Bar).start) && Number.isFinite((b as Bar).dur))
-      .map((b) => ({ id: typeof b.id === "string" ? b.id : uid(), name: b.name, color: typeof b.color === "string" ? b.color : "#94a3b8", start: Math.max(0, b.start), dur: Math.max(0, b.dur) }));
+      .map((b) => ({ id: typeof b.id === "string" ? b.id : uid(), name: b.name, color: typeof b.color === "string" ? b.color : "#94a3b8", start: Math.max(0, b.start), dur: Math.max(0, b.dur), deps: normalizeDeps((b as { deps?: unknown }).deps) }));
     setBars(bars);
     if (rawStart && /^\d{4}-\d{2}-\d{2}$/.test(rawStart)) setStartDate(rawStart);
     setSelectedIds([]); setEditId(null);
@@ -414,7 +514,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
           <CalendarClock className="size-4 text-guide-target" strokeWidth={1.6} />
           <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Post Schedule</span>
           {projectName?.trim() && <span className="font-mono text-[11px] text-suite-text-dim truncate max-w-[18ch]">· {projectName.trim()}</span>}
-          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to move · edges resize · grip reorders · click sets a date · wheel zooms (in far = days) · drag canvas to pan</span>
+          <span className="font-mono text-[10px] text-suite-text-dim hidden xl:inline">— drag to move (linked phases follow) · edges resize · grip reorders · drag a ○ handle onto another bar to link · wheel zooms</span>
           {dayMode && <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-guide-target border border-guide-target/40 rounded-sm px-1.5 py-0.5">Day view</span>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -442,6 +542,9 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
           </button>
           <button type="button" onClick={applyTemplate} title="Lay down the standard post phases, starting from the current week" className={cn(btn, "text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20")}>
             <Wand2 className="size-3" strokeWidth={1.6} /> Template
+          </button>
+          <button type="button" onClick={() => setShowLinks((s) => !s)} title="Show dependency links (hover a bar, drag a ○ handle onto another to connect)" className={cn(btn, showLinks ? "text-guide-target border-guide-target/50 bg-guide-target/10" : btnGhost)}>
+            <Link2 className="size-3" strokeWidth={1.6} /> Links
           </button>
 
           {/* Save / versions */}
@@ -586,6 +689,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
               const left = b.start * weekW;
               const width = Math.max(b.dur, 0) * weekW;
               const isSel = selectedIds.includes(b.id);
+              const isTarget = !!linkSource && hoverTargetId === b.id && linkSource.sourceId !== b.id;
               return (
                 <div key={b.id} className={cn("group flex border-b border-suite-border/40", dragRowId === b.id && "opacity-80")} style={{ height: ROW_H }}>
                   {/* Name cell (frozen) */}
@@ -609,23 +713,32 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
                   <div className="relative" style={{ width: timelineW, backgroundImage: gridBg }}>
                     {isMs ? (
                       <div
-                        onMouseDown={(e) => onDown(e, b.id, "move")}
                         title={`${b.name} — ${fmtDate(startD)} (milestone) · click to set a date`}
-                        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
+                        className="group/bar absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
                         style={{ left }}
+                        onMouseEnter={() => { if (linkDrag.current && linkDrag.current.sourceId !== b.id) setHoverTargetId(b.id); }}
+                        onMouseLeave={() => { if (hoverRef.current === b.id) setHoverTargetId(null); }}
                       >
-                        <div className={cn("size-3.5 rotate-45 border", isSel && "ring-2 ring-white/70")} style={{ backgroundColor: b.color, borderColor: "rgba(0,0,0,0.3)" }} />
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">{b.name} <span className="text-suite-text-dim/60">· {fmtDate(startD)}</span></span>
+                        <div onMouseDown={(e) => onDown(e, b.id, "move")} className={cn("size-3.5 rotate-45 border cursor-grab active:cursor-grabbing", isSel ? "ring-2 ring-white/70" : isTarget && "ring-2 ring-guide-target")} style={{ backgroundColor: b.color, borderColor: "rgba(0,0,0,0.3)" }} />
+                        {showLinks && <button type="button" data-no-pan onMouseDown={(e) => onLinkDown(e, b.id, "front")} title="Drag onto another bar to link — start-to-start" className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-[16px] size-2.5 rounded-full bg-suite-panel border border-suite-text-dim opacity-0 group-hover/bar:opacity-100 hover:!bg-guide-target hover:!border-guide-target cursor-crosshair z-20" />}
+                        {showLinks && <button type="button" data-no-pan onMouseDown={(e) => onLinkDown(e, b.id, "back")} title="Drag onto another bar to link — finish-to-start" className="absolute top-1/2 left-0 -translate-y-1/2 translate-x-[16px] size-2.5 rounded-full bg-suite-panel border border-suite-text-dim opacity-0 group-hover/bar:opacity-100 hover:!bg-guide-target hover:!border-guide-target cursor-crosshair z-20" />}
+                        <span className="absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">{b.name} <span className="text-suite-text-dim/60">· {fmtDate(startD)}</span></span>
                       </div>
                     ) : (
-                      <div className={cn("absolute top-1/2 -translate-y-1/2 h-5 rounded-[3px] flex items-center", isSel && "ring-2 ring-white/70")}
-                        style={{ left, width, backgroundColor: b.color }}>
+                      <div
+                        className={cn("group/bar absolute top-1/2 -translate-y-1/2 h-5 rounded-[3px] flex items-center", isSel ? "ring-2 ring-white/70" : isTarget && "ring-2 ring-guide-target")}
+                        style={{ left, width, backgroundColor: b.color }}
+                        onMouseEnter={() => { if (linkDrag.current && linkDrag.current.sourceId !== b.id) setHoverTargetId(b.id); }}
+                        onMouseLeave={() => { if (hoverRef.current === b.id) setHoverTargetId(null); }}
+                      >
                         <div onMouseDown={(e) => onDown(e, b.id, "l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
                         <div onMouseDown={(e) => onDown(e, b.id, "move")} className="flex-1 h-full cursor-grab active:cursor-grabbing flex items-center justify-center overflow-hidden">
                           {width >= 30 && <span className="font-mono text-[9px] text-black/70 font-semibold tabular">{Number.isInteger(b.dur) ? `${b.dur}w` : `${Math.round(b.dur * 7)}d`}</span>}
                         </div>
                         <div onMouseDown={(e) => onDown(e, b.id, "r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-                        <span className="absolute left-full ml-1.5 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">
+                        {showLinks && <button type="button" data-no-pan onMouseDown={(e) => onLinkDown(e, b.id, "front")} title="Drag onto another bar to link — start-to-start (they begin together)" className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-[10px] size-2.5 rounded-full bg-suite-panel border border-suite-text-dim opacity-0 group-hover/bar:opacity-100 hover:!bg-guide-target hover:!border-guide-target cursor-crosshair z-20" />}
+                        {showLinks && <button type="button" data-no-pan onMouseDown={(e) => onLinkDown(e, b.id, "back")} title="Drag onto another bar to link — finish-to-start (the next begins after this ends)" className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-[10px] size-2.5 rounded-full bg-suite-panel border border-suite-text-dim opacity-0 group-hover/bar:opacity-100 hover:!bg-guide-target hover:!border-guide-target cursor-crosshair z-20" />}
+                        <span className="absolute left-full ml-5 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">
                           {b.name} <span className="text-suite-text-dim/60">· {fmtDate(startD)}–{fmtDate(endD)}</span>
                         </span>
                       </div>
@@ -634,6 +747,44 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
                 </div>
               );
             })}
+
+            {/* Dependency links — SS (green) anchored at the predecessor's start, FS (slate) at its end */}
+            {showLinks && (
+              <svg className="absolute z-20 pointer-events-none overflow-visible" style={{ left: 0, top: HEAD_H, width: LABEL_W + timelineW, height: bodyH }}>
+                {bars.flatMap((b, bi) => (b.deps || []).map((l) => {
+                  const pi = bars.findIndex((x) => x.id === l.id);
+                  if (pi < 0) return null;
+                  const p = bars[pi];
+                  const x1 = LABEL_W + (l.type === "SS" ? p.start : p.start + Math.max(p.dur, 0)) * weekW;
+                  const y1 = pi * ROW_H + ROW_H / 2;
+                  const x2 = LABEL_W + b.start * weekW;
+                  const y2 = bi * ROW_H + ROW_H / 2;
+                  const dx = Math.max(10, Math.min(28, Math.abs(x2 - x1) / 2));
+                  const col = l.type === "SS" ? "#34d399" : "#64748b";
+                  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2; // a clickable ✕ sits at the link midpoint
+                  return (
+                    <g key={`${l.id}-${b.id}`}>
+                      <path d={`M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`} fill="none" stroke={col} strokeWidth={1.3} opacity={0.55} />
+                      <circle cx={x2} cy={y2} r={2} fill={col} opacity={0.55} />
+                      <g className="group/lk cursor-pointer" style={{ pointerEvents: "auto" }} onClick={() => removeLink(b.id, l.id)}>
+                        <title>Remove link ({l.type === "SS" ? "starts with" : "after"} {p.name || "Untitled"})</title>
+                        <circle cx={mx} cy={my} r={5.5} fill="#0a0e13" stroke={col} strokeWidth={1} opacity={0.9} className="group-hover/lk:!stroke-destructive" />
+                        <path d={`M ${mx - 2.2} ${my - 2.2} L ${mx + 2.2} ${my + 2.2} M ${mx + 2.2} ${my - 2.2} L ${mx - 2.2} ${my + 2.2}`} stroke={col} strokeWidth={1.2} style={{ pointerEvents: "none" }} className="group-hover/lk:!stroke-destructive" />
+                      </g>
+                    </g>
+                  );
+                }))}
+                {/* live line while dragging a handle */}
+                {linkSource && linkCursor && (() => {
+                  const si = bars.findIndex((x) => x.id === linkSource.sourceId);
+                  if (si < 0) return null;
+                  const s = bars[si];
+                  const x1 = LABEL_W + (linkSource.anchor === "front" ? s.start : s.start + Math.max(s.dur, 0)) * weekW;
+                  const y1 = si * ROW_H + ROW_H / 2;
+                  return <path d={`M ${x1} ${y1} L ${linkCursor.x} ${linkCursor.y}`} fill="none" stroke="#22d3ee" strokeWidth={1.5} strokeDasharray="4 3" />;
+                })()}
+              </svg>
+            )}
 
             {/* Date editor popover (single selection) */}
             {selected && (
@@ -684,6 +835,26 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
                 >
                   {selected.dur === 0 ? "→ make phase" : "→ make keyframe"}
                 </button>
+                <div className="border-t border-suite-border/60 pt-2">
+                  <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim mb-1">Links</div>
+                  {(selected.deps || []).length === 0 ? (
+                    <p className="font-mono text-[9px] text-suite-text-dim leading-relaxed">No links yet. Hover a bar and drag a ○ handle onto another — front handle = starts together, back handle = starts after.</p>
+                  ) : (
+                    <div className="flex flex-col gap-0.5">
+                      {(selected.deps || []).map((l) => {
+                        const p = bars.find((x) => x.id === l.id);
+                        if (!p) return null;
+                        return (
+                          <div key={l.id} className="flex items-center gap-1.5 font-mono text-[10px] text-suite-text-muted">
+                            <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                            <span className="truncate flex-1"><span className="text-suite-text-dim">{l.type === "SS" ? "starts with" : "after"}</span> {p.name || "Untitled"}</span>
+                            <button type="button" onClick={() => removeLink(selected.id, l.id)} title="Remove link" className="shrink-0 text-suite-text-dim hover:text-destructive"><X className="size-3" strokeWidth={2} /></button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

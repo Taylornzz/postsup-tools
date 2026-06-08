@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.0.2";
+export const VERSION = "v2.1.0";
 const CHANGELOG = [
+  "v2.1.0 — Deliverables QC depth: a true-peak ceiling per recipient (region-defaulted) plus a dialnorm note that only shows for AC-3 broadcast targets (US/AU) — a ProRes/IMF master carries no dialnorm, so the tool no longer implies one. The make-order now spells out standards conversions (PAL↔NTSC) and resolution down-scales / reframes as explicit steps. New ‘+ From template…’ picker drops in web-verified starter specs for Netflix, Amazon, Apple TV+, Max, BBC/DPP, TVNZ and ABC (each ‘as-of’ dated — confirm against the platform). Post Schedule is now a linked Gantt: hover a bar and drag a ○ handle onto another to connect (front = start-to-start, back = finish-to-start); linked phases follow when you move the source, keeping the gap; click the ✕ on a link to remove it. Workflow tab: ‘Production’ → ‘Guide’, ‘Custom Workflow’ → ‘Full Workflow’.",
   "v2.0.2 — Mastering tab reorganised. The three reference strategies (HDR-First, Theatrical-First, Dual-Hero) now live under a ‘Guides’ sub-menu, and the old Custom view is now ‘My workflow’ — your editable mastering tree, which you can seed three ways: from your Deliverables recipients, from a guide, or from scratch. The Deliverables tab now sits before Mastering (requirements first, then the plan), and its ‘Open in Mastering’ button seeds My workflow straight from your recipient list.",
   "v2.0.1 — Deliverables now drives the Mastering engine directly: the make-order is computed by the same custom-mastering logic as the Mastering tab (one source of truth), so a theatrical→SDR step — or any up-volume master — is correctly flagged as a fresh re-grade off the ACES archive, not a clean derive. New ‘Open in Mastering’ button hands your recipient list to the Mastering Custom tree with the hero, deliverables and peak nits inferred from your recipients. Vendor directory temporarily hidden while it’s refreshed.",
   "v2.0.0 — Accounts & cloud sync: sign in and your projects sync per-user with row-level security, plus a Resolve-style project manager and a Home launcher. New tools — Multicam Planner (per-camera data + combined rig storage), Task Board (kanban + checklists, with imports from the schedule, workflow and deliverables, and multi-select drag, PDF/CSV/JSON export), Deliverables (multi-recipient delivery plan → make-order, a per-variable checklist, a live workflow chart, and attach contracts/specs per recipient), and News Watches. Vendor directory deepened (DIT/dailies, NZ, captions — 200+ verified). Mastering made customisable. Every tool is now per-project.",
@@ -1201,7 +1202,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
       ) : appTab === "workflow" ? (
         <main className="flex-1 flex flex-col min-h-0 min-w-0">
           <div className="shrink-0 border-b border-suite-border bg-suite-panel px-3 py-1.5 flex items-center gap-1.5">
-            {([["production", "Production"], ["custom", "Custom Workflow"]] as [WorkflowView, string][]).map(([v, label]) => (
+            {([["production", "Guide"], ["custom", "Full Workflow"]] as [WorkflowView, string][]).map(([v, label]) => (
               <button key={v} type="button" onClick={() => setWorkflowView(v)}
                 className={cn("px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
                   workflowView === v ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
@@ -1212,7 +1213,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <div className="flex-1 flex min-h-0 min-w-0">
             {workflowView === "custom" ? (
               <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading…</div>}>
-                <WorkflowBuilder storageKey={`postsup-builder-${project.id}`} versionsKey={`postsup-builder-versions-${project.id}`} />
+                <WorkflowBuilder storageKey={`postsup-builder-${project.id}`} versionsKey={`postsup-builder-versions-${project.id}`} title="Full Workflow" />
               </Suspense>
             ) : (
               <WorkflowPipeline onOpenMastering={() => setAppTab("mastering")} config={pipelineConfig} />

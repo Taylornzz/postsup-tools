@@ -37,6 +37,7 @@ export interface Recipient {
   container: string;
   audio: string;
   loudness: string;
+  truePeak: string;
   subtitles: string;
   textless: boolean;
   naming: string;
@@ -64,7 +65,10 @@ export const LOUDNESS_OPTIONS = [
   "-24 LKFS (ATSC A/85)",
   "-23 LUFS (EBU R128)",
   "-24 LKFS (Free TV OP-59)",
+  "-24 LKFS (NZ / OP-59)",
   "-27 LKFS (Netflix streaming)",
+  "-24 LKFS (streaming)",
+  "-24 LUFS (Apple TV+)",
   "-16 LUFS (web)",
   "Theatrical reference (no normalisation)",
 ];
@@ -74,9 +78,32 @@ export const LOUDNESS_BY_REGION: Record<Region, string> = {
   UK: "-23 LUFS (EBU R128)",
   EU: "-23 LUFS (EBU R128)",
   AU: "-24 LKFS (Free TV OP-59)",
-  NZ: "-24 LKFS",
+  NZ: "-24 LKFS (NZ / OP-59)",
   Other: "",
 };
+
+// True-peak ceiling — the QC-critical limit most checklists miss. Verified mid-2026
+// against ATSC A/85, EBU R128, Free TV OP-59 and the major streamers (Netflix/Amazon
+// -2 dBTP, Apple TV+ -1 dBTP). DPP recommends -3 dBTP (hard max -1).
+export const TRUEPEAK_OPTIONS = ["-2 dBTP", "-1 dBTP", "-3 dBTP (DPP target)", "None (theatrical reference)"];
+export const TRUEPEAK_BY_REGION: Record<Region, string> = {
+  US: "-2 dBTP",   // ATSC A/85
+  UK: "-1 dBTP",   // EBU R128 ceiling (DPP recommends -3)
+  EU: "-1 dBTP",   // EBU R128
+  AU: "-2 dBTP",   // Free TV OP-59
+  NZ: "-2 dBTP",   // aligns OP-59
+  Other: "",
+};
+
+// Dialnorm is a Dolby AC-3 / E-AC-3 EMISSION metadata value (integer 1–31), NOT a field
+// on a PCM master — ProRes / IMF / WAV carry none. It only materialises where a broadcaster
+// encodes to AC-3 (US ATSC, AU). Surface it as guidance, never as a "set this on your master"
+// field — that instruction is the common mistake this tool should prevent.
+export function dialnormNote(r: Recipient): string | null {
+  if (!/ATSC|A\/85|OP-59/i.test(r.loudness || "")) return null;
+  const target = (r.loudness.match(/-?\d+/) || ["-24"])[0];
+  return `Dialnorm (AC-3 emission only) — match the target (${target}); your PCM master carries none.`;
+}
 
 const DR_TIER: Record<DRId, DRTier> = { "dolby-vision": "hdr", hdr10: "hdr", hlg: "hdr", sdr: "sdr", theatrical: "theatrical" };
 export const DR_LABEL: Record<DRId, string> = { "dolby-vision": "Dolby Vision", hdr10: "HDR10", hlg: "HLG", sdr: "SDR Rec.709", theatrical: "Theatrical DCI-P3" };
@@ -90,9 +117,27 @@ export function newRecipient(name = "New recipient"): Recipient {
   return {
     id: uid(), name, region: "US", dr: "sdr", peakNits: 1000,
     resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 422 HQ",
-    audio: "5.1", loudness: LOUDNESS_BY_REGION.US, subtitles: "Closed captions (CEA-608/708)",
+    audio: "5.1", loudness: LOUDNESS_BY_REGION.US, truePeak: TRUEPEAK_BY_REGION.US, subtitles: "Closed captions (CEA-608/708)",
     textless: true, naming: "", qc: "", notes: "", documents: [],
   };
+}
+
+// ---- platform delivery templates ------------------------------------------
+// Starting-point specs for common platforms, web-verified mid-2026. NOT contracts —
+// every platform issues per-title specs through its partner portal; each note carries
+// the date + the must-confirm caveat. Drop one in and edit.
+export interface DeliveryTemplate { id: string; name: string; spec: Partial<Recipient>; }
+export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
+  { id: "netflix", name: "Netflix", spec: { region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "IMF App 2E", audio: "5.1.4 Atmos", loudness: "-27 LKFS (Netflix streaming)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Photon + platform", notes: "Netflix original — Dolby Vision IMF mandatory for HDR (no ProRes path); 25p in PAL territories. Starter spec (2026-06) — confirm the per-title Netflix spec." } },
+  { id: "amazon", name: "Amazon Prime Video", spec: { region: "US", dr: "hdr10", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 422 HQ", audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "platform QC / Baton", notes: "Amazon — self-serve Video Central takes ProRes 422 HQ + a mandatory SDR companion with every HDR; Studios originals require IMF. Starter spec (2026-06) — confirm." } },
+  { id: "apple", name: "Apple TV+", spec: { region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 4444 XQ", audio: "5.1.4 Atmos", loudness: "-24 LUFS (Apple TV+)", truePeak: "-1 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "platform QC / Baton", notes: "Apple TV+ — documented path is ProRes 4444 XQ + Dolby Vision sidecar; Atmos effectively required. -1 dBTP true-peak is tighter than Netflix/Amazon (top QC reject). Starter spec (2026-06) — confirm." } },
+  { id: "max", name: "Max (HBO / WBD)", spec: { region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "IMF App 2E", audio: "5.1.4 Atmos", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Photon + platform", notes: "Max/WBD original — HDR & SDR masters must be frame/shot-aligned (shared audio + subs); DV metadata must cover textless. Nits/loudness/true-peak portal-walled — confirm. Starter spec (2026-06)." } },
+  { id: "bbc-dpp", name: "BBC · UK DPP (AS-11)", spec: { region: "UK", dr: "sdr", resolution: "1080i 1920×1080", fps: 25, container: "AS-11 DPP", audio: "5.1", loudness: "-23 LUFS (EBU R128)", truePeak: "-3 dBTP (DPP target)", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Baton (DPP)", notes: "BBC / UK DPP — AS-11 (MXF OP1a, AVC-Intra 100), interlaced 1080i/25, EBU R128 -23 LUFS, true-peak -3 (max -1). Not IMF/ProRes. Confirm the BBC DPP supplement. Starter spec (2026-06)." } },
+  { id: "tvnz", name: "TVNZ", spec: { region: "NZ", dr: "sdr", resolution: "1080i 1920×1080", fps: 25, container: "XDCAM HD 50", audio: "5.1", loudness: "-24 LKFS (NZ / OP-59)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Baton / platform", notes: "TVNZ — 1080i/50 PAL, XDCAM HD422 50 in MXF, -24 LKFS (OP-59). Public doc is the commercials spec; confirm long-form with TVNZ. Starter spec (2026-06)." } },
+  { id: "abc-au", name: "ABC Australia", spec: { region: "AU", dr: "sdr", resolution: "1080i 1920×1080", fps: 25, container: "AS-11 DPP", audio: "5.1", loudness: "-24 LKFS (Free TV OP-59)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Baton / platform", notes: "ABC Australia — Free TV OP-59 -24 LKFS; air-ready AS-11 (AU) or XDCAM HD422 50, 1080i/25 SDR. No ABC-specific public spec found — confirm. Starter spec (2026-06)." } },
+];
+export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
+  return { ...newRecipient(t.name), ...t.spec, name: t.name };
 }
 
 // ---- the plan ----
@@ -103,12 +148,19 @@ export interface Pass {
   flag?: boolean;      // true = a fresh grade pass, not a clean transform
   covers: string[];    // recipient names this pass serves
 }
+export interface Conversion {
+  kind: "standards" | "downscale" | "reframe";
+  label: string;
+  detail: string;
+  covers: string[];
+}
 export interface Plan {
   passes: Pass[];
   gradeCount: number;
   deliverableCount: number;
-  common: string[];    // variables identical across every recipient
-  watchOuts: string[]; // cross-recipient gotchas (fps, loudness, resolution spread)
+  common: string[];          // variables identical across every recipient
+  conversions: Conversion[]; // fps standards-conversions + resolution down-scales / reframes
+  watchOuts: string[];       // remaining cross-recipient gotchas (loudness, true-peak)
 }
 
 // ---- bridge: recipients → the Mastering tab's custom config ----------------
@@ -157,6 +209,18 @@ function passText(step: MakeStep, masterNits: number): { label: string; note: st
   return { label: "SDR Rec.709 pass", note: "Fresh dim-surround pass off the ACES archive — P3 theatrical doesn't trim cleanly to Rec.709 SDR." };
 }
 
+function parseRes(s: string): { w: number; h: number } {
+  const m = s.match(/(\d{3,4})\s*[×x]\s*(\d{3,4})/);
+  return m ? { w: parseInt(m[1], 10), h: parseInt(m[2], 10) } : { w: 1920, h: 1080 };
+}
+function fpsConversionDetail(from: number, to: number): string {
+  const r = (x: number) => Math.round(x);
+  if (new Set([r(from), r(to)]).size === 1) return "Frame-rate pull only (0.1%) — no motion change, just a re-stamp.";
+  const fam = (x: number) => (r(x) === 25 || r(x) === 50 ? "PAL" : "NTSC/film");
+  if (fam(from) !== fam(to)) return "Cross-standard (PAL ↔ NTSC) motion conversion — frame-rate convert (interpolate) or 4% speed change; pick per the brief.";
+  return "Cadence conversion (e.g. 2:3 pulldown) — confirm the motion handling.";
+}
+
 export function buildPlan(recipients: Recipient[]): Plan {
   const namesOf = (t: DRTier) => recipients.filter((r) => DR_TIER[r.dr] === t).map((r) => r.name || "Untitled");
 
@@ -184,20 +248,44 @@ export function buildPlan(recipients: Recipient[]): Plan {
     same((r) => r.container, (v) => `${v}`);
   }
 
+  // ---- conversions: fps standards-conversion + resolution down-scale / reframe ----
+  const conversions: Conversion[] = [];
+  if (recipients.length) {
+    // Master cadence = the most common fps (the format you actually finish in).
+    const byFps = new Map<number, Recipient[]>();
+    recipients.forEach((r) => { (byFps.get(r.fps) ?? byFps.set(r.fps, []).get(r.fps)!).push(r); });
+    const masterFps = [...byFps.entries()].sort((a, b) => b[1].length - a[1].length || b[0] - a[0])[0][0];
+    [...byFps.entries()].forEach(([fps, rs]) => {
+      if (fps === masterFps) return;
+      conversions.push({ kind: "standards", label: `Standards conversion ${masterFps} → ${fps} fps`, detail: fpsConversionDetail(masterFps, fps), covers: rs.map((r) => r.name || "Untitled") });
+    });
+    // Finishing resolution = the largest pixel area; lower area → downscale, different aspect → reframe.
+    const dims = recipients.map((r) => ({ r, ...parseRes(r.resolution) }));
+    const finish = dims.reduce((a, b) => (b.w * b.h > a.w * a.h ? b : a));
+    dims.forEach(({ r, w, h }) => {
+      if (w === finish.w && h === finish.h) return;
+      const name = r.name || "Untitled";
+      if (Math.abs(w / h - finish.w / finish.h) < 0.02) {
+        conversions.push({ kind: "downscale", label: `Down-scale → ${r.resolution}`, detail: `Clean down-scale from the ${finish.w}×${finish.h} finish.`, covers: [name] });
+      } else {
+        conversions.push({ kind: "reframe", label: `Reframe → ${r.resolution}`, detail: `Aspect differs from the ${finish.w}×${finish.h} finish (${(finish.w / finish.h).toFixed(2)}:1 → ${(w / h).toFixed(2)}:1) — pad or centre-crop; confirm framing.`, covers: [name] });
+      }
+    });
+  }
+
   const watchOuts: string[] = [];
   const uniq = <T,>(arr: T[]) => [...new Set(arr)];
-  const fps = uniq(recipients.map((r) => r.fps));
-  if (fps.length > 1) watchOuts.push(`Frame-rate / standards conversion: ${fps.join(" and ")} fps both required.`);
   const loud = uniq(recipients.map((r) => r.loudness).filter(Boolean));
   if (loud.length > 1) watchOuts.push("Loudness targets differ — a separate audio normalisation per target.");
-  const res = uniq(recipients.map((r) => r.resolution));
-  if (res.length > 1) watchOuts.push(`Multiple resolutions: ${res.join(", ")} — confirm the finishing res vs down-scales.`);
+  const tp = uniq(recipients.map((r) => r.truePeak).filter(Boolean));
+  if (tp.length > 1) watchOuts.push(`True-peak ceilings differ (${tp.join(", ")}) — limit per target; the tightest wins if you cut one master for several.`);
 
-  return { passes, gradeCount: passes.length, deliverableCount: recipients.length, common, watchOuts };
+  return { passes, gradeCount: passes.length, deliverableCount: recipients.length, common, conversions, watchOuts };
 }
 
 // ---- per-recipient variable checklist ----
 export function recipientChecklist(r: Recipient): string[] {
+  const dn = dialnormNote(r);
   return [
     `Resolution — ${r.resolution}`,
     `Container — ${r.container}`,
@@ -205,6 +293,8 @@ export function recipientChecklist(r: Recipient): string[] {
     `Colour — ${DR_LABEL[r.dr]}${DR_TIER[r.dr] === "hdr" ? ` @ ${r.peakNits} nit` : ""}`,
     `Audio — ${r.audio}`,
     `Loudness — ${r.loudness || "confirm"}`,
+    `True-peak — ${r.truePeak || "confirm ceiling"}`,
+    ...(dn ? [dn] : []),
     `Subtitles — ${r.subtitles}`,
     ...(r.textless ? ["Textless / clean elements"] : []),
     `Naming — ${r.naming || "confirm convention"}`,
@@ -256,9 +346,9 @@ function seed(): Recipient[] {
   // Starter examples using the three recipients from the brief — all editable,
   // all to be confirmed against each platform's real delivery spec.
   return [
-    { id: uid(), name: "Paramount+ USA", region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "IMF App 2E", audio: "5.1.4 Atmos", loudness: "-24 LKFS (ATSC A/85)", subtitles: "Sidecar (IMSC/TTML)", textless: true, naming: "", qc: "Photon + platform", notes: "Example — confirm against the real Paramount+ delivery spec." },
-    { id: uid(), name: "TVNZ", region: "NZ", dr: "sdr", peakNits: 1000, resolution: "1080p 1920×1080", fps: 25, container: "ProRes 422 HQ", audio: "5.1", loudness: "-24 LKFS", subtitles: "Closed captions (CEA-608/708)", textless: true, naming: "", qc: "", notes: "Example — confirm against the real TVNZ delivery spec." },
-    { id: uid(), name: "ABC Sydney", region: "AU", dr: "sdr", peakNits: 1000, resolution: "1080p 1920×1080", fps: 25, container: "AS-11 DPP", audio: "5.1", loudness: "-24 LKFS (Free TV OP-59)", subtitles: "Closed captions (CEA-608/708)", textless: true, naming: "", qc: "", notes: "Example — confirm against the real ABC delivery spec." },
+    { id: uid(), name: "Paramount+ USA", region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "IMF App 2E", audio: "5.1.4 Atmos", loudness: "-24 LKFS (ATSC A/85)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, naming: "", qc: "Photon + platform", notes: "Example — confirm against the real Paramount+ delivery spec." },
+    { id: uid(), name: "TVNZ", region: "NZ", dr: "sdr", peakNits: 1000, resolution: "1080p 1920×1080", fps: 25, container: "ProRes 422 HQ", audio: "5.1", loudness: "-24 LKFS", truePeak: "-2 dBTP", subtitles: "Closed captions (CEA-608/708)", textless: true, naming: "", qc: "", notes: "Example — confirm against the real TVNZ delivery spec." },
+    { id: uid(), name: "ABC Sydney", region: "AU", dr: "sdr", peakNits: 1000, resolution: "1080p 1920×1080", fps: 25, container: "AS-11 DPP", audio: "5.1", loudness: "-24 LKFS (Free TV OP-59)", truePeak: "-2 dBTP", subtitles: "Closed captions (CEA-608/708)", textless: true, naming: "", qc: "", notes: "Example — confirm against the real ABC delivery spec." },
   ];
 }
 
