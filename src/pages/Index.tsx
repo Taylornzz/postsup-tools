@@ -42,7 +42,7 @@ import { renderFramingChart } from "@/lib/framingChartCanvas";
 import { buildCameraReportPdf } from "@/lib/cameraReport";
 import { AcesPanel } from "@/components/AcesPanel";
 import { AcesVersion, acesPipeline } from "@/lib/aces";
-import { MasteringStrategy, MasterNits, CustomConfig, STRATEGIES, CUSTOM_HEROES, buildMasterGraph, buildCustomGraph } from "@/lib/mastering";
+import { MasteringStrategy, MasterNits, STRATEGIES, buildMasterGraph, buildCustomGraph } from "@/lib/mastering";
 import { PipelineConfig } from "@/lib/pipeline";
 import { Metric } from "@/components/Metric";
 import { FrameViewer } from "@/components/FrameViewer";
@@ -101,6 +101,7 @@ import { NewsWatches } from "@/components/NewsWatches";
 import { MulticamPlanner } from "@/components/MulticamPlanner";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { Deliverables } from "@/components/Deliverables";
+import { loadRecipients, recipientsToMasteringConfig } from "@/lib/deliverables";
 import { Home, type HomeTab } from "@/components/Home";
 import { updateProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
@@ -124,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.0.1";
+export const VERSION = "v2.0.2";
 const CHANGELOG = [
+  "v2.0.2 — Mastering tab reorganised. The three reference strategies (HDR-First, Theatrical-First, Dual-Hero) now live under a ‘Guides’ sub-menu, and the old Custom view is now ‘My workflow’ — your editable mastering tree, which you can seed three ways: from your Deliverables recipients, from a guide, or from scratch. The Deliverables tab now sits before Mastering (requirements first, then the plan), and its ‘Open in Mastering’ button seeds My workflow straight from your recipient list.",
   "v2.0.1 — Deliverables now drives the Mastering engine directly: the make-order is computed by the same custom-mastering logic as the Mastering tab (one source of truth), so a theatrical→SDR step — or any up-volume master — is correctly flagged as a fresh re-grade off the ACES archive, not a clean derive. New ‘Open in Mastering’ button hands your recipient list to the Mastering Custom tree with the hero, deliverables and peak nits inferred from your recipients. Vendor directory temporarily hidden while it’s refreshed.",
   "v2.0.0 — Accounts & cloud sync: sign in and your projects sync per-user with row-level security, plus a Resolve-style project manager and a Home launcher. New tools — Multicam Planner (per-camera data + combined rig storage), Task Board (kanban + checklists, with imports from the schedule, workflow and deliverables, and multi-select drag, PDF/CSV/JSON export), Deliverables (multi-recipient delivery plan → make-order, a per-variable checklist, a live workflow chart, and attach contracts/specs per recipient), and News Watches. Vendor directory deepened (DIT/dailies, NZ, captions — 200+ verified). Mastering made customisable. Every tool is now per-project.",
   "v1.9.100 — Removed the tagline strip from the header for a cleaner top bar.",
@@ -244,7 +246,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 type ViewMode = "source" | "delivery";
 type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news" | "multicam" | "board" | "deliverables";
 type WorkflowView = "production" | "custom";
-type MasteringView = "derived" | "custom";
+type MasteringMode = "guides" | "myworkflow";
 
 // --- URL state helpers ------------------------------------------------------
 const URL_KEYS = {
@@ -339,10 +341,12 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
     try { return localStorage.getItem(`postsup-workflow-view-${project.id}`) === "custom" ? "custom" : "production"; } catch { return "production"; }
   });
   useEffect(() => { try { localStorage.setItem(`postsup-workflow-view-${project.id}`, workflowView); } catch { /* ignore */ } }, [workflowView, project.id]);
-  const [masteringView, setMasteringView] = useState<MasteringView>(() => {
-    try { return localStorage.getItem(`postsup-mastering-view-${project.id}`) === "custom" ? "custom" : "derived"; } catch { return "derived"; }
+  const [masteringMode, setMasteringMode] = useState<MasteringMode>(() => {
+    try { return localStorage.getItem(`postsup-mastering-mode-${project.id}`) === "myworkflow" ? "myworkflow" : "guides"; } catch { return "guides"; }
   });
-  useEffect(() => { try { localStorage.setItem(`postsup-mastering-view-${project.id}`, masteringView); } catch { /* ignore */ } }, [masteringView, project.id]);
+  useEffect(() => { try { localStorage.setItem(`postsup-mastering-mode-${project.id}`, masteringMode); } catch { /* ignore */ } }, [masteringMode, project.id]);
+  const [guidesOpen, setGuidesOpen] = useState(false);
+  const [mwRemount, setMwRemount] = useState(0);
   const [lastTab, setLastTab] = useState<HomeTab | null>(() => {
     try { const v = localStorage.getItem("kaos-last-tab"); return v ? (v as HomeTab) : null; } catch { return null; }
   });
@@ -465,49 +469,37 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Mastering config — lifted here so the Mastering tab AND the Workflow tab
   // (which reflects it) share one source of truth.
   const mConfigKey = `postsup-mastering-config-${project.id}`;
-  const readMConfig = (): { strategy?: MasteringStrategy; nits?: MasterNits; custom?: CustomConfig } => {
+  const readMConfig = (): { strategy?: MasteringStrategy; nits?: MasterNits } => {
     try { const r = localStorage.getItem(mConfigKey); return r ? JSON.parse(r) : {}; } catch { return {}; }
   };
-  const [masteringStrategy, setMasteringStrategy] = useState<MasteringStrategy>(() => readMConfig().strategy ?? "hdr-first");
-  const [masterNits, setMasterNits] = useState<MasterNits>(() => readMConfig().nits ?? 1000);
-  const [masteringCustom, setMasteringCustom] = useState<CustomConfig>(() => readMConfig().custom ?? {
-    hero: "streaming-hdr",
-    deliverables: ["hdr", "sdr", "theatrical", "archive", "proxies"],
+  // Guide strategy (one of the three presets) + the mastering-display peak. The old
+  // "custom" strategy is gone — bespoke trees now live in "My workflow".
+  const [masteringStrategy, setMasteringStrategy] = useState<MasteringStrategy>(() => {
+    const s = readMConfig().strategy;
+    return s === "hdr-first" || s === "theatrical-first" || s === "dual-hero" ? s : "hdr-first";
   });
+  const [masterNits, setMasterNits] = useState<MasterNits>(() => readMConfig().nits ?? 1000);
   useEffect(() => {
-    try { localStorage.setItem(mConfigKey, JSON.stringify({ strategy: masteringStrategy, nits: masterNits, custom: masteringCustom })); } catch { /* ignore */ }
-  }, [masteringStrategy, masterNits, masteringCustom, mConfigKey]);
-  // Derived mastering graph → editable-builder seed (for the Custom mastering view).
-  const masteringGraph = useMemo(
-    () => masteringStrategy === "custom"
-      ? buildCustomGraph(masteringCustom, acesVersion, masterNits)
-      : buildMasterGraph(masteringStrategy, acesVersion, masterNits),
-    [masteringStrategy, masteringCustom, acesVersion, masterNits],
-  );
-  const makeMasteringSeed = useCallback(() => masterGraphToFlow(masteringGraph), [masteringGraph]);
+    try { localStorage.setItem(mConfigKey, JSON.stringify({ strategy: masteringStrategy, nits: masterNits })); } catch { /* ignore */ }
+  }, [masteringStrategy, masterNits, mConfigKey]);
   const masteringPalette = useMemo(() => masteringPaletteGroups(), []);
-  // Flag when the live Derived settings have drifted from what the custom copy was seeded with.
-  const masteringSig = useMemo(
-    () => JSON.stringify({ s: masteringStrategy, c: masteringCustom, n: masterNits, v: acesVersion }),
-    [masteringStrategy, masteringCustom, masterNits, acesVersion],
+  const masteringGuides = useMemo(() => STRATEGIES.filter((s) => s.id !== "custom"), []);
+  const guideName = masteringGuides.find((s) => s.id === masteringStrategy)?.name ?? "";
+  const mwBuilderKey = `postsup-mastering-builder-${project.id}`;
+  // "My workflow" seeds — start a bespoke tree from your deliverables, from the
+  // selected guide, or from scratch.
+  const seedFromDeliverables = useCallback(() => {
+    const { config, masterNits: n } = recipientsToMasteringConfig(loadRecipients(project.id));
+    return masterGraphToFlow(buildCustomGraph(config, acesVersion, n));
+  }, [project.id, acesVersion]);
+  const seedFromGuide = useCallback(
+    () => masterGraphToFlow(buildMasterGraph(masteringStrategy, acesVersion, masterNits)),
+    [masteringStrategy, acesVersion, masterNits],
   );
-  const [masteringSeededSig, setMasteringSeededSig] = useState<string | null>(null);
-  useEffect(() => {
-    if (masteringView !== "custom") return;
-    let stored: string | null = null;
-    try { stored = localStorage.getItem(`postsup-mastering-seed-sig-${project.id}`); } catch { /* ignore */ }
-    if (stored == null) {
-      try { localStorage.setItem(`postsup-mastering-seed-sig-${project.id}`, masteringSig); } catch { /* ignore */ }
-      setMasteringSeededSig(masteringSig);
-    } else {
-      setMasteringSeededSig(stored);
-    }
-  }, [masteringView, masteringSig]);
-  const masteringStale = masteringView === "custom" && masteringSeededSig !== null && masteringSeededSig !== masteringSig;
-  const recordMasteringSeed = useCallback(() => {
-    try { localStorage.setItem(`postsup-mastering-seed-sig-${project.id}`, masteringSig); } catch { /* ignore */ }
-    setMasteringSeededSig(masteringSig);
-  }, [masteringSig]);
+  const seedFromScratch = useCallback((): ReturnType<typeof masterGraphToFlow> => ({
+    nodes: [{ id: "grade", type: "step", position: { x: 280, y: 200 }, data: { label: "Grade / DSM", owner: "ACEScct", color: "#4ade80" } }],
+    edges: [],
+  }), []);
   // Delivery-intent crop (drawn on top of the source extraction frame)
   const [deliveryCropId, setDeliveryCropId] = useState<string>(() => {
     const id = readParam(URL_KEYS.dcr);
@@ -606,11 +598,9 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Live project context fed to the Production Workflow tab so its nodes reflect
   // the actual camera, IDT, ACES version, delivery target and mastering choice.
   const masteringHero =
-    masteringStrategy === "custom"
-      ? (CUSTOM_HEROES.find((h) => h.id === masteringCustom.hero)?.label ?? "—")
-      : masteringStrategy === "hdr-first" ? "HDR PQ (Dolby Vision)"
-      : masteringStrategy === "theatrical-first" ? "DCI-P3 theatrical"
-      : "HDR PQ + DCI-P3";
+    masteringStrategy === "hdr-first" ? "HDR PQ (Dolby Vision)"
+    : masteringStrategy === "theatrical-first" ? "DCI-P3 theatrical"
+    : "HDR PQ + DCI-P3";
   const pipelineConfig: PipelineConfig = useMemo(() => ({
     camera: source.camera,
     cameraMode: source.mode,
@@ -1149,11 +1139,11 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
           <MulticamTabButton active={appTab === "multicam"} onClick={() => setAppTab("multicam")} />
+          <DeliverablesTabButton active={appTab === "deliverables"} onClick={() => setAppTab("deliverables")} />
           <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
           <PlannerTabButton active={appTab === "planner"} onClick={() => setAppTab("planner")} />
           <BoardTabButton active={appTab === "board"} onClick={() => setAppTab("board")} />
-          <DeliverablesTabButton active={appTab === "deliverables"} onClick={() => setAppTab("deliverables")} />
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
@@ -1194,12 +1184,12 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
             projectName={projectName}
             projectId={project.id}
             onSendToMastering={(config, nits) => {
-              // Deliverables is the requirements layer; hand its derived plan to
-              // the Mastering tab's Custom strategy (the one shared source of truth).
-              setMasteringCustom(config);
+              // Deliverables is the requirements layer: seed "My workflow" in the
+              // Mastering tab with a bespoke tree built from these recipients.
               setMasterNits(nits);
-              setMasteringStrategy("custom");
-              setMasteringView("derived");
+              try { localStorage.setItem(mwBuilderKey, JSON.stringify(masterGraphToFlow(buildCustomGraph(config, acesVersion, nits)))); } catch { /* ignore */ }
+              setMwRemount((k) => k + 1);
+              setMasteringMode("myworkflow");
               setAppTab("mastering");
             }}
           />
@@ -1232,36 +1222,56 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
       ) : appTab === "mastering" ? (
         <main className="flex-1 flex flex-col min-h-0 min-w-0">
           <div className="shrink-0 border-b border-suite-border bg-suite-panel px-3 py-1.5 flex items-center gap-1.5">
-            {([["derived", "Derived"], ["custom", "Custom"]] as [MasteringView, string][]).map(([v, label]) => (
-              <button key={v} type="button" onClick={() => setMasteringView(v)}
-                className={cn("px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
-                  masteringView === v ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
-                {label}
+            {/* Guides — the three reference strategies, in a sub-menu */}
+            <div className="relative">
+              <button type="button" onClick={() => setGuidesOpen((o) => !o)}
+                className={cn("flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
+                  masteringMode === "guides" ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
+                Guides{masteringMode === "guides" ? ` · ${guideName}` : ""} <span className="text-[8px] leading-none">▾</span>
               </button>
-            ))}
-            {masteringStale ? (
-              <span className="font-mono text-[10px] ml-1 flex items-center gap-1.5 text-status-warn">
-                <span className="size-1.5 rounded-full bg-status-warn shrink-0" />
-                Derived settings changed since you seeded this — hit “Re-seed from Mastering” to refresh.
-              </span>
-            ) : (
-              <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline ml-1">
-                {masteringView === "derived"
-                  ? "Auto-built from your Hero + deliverables — switch to Custom to edit it freely."
-                  : "Editable copy of the derived tree — drag, rename, connect, add/remove, save & export. ‘Re-seed’ refreshes it from Derived."}
-              </span>
-            )}
+              {guidesOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setGuidesOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 z-50 w-52 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col">
+                    {masteringGuides.map((g) => (
+                      <button key={g.id} type="button"
+                        onClick={() => { setMasteringStrategy(g.id); setMasteringMode("guides"); setGuidesOpen(false); }}
+                        className={cn("text-left px-2 py-1.5 rounded font-mono text-[11px] hover:bg-suite-panel-elevated",
+                          masteringMode === "guides" && masteringStrategy === g.id ? "text-status-ok" : "text-suite-text-muted hover:text-suite-text")}>
+                        {g.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            {/* My workflow — your editable tree */}
+            <button type="button" onClick={() => setMasteringMode("myworkflow")}
+              className={cn("px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
+                masteringMode === "myworkflow" ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
+              My workflow
+            </button>
+            <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline ml-1">
+              {masteringMode === "guides"
+                ? "Reference trees — how the grade flows to every deliverable for each strategy."
+                : "Your editable tree — seed it from your deliverables, a guide, or from scratch."}
+            </span>
           </div>
           <div className="flex-1 flex min-h-0 min-w-0">
-            {masteringView === "custom" ? (
+            {masteringMode === "myworkflow" ? (
               <Suspense fallback={<div className="flex-1 grid place-items-center font-mono text-[11px] text-suite-text-dim">Loading…</div>}>
                 <WorkflowBuilder
-                  storageKey={`postsup-mastering-builder-${project.id}`}
+                  key={mwRemount}
+                  storageKey={mwBuilderKey}
                   versionsKey={`postsup-mastering-builder-versions-${project.id}`}
-                  title="Custom Mastering"
-                  makeSeed={makeMasteringSeed}
+                  title="My workflow"
+                  makeSeed={seedFromDeliverables}
                   paletteGroups={masteringPalette}
-                  seedActions={[{ label: "Re-seed from Mastering", confirm: "Replace the canvas with a fresh copy of the current derived Mastering tree? (this is undoable)", make: () => { recordMasteringSeed(); return makeMasteringSeed(); } }]}
+                  seedActions={[
+                    { label: "From deliverables", confirm: "Replace the canvas with a fresh tree built from your Deliverables recipients? (this is undoable)", make: seedFromDeliverables },
+                    { label: `From guide · ${guideName}`, confirm: "Replace the canvas with the selected guide's tree? (this is undoable)", make: seedFromGuide },
+                    { label: "From scratch", confirm: "Clear the canvas back to a single Grade node? (this is undoable)", make: seedFromScratch },
+                  ]}
                 />
               </Suspense>
             ) : (
@@ -1269,11 +1279,8 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
                 version={acesVersion}
                 onVersionChange={setAcesVersion}
                 strategy={masteringStrategy}
-                onStrategyChange={setMasteringStrategy}
                 masterNits={masterNits}
                 onMasterNitsChange={setMasterNits}
-                custom={masteringCustom}
-                onCustomChange={setMasteringCustom}
               />
             )}
           </div>

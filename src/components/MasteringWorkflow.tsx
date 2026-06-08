@@ -4,9 +4,8 @@ import {
 } from "@/lib/aces";
 import {
   MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META, ROLE_ACCENT,
-  buildMasterGraph, buildCustomGraph, MNode, Lane, EdgeOp,
-  MASTER_NITS, MasterNits, CustomConfig, CustomDeliverable,
-  CUSTOM_HEROES, CUSTOM_DELIVERABLES,
+  buildMasterGraph, MNode, Lane, EdgeOp,
+  MASTER_NITS, MasterNits,
 } from "@/lib/mastering";
 import { cn } from "@/lib/utils";
 import { Crown, AlertTriangle, X, Plus, Minus, Maximize } from "lucide-react";
@@ -19,11 +18,8 @@ interface Props {
   version: AcesVersion;
   onVersionChange: (v: AcesVersion) => void;
   strategy: MasteringStrategy;
-  onStrategyChange: (s: MasteringStrategy) => void;
   masterNits: MasterNits;
   onMasterNitsChange: (n: MasterNits) => void;
-  custom: CustomConfig;
-  onCustomChange: (c: CustomConfig) => void;
 }
 
 const COL_W = 184;
@@ -52,25 +48,16 @@ const OP_TOKEN: Record<EdgeOp, string> = {
 };
 
 export function MasteringWorkflow({
-  version, onVersionChange, strategy, onStrategyChange,
-  masterNits, onMasterNitsChange, custom, onCustomChange,
+  version, onVersionChange, strategy,
+  masterNits, onMasterNitsChange,
 }: Props) {
-  const setStrategy = onStrategyChange;
   const setMasterNits = onMasterNitsChange;
-  const setCustom = (fn: (c: CustomConfig) => CustomConfig) => onCustomChange(fn(custom));
   const [selected, setSelected] = useState<string | null>(null);
 
   const graph = useMemo(
-    () => strategy === "custom"
-      ? buildCustomGraph(custom, version, masterNits)
-      : buildMasterGraph(strategy, version, masterNits),
-    [strategy, version, masterNits, custom],
+    () => buildMasterGraph(strategy, version, masterNits),
+    [strategy, version, masterNits],
   );
-  const toggleDeliverable = (d: CustomDeliverable) =>
-    onCustomChange({
-      ...custom,
-      deliverables: custom.deliverables.includes(d) ? custom.deliverables.filter((x) => x !== d) : [...custom.deliverables, d],
-    });
   const strat = STRATEGIES.find((s) => s.id === strategy)!;
 
   // --- Deterministic layered layout (lanes = X columns) --------------------
@@ -174,19 +161,8 @@ export function MasteringWorkflow({
         {/* Controls */}
         <div className="shrink-0 border-b border-suite-border bg-suite-panel px-5 py-3 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5 p-0.5 bg-suite-bg border border-suite-border rounded-sm">
-              {STRATEGIES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => { setStrategy(s.id); setSelected(null); }}
-                  className={cn(
-                    "px-3 py-1.5 text-[10px] tracking-[0.14em] uppercase rounded-[3px] transition-colors",
-                    strategy === s.id ? "bg-guide-target/15 text-guide-target" : "text-suite-text-muted hover:text-suite-text",
-                  )}
-                >
-                  {s.name}
-                </button>
-              ))}
+            <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-suite-text-muted">
+              Guide · <span className="text-suite-text">{strat.name}</span>
             </div>
             <div className="flex items-center gap-3">
               {/* Zoom controls */}
@@ -235,37 +211,7 @@ export function MasteringWorkflow({
           <p className="text-[11px] text-suite-text-dim font-mono leading-relaxed">
             <span className="text-suite-text">Hero: {strat.hero}.</span> {strat.when}
           </p>
-          {strategy === "custom" && (
-            <div className="flex flex-wrap items-start gap-x-8 gap-y-2 pt-1">
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Grade first (hero)</span>
-                <div className="flex gap-1">
-                  {CUSTOM_HEROES.map((h) => (
-                    <button key={h.id} onClick={() => setCustom((c) => ({ ...c, hero: h.id }))}
-                      className={cn("px-2 py-1 text-[10px] font-mono rounded-sm border transition-colors",
-                        custom.hero === h.id ? "bg-guide-target/15 text-guide-target border-guide-target/50" : "border-suite-border text-suite-text-muted hover:text-suite-text")}>
-                      {h.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted">Deliverables</span>
-                <div className="flex flex-wrap gap-1">
-                  {CUSTOM_DELIVERABLES.map((d) => {
-                    const on = custom.deliverables.includes(d.id);
-                    return (
-                      <button key={d.id} onClick={() => toggleDeliverable(d.id)}
-                        className={cn("px-2 py-1 text-[10px] font-mono rounded-sm border transition-colors",
-                          on ? "bg-suite-panel-elevated border-suite-border-strong text-suite-text" : "border-suite-border text-suite-text-dim hover:text-suite-text")}>
-                        {on ? "✓ " : ""}{d.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Bespoke trees live in "My workflow"; guide selection is in the tab bar. */}
         </div>
 
         {/* Graph */}
