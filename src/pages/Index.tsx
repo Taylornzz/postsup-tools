@@ -70,6 +70,7 @@ import {
   Clipboard,
   Download,
   ShieldCheck,
+  Pencil,
   Link2,
   Sun,
   Focus,
@@ -123,8 +124,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.2.0";
+export const VERSION = "v2.2.1";
 const CHANGELOG = [
+  "v2.2.1 — Saved setups can be renamed: a rename (✎) button on each saved setup in Capture, alongside Load and Delete. The new name carries through to the Storage ‘From saved setups’ list too.",
   "v2.2.0 — Capture & Storage consolidated. The Optics tab folds into Capture as a ‘Framing / Optics’ toggle, and ‘Capture & Framing’ is now just ‘Capture’. Multicam is gone — Storage is now a single rig planner: add cameras (1…N), each carrying its own body, codec, fps, card, hours/day AND shoot days, with its media plan + codec comparison in-card and combined rig totals up top. Tick your saved Capture setups to drop them straight in as cameras. Offload now models the real act — copy each card/mag to a drive at the link speed, plus an optional checksum-verify pass (≈ doubles the time), spelled out in full. Post Schedule: the phase name now sits on the bar alongside its duration.",
   "v2.1.0 — Deliverables QC depth: a true-peak ceiling per recipient (region-defaulted) plus a dialnorm note that only shows for AC-3 broadcast targets (US/AU) — a ProRes/IMF master carries no dialnorm, so the tool no longer implies one. The make-order now spells out standards conversions (PAL↔NTSC) and resolution down-scales / reframes as explicit steps. New ‘+ From template…’ picker drops in web-verified starter specs for Netflix, Amazon, Apple TV+, Max, BBC/DPP, TVNZ and ABC (each ‘as-of’ dated — confirm against the platform). Post Schedule is now a linked Gantt: hover a bar and drag a ○ handle onto another to connect (front = start-to-start, back = finish-to-start); linked phases follow when you move the source, keeping the gap; click the ✕ on a link to remove it. Workflow tab: ‘Production’ → ‘Guide’, ‘Custom Workflow’ → ‘Full Workflow’.",
   "v2.0.2 — Mastering tab reorganised. The three reference strategies (HDR-First, Theatrical-First, Dual-Hero) now live under a ‘Guides’ sub-menu, and the old Custom view is now ‘My workflow’ — your editable mastering tree, which you can seed three ways: from your Deliverables recipients, from a guide, or from scratch. The Deliverables tab now sits before Mastering (requirements first, then the plan), and its ‘Open in Mastering’ button seeds My workflow straight from your recipient list.",
@@ -866,6 +868,12 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
     (id: string) => persistSetups(savedSetups.filter((s) => s.id !== id)),
     [savedSetups, persistSetups],
   );
+  const renameSetup = useCallback((s: SavedSetup) => {
+    const name = window.prompt("Rename setup", s.name);
+    if (name === null) return;
+    const n = name.trim();
+    if (n) persistSetups(savedSetups.map((x) => (x.id === s.id ? { ...x, name: n } : x)));
+  }, [savedSetups, persistSetups]);
 
   const copySpecSheet = useCallback(async () => {
     const srcAspectName = aspectRatioLabel(srcDisp.width, srcDisp.height);
@@ -1918,6 +1926,14 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
                       title={`Load · saved ${new Date(s.ts).toLocaleString()}`}
                     >
                       {s.name}
+                    </button>
+                    <button
+                      onClick={() => renameSetup(s)}
+                      className="px-2 py-1.5 border border-suite-border hover:border-suite-border-strong hover:text-suite-text transition-colors rounded-sm"
+                      aria-label="Rename setup"
+                      title="Rename"
+                    >
+                      <Pencil className="size-3" strokeWidth={1.5} />
                     </button>
                     <button
                       onClick={() => deleteSetup(s.id)}
