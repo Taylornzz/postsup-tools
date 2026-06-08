@@ -82,13 +82,12 @@ import {
   Calculator,
   FolderOpen,
   ChevronDown,
-  Video,
   SquareKanban,
   PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { FileSizeCalculator } from "@/components/FileSizeCalculator";
+import { StoragePlanner } from "@/components/StoragePlanner";
 import { FovCalculator } from "@/components/FovCalculator";
 import { MasteringWorkflow } from "@/components/MasteringWorkflow";
 import { WorkflowPipeline } from "@/components/WorkflowPipeline";
@@ -98,7 +97,6 @@ import { Tools } from "@/components/Tools";
 import { AppMenu } from "@/components/AppMenu";
 import { Vendors } from "@/components/Vendors";
 import { NewsWatches } from "@/components/NewsWatches";
-import { MulticamPlanner } from "@/components/MulticamPlanner";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { Deliverables } from "@/components/Deliverables";
 import { loadRecipients, recipientsToMasteringConfig } from "@/lib/deliverables";
@@ -125,8 +123,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.1.0";
+export const VERSION = "v2.2.0";
 const CHANGELOG = [
+  "v2.2.0 — Capture & Storage consolidated. The Optics tab folds into Capture as a ‘Framing / Optics’ toggle, and ‘Capture & Framing’ is now just ‘Capture’. Multicam is gone — Storage is now a single rig planner: add cameras (1…N), each carrying its own body, codec, fps, card, hours/day AND shoot days, with its media plan + codec comparison in-card and combined rig totals up top. Tick your saved Capture setups to drop them straight in as cameras. Offload now models the real act — copy each card/mag to a drive at the link speed, plus an optional checksum-verify pass (≈ doubles the time), spelled out in full. Post Schedule: the phase name now sits on the bar alongside its duration.",
   "v2.1.0 — Deliverables QC depth: a true-peak ceiling per recipient (region-defaulted) plus a dialnorm note that only shows for AC-3 broadcast targets (US/AU) — a ProRes/IMF master carries no dialnorm, so the tool no longer implies one. The make-order now spells out standards conversions (PAL↔NTSC) and resolution down-scales / reframes as explicit steps. New ‘+ From template…’ picker drops in web-verified starter specs for Netflix, Amazon, Apple TV+, Max, BBC/DPP, TVNZ and ABC (each ‘as-of’ dated — confirm against the platform). Post Schedule is now a linked Gantt: hover a bar and drag a ○ handle onto another to connect (front = start-to-start, back = finish-to-start); linked phases follow when you move the source, keeping the gap; click the ✕ on a link to remove it. Workflow tab: ‘Production’ → ‘Guide’, ‘Custom Workflow’ → ‘Full Workflow’.",
   "v2.0.2 — Mastering tab reorganised. The three reference strategies (HDR-First, Theatrical-First, Dual-Hero) now live under a ‘Guides’ sub-menu, and the old Custom view is now ‘My workflow’ — your editable mastering tree, which you can seed three ways: from your Deliverables recipients, from a guide, or from scratch. The Deliverables tab now sits before Mastering (requirements first, then the plan), and its ‘Open in Mastering’ button seeds My workflow straight from your recipient list.",
   "v2.0.1 — Deliverables now drives the Mastering engine directly: the make-order is computed by the same custom-mastering logic as the Mastering tab (one source of truth), so a theatrical→SDR step — or any up-volume master — is correctly flagged as a fresh re-grade off the ACES archive, not a clean derive. New ‘Open in Mastering’ button hands your recipient list to the Mastering Custom tree with the hero, deliverables and peak nits inferred from your recipients. Vendor directory temporarily hidden while it’s refreshed.",
@@ -245,7 +244,7 @@ const HDR_VARIANTS: HdrVariant[] = ["SDR", "HDR10", "HDR10+", "Dolby Vision P8.1
 
 // Common offload bandwidth references (MB/s).
 type ViewMode = "source" | "delivery";
-type AppTab = "home" | "frame" | "storage" | "optics" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news" | "multicam" | "board" | "deliverables";
+type AppTab = "home" | "frame" | "storage" | "mastering" | "workflow" | "planner" | "glossary" | "tools" | "vendors" | "news" | "board" | "deliverables";
 type WorkflowView = "production" | "custom";
 type MasteringMode = "guides" | "myworkflow";
 
@@ -336,7 +335,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Hydrate from URL once
   const [appTab, setAppTab] = useState<AppTab>(() => {
     const t = readParam(URL_KEYS.tab) as AppTab;
-    return t === "storage" || t === "optics" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "multicam" || t === "board" || t === "deliverables" || t === "frame" ? t : "home";
+    return t === "storage" || t === "mastering" || t === "workflow" || t === "planner" || t === "glossary" || t === "tools" || t === "vendors" || t === "news" || t === "board" || t === "deliverables" || t === "frame" ? t : "home";
   });
   const [workflowView, setWorkflowView] = useState<WorkflowView>(() => {
     try { return localStorage.getItem(`postsup-workflow-view-${project.id}`) === "custom" ? "custom" : "production"; } catch { return "production"; }
@@ -348,6 +347,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   useEffect(() => { try { localStorage.setItem(`postsup-mastering-mode-${project.id}`, masteringMode); } catch { /* ignore */ } }, [masteringMode, project.id]);
   const [guidesOpen, setGuidesOpen] = useState(false);
   const [mwRemount, setMwRemount] = useState(0);
+  const [captureView, setCaptureView] = useState<"framing" | "optics">("framing");
   const [lastTab, setLastTab] = useState<HomeTab | null>(() => {
     try { const v = localStorage.getItem("kaos-last-tab"); return v ? (v as HomeTab) : null; } catch { return null; }
   });
@@ -402,6 +402,12 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   const [exportWithImage, setExportWithImage] = useState(false);
   // Saved setups (localStorage; ready to sync to an account later).
   const [savedSetups, setSavedSetups] = useState<SavedSetup[]>(() => readSavedSetups());
+  // Saved setups parsed into camera specs the Storage rig can drop in.
+  const storageSetups = useMemo(() => savedSetups.map((s) => {
+    const p = new URLSearchParams(s.query);
+    const sid = p.get(URL_KEYS.src);
+    return sid ? { id: s.id, name: s.name, sourceId: sid, codecId: p.get(URL_KEYS.codec) || undefined, fps: Number(p.get(URL_KEYS.fps)) || undefined, cardId: p.get(URL_KEYS.card) || undefined } : null;
+  }).filter((x): x is NonNullable<typeof x> => !!x), [savedSetups]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // HDR + lens + storage planning
@@ -1137,9 +1143,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
         </div>
         <div className="flex items-center gap-2">
           <FrameTabButton active={appTab === "frame"} onClick={() => setAppTab("frame")} />
-          <OpticsTabButton active={appTab === "optics"} onClick={() => setAppTab("optics")} />
           <StorageTabButton active={appTab === "storage"} onClick={() => setAppTab("storage")} />
-          <MulticamTabButton active={appTab === "multicam"} onClick={() => setAppTab("multicam")} />
           <DeliverablesTabButton active={appTab === "deliverables"} onClick={() => setAppTab("deliverables")} />
           <MasteringTabButton active={appTab === "mastering"} onClick={() => setAppTab("mastering")} />
           <WorkflowTabButton active={appTab === "workflow"} onClick={() => setAppTab("workflow")} />
@@ -1170,10 +1174,6 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
       ) : appTab === "news" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
           <NewsWatches />
-        </main>
-      ) : appTab === "multicam" ? (
-        <main className="flex-1 flex min-h-0 min-w-0">
-          <MulticamPlanner projectName={projectName} projectId={project.id} />
         </main>
       ) : appTab === "board" ? (
         <main className="flex-1 flex min-h-0 min-w-0">
@@ -1286,23 +1286,29 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
             )}
           </div>
         </main>
-      ) : appTab === "optics" ? (
-        <main className="flex-1 flex min-h-0">
-          <FovCalculator source={source} />
-        </main>
       ) : appTab === "storage" ? (
         <main className="flex-1 flex min-h-0">
-          <FileSizeCalculator
-            sourceId={sourceId}
-            onSourceChange={setSourceId}
-            codecId={codecId}
-            onCodecChange={setCodecId}
-            fps={fps}
-            onFpsChange={setFps}
-          />
+          <StoragePlanner projectName={projectName} projectId={project.id} seedSourceId={sourceId} seedCodecId={codecId} seedFps={fps} setups={storageSetups} />
         </main>
       ) : (
-      <main className="flex-1 flex min-h-0">
+      <main className="flex-1 flex flex-col min-h-0">
+        {/* Framing / Optics sub-view toggle */}
+        <div className="shrink-0 border-b border-suite-border bg-suite-panel px-3 py-1.5 flex items-center gap-1.5">
+          {(["framing", "optics"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setCaptureView(v)}
+              className={cn("px-2.5 py-1 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors",
+                captureView === v ? "bg-status-ok/15 text-status-ok border-status-ok/50" : "text-suite-text-muted hover:text-suite-text border-suite-border bg-suite-bg")}>
+              {v === "framing" ? "Framing" : "Optics"}
+            </button>
+          ))}
+          <span className="font-mono text-[10px] text-suite-text-dim hidden lg:inline ml-1">
+            {captureView === "framing" ? "Camera, framing chart, protection & extract." : "Lens coverage, depth of field & focal equivalence for the selected camera."}
+          </span>
+        </div>
+        {captureView === "optics" ? (
+          <FovCalculator source={source} />
+        ) : (
+        <div className="flex-1 flex min-h-0">
         {/* Left inspector */}
         <aside className="w-96 shrink-0 bg-suite-panel border-r border-suite-border flex flex-col overflow-y-auto">
           {/* Slate — project + DP, stamped onto every export. */}
@@ -2051,6 +2057,8 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
             </div>
           </footer>
         </section>
+        </div>
+        )}
       </main>
       )}
     </div>
@@ -2389,7 +2397,7 @@ function FrameTabButton({ active, onClick }: { active: boolean; onClick: () => v
         )}
       >
         <Aperture className="size-3" strokeWidth={1.5} />
-        Capture &amp; Framing
+        Capture
       </button>
     </div>
   );
@@ -2448,44 +2456,6 @@ function BoardTabButton({ active, onClick }: { active: boolean; onClick: () => v
     >
       <SquareKanban className="size-3" strokeWidth={1.5} />
       Board
-    </button>
-  );
-}
-
-function MulticamTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
-        active
-          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
-          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
-      )}
-      title="Multicam planner — combined data &amp; storage across cameras"
-    >
-      <Video className="size-3" strokeWidth={1.5} />
-      Multicam
-    </button>
-  );
-}
-
-function OpticsTabButton({ active, onClick }: { active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.18em] uppercase font-mono border rounded-sm transition-colors",
-        active
-          ? "bg-status-ok/15 text-status-ok border-status-ok/50"
-          : "text-suite-text-muted hover:text-suite-text border-suite-border hover:border-suite-border-strong bg-suite-bg",
-      )}
-      title="Optics — field of view, depth of field, focal equivalence"
-    >
-      <Aperture className="size-3" strokeWidth={1.5} />
-      Optics
     </button>
   );
 }

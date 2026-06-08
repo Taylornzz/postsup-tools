@@ -732,14 +732,14 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
                         onMouseLeave={() => { if (hoverRef.current === b.id) setHoverTargetId(null); }}
                       >
                         <div onMouseDown={(e) => onDown(e, b.id, "l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
-                        <div onMouseDown={(e) => onDown(e, b.id, "move")} className="flex-1 h-full cursor-grab active:cursor-grabbing flex items-center justify-center overflow-hidden">
-                          {width >= 30 && <span className="font-mono text-[9px] text-black/70 font-semibold tabular">{Number.isInteger(b.dur) ? `${b.dur}w` : `${Math.round(b.dur * 7)}d`}</span>}
+                        <div onMouseDown={(e) => onDown(e, b.id, "move")} className="flex-1 min-w-0 h-full cursor-grab active:cursor-grabbing flex items-center px-1.5 overflow-hidden">
+                          {width >= 24 && <span className="font-mono text-[9px] text-black/80 font-semibold truncate">{b.name || "Untitled"} <span className="font-normal text-black/55">· {Number.isInteger(b.dur) ? `${b.dur}w` : `${Math.round(b.dur * 7)}d`}</span></span>}
                         </div>
                         <div onMouseDown={(e) => onDown(e, b.id, "r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
                         {showLinks && <button type="button" data-no-pan onMouseDown={(e) => onLinkDown(e, b.id, "front")} title="Drag onto another bar to link — start-to-start (they begin together)" className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-[10px] size-2.5 rounded-full bg-suite-panel border border-suite-text-dim opacity-0 group-hover/bar:opacity-100 hover:!bg-guide-target hover:!border-guide-target cursor-crosshair z-20" />}
                         {showLinks && <button type="button" data-no-pan onMouseDown={(e) => onLinkDown(e, b.id, "back")} title="Drag onto another bar to link — finish-to-start (the next begins after this ends)" className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-[10px] size-2.5 rounded-full bg-suite-panel border border-suite-text-dim opacity-0 group-hover/bar:opacity-100 hover:!bg-guide-target hover:!border-guide-target cursor-crosshair z-20" />}
-                        <span className="absolute left-full ml-5 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim">
-                          {b.name} <span className="text-suite-text-dim/60">· {fmtDate(startD)}–{fmtDate(endD)}</span>
+                        <span className="absolute left-full ml-5 top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] text-suite-text-dim/70">
+                          {fmtDate(startD)}–{fmtDate(endD)}
                         </span>
                       </div>
                     )}

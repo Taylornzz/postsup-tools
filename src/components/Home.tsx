@@ -1,16 +1,14 @@
 import {
-  Frame, Aperture, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, Video, SquareKanban, PackageCheck,
+  Frame, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, SquareKanban, PackageCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
 
-export type HomeTab = "frame" | "optics" | "storage" | "multicam" | "mastering" | "workflow" | "planner" | "board" | "deliverables" | "glossary" | "tools" | "vendors";
+export type HomeTab = "frame" | "storage" | "mastering" | "workflow" | "planner" | "board" | "deliverables" | "glossary" | "tools" | "vendors";
 
 const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; color: string }[] = [
-  { tab: "frame", title: "Capture & Framing", desc: "Camera, codec, sensor & framing — what you're shooting and how it extracts.", icon: Frame, color: "#22d3ee" },
-  { tab: "optics", title: "Optics", desc: "Lens coverage, depth of field & circle of confusion for your sensor.", icon: Aperture, color: "#a78bfa" },
-  { tab: "storage", title: "Storage", desc: "Media & data plan — cards, offload, backups and bandwidth per day.", icon: HardDrive, color: "#4ade80" },
-  { tab: "multicam", title: "Multicam Planner", desc: "Plan an A/B/C-cam rig — combined data, cards and total shoot storage.", icon: Video, color: "#34d399" },
+  { tab: "frame", title: "Capture", desc: "Camera, codec, sensor & framing — plus lens coverage, depth of field & equivalence (Optics).", icon: Frame, color: "#22d3ee" },
+  { tab: "storage", title: "Storage", desc: "Media & data plan — one camera or a whole rig: cards, offload, backups, proxies.", icon: HardDrive, color: "#4ade80" },
   { tab: "deliverables", title: "Deliverables", desc: "Multi-recipient delivery plan — grade once, derive the rest, checklist every variable.", icon: PackageCheck, color: "#fb7185" },
   { tab: "mastering", title: "Mastering Workflow", desc: "ACES masters & deliverables — HDR, theatrical, SDR and the derive order.", icon: Film, color: "#fb7185" },
   { tab: "workflow", title: "Workflow", desc: "The whole pipeline as a node graph — plus your own editable build.", icon: Workflow, color: "#2dd4bf" },
@@ -22,7 +20,7 @@ const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; co
 ];
 
 const LABELS: Record<HomeTab, string> = {
-  frame: "Capture & Framing", optics: "Optics", storage: "Storage", multicam: "Multicam Planner", mastering: "Mastering Workflow",
+  frame: "Capture", storage: "Storage", mastering: "Mastering Workflow",
   workflow: "Workflow", planner: "Post Schedule", board: "Task Board", deliverables: "Deliverables", glossary: "Glossary", tools: "Post Tools", vendors: "Vendor Directory",
 };
 
