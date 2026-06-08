@@ -14,6 +14,7 @@ import {
   type Recipient, type Region, type DRId, type Pass, type DocMeta, type Conversion,
 } from "@/lib/deliverables";
 import type { CustomConfig, MasterNits } from "@/lib/mastering";
+import { ingestDeliverySpec } from "@/lib/aiIngest";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
@@ -32,6 +33,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
   const mastering = useMemo(() => recipientsToMasteringConfig(recipients), [recipients]);
   const [flowKey, setFlowKey] = useState(0);
+  const [ingesting, setIngesting] = useState(false);
+  const specInputRef = useRef<HTMLInputElement>(null);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
     setFlowKey((k) => k + 1);
@@ -45,6 +48,19 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
     if (!t) return;
     setRecipients((rs) => [...rs, recipientFromTemplate(t)]);
     toast.success(`Added ${t.name}`, { description: "Starter spec — confirm against the platform's current delivery document." });
+  };
+  const onSpecFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIngesting(true);
+    try {
+      const found = await ingestDeliverySpec(Array.from(files));
+      setRecipients((rs) => [...rs, ...found]);
+      toast.success(`Read ${found.length} recipient${found.length === 1 ? "" : "s"} from the spec`, { description: "Each field carries its source quote in the notes — verify before you deliver." });
+    } catch (e) {
+      toast.error("AI ingest failed", { description: e instanceof Error ? e.message : "Couldn't read that spec." });
+    } finally {
+      setIngesting(false);
+    }
   };
   const remove = (id: string) => {
     const r = recipients.find((x) => x.id === id);
@@ -192,17 +208,22 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
 
           {/* Recipients */}
           <div className="flex flex-col gap-2.5">
-            {recipients.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <button onClick={add} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
-                  <Plus className="size-3" strokeWidth={2} /> Add recipient
-                </button>
-                <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[16rem]")} title="Add a recipient pre-filled from a platform's delivery spec (a starter — always confirm)">
-                  <option value="">+ From template…</option>
-                  {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={add} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+                <Plus className="size-3" strokeWidth={2} /> Add recipient
+              </button>
+              <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[16rem]")} title="Add a recipient pre-filled from a platform's delivery spec (a starter — always confirm)">
+                <option value="">+ From template…</option>
+                {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <button onClick={() => specInputRef.current?.click()} disabled={ingesting}
+                title="AI reads an uploaded delivery spec / contract (PDF, image or text) and fills the recipients — with a source quote on every field"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20 disabled:opacity-50 transition-colors">
+                <Sparkles className="size-3" strokeWidth={2} /> {ingesting ? "Reading spec…" : "AI from spec…"}
+              </button>
+              <input ref={specInputRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp,.txt,.md,.csv" className="hidden"
+                onChange={(e) => { onSpecFiles(e.target.files); e.currentTarget.value = ""; }} />
+            </div>
             {recipients.map((r) => {
               const checks = recipientChecklist(r);
               return (
