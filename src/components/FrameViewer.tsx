@@ -281,7 +281,7 @@ export function FrameViewer({
               style={{ boxShadow: `inset 0 0 0 1px ${sourceAccent}99` }}
             >
               <div
-                className="absolute -top-7 left-0 font-mono text-[10px] tracking-[0.18em] uppercase px-2 py-1 bg-suite-bg/95 backdrop-blur border whitespace-nowrap"
+                className="absolute -top-7 left-0 font-mono text-[10px] tracking-[0.18em] uppercase px-2 py-1 bg-[#111114]/95 backdrop-blur border whitespace-nowrap"
                 style={{ color: sourceAccent, borderColor: `${sourceAccent}55` }}
               >
                 Source · {source.camera} · {formatNumber(source.width)}×
@@ -415,7 +415,7 @@ export function FrameViewer({
 
               {/* Target label */}
               <div
-                className="absolute -bottom-7 right-0 font-mono text-[10px] tracking-[0.18em] uppercase px-2 py-1 bg-suite-bg/95 backdrop-blur border whitespace-nowrap pointer-events-none"
+                className="absolute -bottom-7 right-0 font-mono text-[10px] tracking-[0.18em] uppercase px-2 py-1 bg-[#111114]/95 backdrop-blur border whitespace-nowrap pointer-events-none"
                 style={{ color: targetAccent, borderColor: `${targetAccent}55` }}
               >
                 {target.name} · {formatNumber(target.activeWidth ?? target.width)}×
@@ -424,7 +424,7 @@ export function FrameViewer({
 
               {reframeable && (
                 <div
-                  className="absolute bottom-1 left-1 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/80 backdrop-blur border pointer-events-none"
+                  className="absolute bottom-1 left-1 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-[#111114]/80 backdrop-blur border pointer-events-none"
                   style={{ color: targetAccent, borderColor: `${targetAccent}40` }}
                 >
                   Drag to reframe · corners resize
@@ -541,7 +541,7 @@ export function SafeAreaOverlay({ color }: { color: string }) {
         }}
       >
         <span
-          className="absolute -top-4 left-0 font-mono text-[8px] tracking-[0.18em] uppercase px-1 bg-suite-bg/80"
+          className="absolute -top-4 left-0 font-mono text-[8px] tracking-[0.18em] uppercase px-1 bg-[#111114]/80"
           style={{ color, opacity: 0.85 }}
         >
           Safe Action 93%
@@ -560,7 +560,7 @@ export function SafeAreaOverlay({ color }: { color: string }) {
         }}
       >
         <span
-          className="absolute -bottom-4 right-0 font-mono text-[8px] tracking-[0.18em] uppercase px-1 bg-suite-bg/80"
+          className="absolute -bottom-4 right-0 font-mono text-[8px] tracking-[0.18em] uppercase px-1 bg-[#111114]/80"
           style={{ color, opacity: 0.85 }}
         >
           Safe Title 90%
@@ -635,7 +635,7 @@ export function ProtectionOverlay({
         }}
       >
         <span
-          className="absolute -top-5 left-0 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/90 backdrop-blur border pointer-events-none whitespace-nowrap"
+          className="absolute -top-5 left-0 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-[#111114]/90 backdrop-blur border pointer-events-none whitespace-nowrap"
           style={{ color, borderColor: `${color}55` }}
         >
           Protection {pct.toFixed(pct % 1 === 0 ? 0 : 1)}% · outside frame
@@ -721,7 +721,7 @@ function DeliveryCropOverlay({
         }}
       >
         <span
-          className="absolute -top-5 right-0 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-suite-bg/90 backdrop-blur border"
+          className="absolute -top-5 right-0 font-mono text-[9px] tracking-[0.18em] uppercase px-1.5 py-0.5 bg-[#111114]/90 backdrop-blur border"
           style={{ color, borderColor: `${color}55` }}
         >
           Crop · {label ?? `${cropAR.toFixed(2)}:1`}
