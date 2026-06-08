@@ -147,8 +147,15 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
     }));
   };
   const addCam = () => setCams((cs) => { const c = buildCam(nextLabel(cs.length), cs[0]?.shootDays ?? dfltDays); setExpanded((e) => new Set(e).add(c.id)); return [...cs, c]; });
-  const removeCam = (id: string) => setCams((cs) => (cs.length <= 1 ? cs : cs.filter((c) => c.id !== id)));
-  const reset = () => { if (window.confirm("Reset to a single camera?")) setCams([buildCam("A-cam", dfltDays, { sourceId: seedSourceId, codecId: seedCodecId, fps: seedFps })]); };
+  const duplicateCam = (id: string) => setCams((cs) => {
+    const i = cs.findIndex((c) => c.id === id);
+    if (i < 0) return cs;
+    const copy: RigCam = { ...cs[i], id: uid(), label: nextLabel(cs.length), setupId: undefined };
+    setExpanded((e) => new Set(e).add(copy.id));
+    const next = cs.slice(); next.splice(i + 1, 0, copy); return next;
+  });
+  const removeCam = (id: string) => setCams((cs) => cs.filter((c) => c.id !== id));
+  const reset = () => { if (window.confirm("Clear all cameras from the rig?")) { setCams([]); setExpanded(new Set()); } };
   const toggleExpand = (id: string) => setExpanded((e) => { const n = new Set(e); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleSetup = (s: SetupSpec) => setCams((cs) => {
     if (cs.some((c) => c.setupId === s.id)) { const next = cs.filter((c) => c.setupId !== s.id); return next.length ? next : cs; }
@@ -174,7 +181,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
     const util = cam.hoursPerDay > 0 && cardsPerDay > 0 ? (camDaily / (cardsPerDay * card.gb)) * 100 : 0;
     const mediaWord = card.kind === "mag" ? "mag" : card.kind === "drive" ? "drive" : "card";
     let proxyGB = 0;
-    if (proxyCodec && cam.enabled) {
+    if (proxyCodec) {
       const w = proxyEntry.resolutionTier === "hd" ? 1920 : 3840;
       const h = proxyEntry.resolutionTier === "hd" ? 1080 : 2160;
       proxyGB = estimateFileSizeGB(codecMbps(proxyCodec, w, h, cam.fps), cam.hoursPerDay * 3600) * cam.shootDays;
@@ -194,10 +201,15 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
     const proxyTotal = active.reduce((s, r) => s + r.proxyGB, 0);
     const transferHrs = offloadHours(totalDaily, g.copies, bandwidth.mbps, g.stations); // card/mag → drive copy
     const verifyHrs = g.verify ? transferHrs : 0;                                       // checksum read-back ≈ same again
+    const days = active.map((r) => r.cam.shootDays);
+    const spanMin = days.length ? Math.min(...days) : 0;
+    const spanMax = days.length ? Math.max(...days) : 0;
     return {
       count: active.length, totalDaily, cardsPerDay, onSet: cardsPerDay * 3,
       transferHrs, verifyHrs, offloadHrs: transferHrs + verifyHrs,
       shootTotal, shootWithCopies: shootTotal * g.copies, proxyTotal,
+      // peak day = everyone rolling; whole-shoot sums each camera's own days.
+      spanMin, spanMax, uniformDays: new Set(days).size <= 1, avgPerDay: spanMax > 0 ? shootTotal / spanMax : 0,
     };
   }, [rows, g.copies, g.stations, g.verify, bandwidth.mbps]);
   const proxyRatio = totals.shootTotal > 0 ? totals.proxyTotal / totals.shootTotal : 0;
@@ -231,15 +243,20 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
           <div className="flex items-center gap-2">
             <Layers className="size-3 text-guide-target" strokeWidth={1.8} />
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-suite-text font-semibold">Combined rig</span>
-            <span className="font-mono text-[10px] text-suite-text-dim">· {totals.count} camera{totals.count === 1 ? "" : "s"} rolling</span>
+            <span className="font-mono text-[10px] text-suite-text-dim">· {totals.count} camera{totals.count === 1 ? "" : "s"}{totals.spanMax > 0 ? (totals.uniformDays ? ` · ${totals.spanMax}-day shoot` : ` · ${totals.spanMin}–${totals.spanMax}-day shoots`) : ""}</span>
           </div>
           <div className="flex flex-wrap items-stretch gap-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 min-w-[20rem]">
-              <Stat icon={Layers} label="Footage / day" value={fmtData(totals.totalDaily)} hint={`${totals.count} cam${totals.count === 1 ? "" : "s"} · 1 copy`} primary />
+            {totals.count > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 flex-1 min-w-[20rem]">
+              <Stat icon={Layers} label={totals.uniformDays ? "Footage / day" : "Peak day · all cams"} value={fmtData(totals.totalDaily)} hint={totals.uniformDays ? `${totals.count} cam${totals.count === 1 ? "" : "s"} · 1 copy` : `busiest day · ${totals.count} cams rolling`} primary />
               <Stat icon={Clock} label={`Offload / day${g.verify ? " · verified" : ""}`} value={fmtTime(totals.offloadHrs)} hint={`copy ${fmtTime(totals.transferHrs)}${g.verify ? ` + verify ${fmtTime(totals.verifyHrs)}` : ""}`} warn={totals.offloadHrs > 8} />
               <Stat icon={HardDrive} label="On set · 3× rotation" value={`${totals.onSet} ${totals.onSet === 1 ? "unit" : "units"}`} hint="in cam + offload + spare" />
-              <Stat icon={Copy} label={`Whole shoot · ×${g.copies} copies`} value={fmtData(totals.shootWithCopies)} hint={`${fmtData(totals.shootTotal)} × ${g.copies}`} primary />
+              <Stat icon={Copy} label={`Footage · ×${g.copies} copies`} value={fmtData(totals.shootWithCopies)} hint={`${fmtData(totals.shootTotal)} × ${g.copies}`} primary />
+              <Stat icon={Film} label={`Proxies · ${proxyCodec?.name ?? ""}`} value={fmtData(totals.proxyTotal)} hint={`+${(proxyRatio * 100).toFixed(0)}% · 1 set`} />
             </div>
+            ) : (
+            <div className="flex-1 min-w-[20rem] flex items-center font-mono text-[10px] text-suite-text-dim">No cameras yet — add one below{setups.length ? " or tick a saved setup" : ""}.</div>
+            )}
             {/* rig-wide settings */}
             <div className="flex flex-wrap items-end gap-3 border-l border-suite-border pl-4">
               <Labeled label="Backup copies"><input type="number" min={1} max={3} value={g.copies} onChange={(e) => setG((s) => ({ ...s, copies: clamp(parseInt(e.target.value || "1", 10) || 1, 1, 3) }))} className={num} /></Labeled>
@@ -263,13 +280,26 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
               </Labeled>
             </div>
           </div>
+          {totals.count > 0 && (
+          <div className="rounded-md border-2 border-guide-target/50 bg-guide-target/10 px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+            <div className="flex items-baseline gap-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-guide-target/90 font-semibold">Total storage to provision</span>
+              <span className="font-mono text-[26px] font-bold text-guide-target tabular leading-none">{fmtData(totals.shootWithCopies + totals.proxyTotal)}</span>
+            </div>
+            <div className="font-mono text-[10px] text-suite-text-dim">
+              footage <span className="text-suite-text-muted">{fmtData(totals.shootWithCopies)}</span> (×{g.copies} cop{g.copies === 1 ? "y" : "ies"}) + proxies <span className="text-suite-text-muted">{fmtData(totals.proxyTotal)}</span> ({proxyCodec?.name}, 1 set)
+            </div>
+          </div>
+          )}
+          {totals.count > 0 && !totals.uniformDays && (
+          <div className="font-mono text-[10px] text-suite-text-muted leading-relaxed border-l-2 border-guide-target/40 pl-2">
+            Cameras shoot different lengths ({totals.spanMin}–{totals.spanMax} days) — <span className="text-suite-text">Peak day</span> is the busiest day with every camera rolling (it sizes offload &amp; on-set cards); <span className="text-suite-text">Whole shoot</span> sums each camera’s own days ≈ <span className="text-suite-text">{fmtData(totals.avgPerDay)}</span>/day averaged over {totals.spanMax} days.
+          </div>
+          )}
+          {totals.count > 0 && (
           <div className="font-mono text-[10px] text-suite-text-dim leading-relaxed">
             Offload <span className="text-suite-text-dim/70">(card/mag → drive)</span>: move <span className="text-suite-text-muted">{fmtData(totals.totalDaily * g.copies)}</span>/day (×{g.copies} cop{g.copies === 1 ? "y" : "ies"}) over {bandwidth.label.replace(/\s*\(.*\)/, "")} <span className="text-suite-text-muted">{bandwidth.mbps} MB/s</span> × {g.stations} station{g.stations === 1 ? "" : "s"} → copy <span className="text-suite-text-muted">{fmtTime(totals.transferHrs)}</span>{g.verify ? <> + verify <span className="text-suite-text-muted">{fmtTime(totals.verifyHrs)}</span></> : null} = <span className="text-suite-text">{fmtTime(totals.offloadHrs)}</span>/day.
           </div>
-          {totals.proxyTotal > 0 && (
-            <div className="font-mono text-[10px] text-suite-text-dim">
-              Camera footage <span className="text-suite-text-muted">{fmtData(totals.shootTotal)}</span> (1 copy) · proxies <span className="text-suite-text-muted">{fmtData(totals.proxyTotal)}</span> ({proxyCodec?.name}, +{(proxyRatio * 100).toFixed(0)}%) · managed footprint <span className="text-suite-text">{fmtData(totals.shootTotal + totals.proxyTotal)}</span>
-            </div>
           )}
         </div>
       </div>
@@ -297,6 +327,16 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
           )}
 
           {/* Camera cards — everything about a camera lives here */}
+          {cams.length === 0 ? (
+            <div className="rounded-md border border-dashed border-suite-border bg-suite-panel/30 px-4 py-10 text-center flex flex-col items-center gap-2.5">
+              <HardDrive className="size-7 text-suite-text-dim" strokeWidth={1.3} />
+              <p className="font-mono text-[11px] text-suite-text-muted">No cameras in the rig.</p>
+              <p className="font-mono text-[10px] text-suite-text-dim max-w-sm leading-relaxed">Add a camera to start planning storage{setups.length ? ", or tick a saved Capture setup above to drop one in" : ""}.</p>
+              <button onClick={addCam} className="mt-1 inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border font-mono text-[10px] uppercase tracking-[0.12em] text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20">
+                <Plus className="size-3.5" strokeWidth={2} /> Add a camera
+              </button>
+            </div>
+          ) : (<>
           {rows.map((r) => {
             const isOpen = expanded.has(r.cam.id);
             return (
@@ -313,9 +353,12 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
                       <span className="text-[11px] text-suite-text-dim tabular">{fmtData(r.camDaily)}<span className="text-suite-text-dim/60">/day</span></span>
                       <span className="text-[13px] text-guide-target font-semibold tabular" title={`${r.cam.hoursPerDay} h/day × ${r.cam.shootDays} days`}>{fmtData(r.shootCam)}<span className="text-suite-text-dim/60 font-normal text-[10px]"> shoot</span></span>
                     </div>
-                    <button onClick={() => removeCam(r.cam.id)} disabled={cams.length <= 1}
-                      title={cams.length <= 1 ? "Keep at least one camera" : "Remove camera"}
-                      className="shrink-0 text-suite-text-dim hover:text-destructive disabled:opacity-30 disabled:hover:text-suite-text-dim">
+                    <button onClick={() => duplicateCam(r.cam.id)} title="Duplicate this camera"
+                      className="shrink-0 text-suite-text-dim hover:text-suite-text">
+                      <Copy className="size-3.5" strokeWidth={1.6} />
+                    </button>
+                    <button onClick={() => removeCam(r.cam.id)} title="Remove camera"
+                      className="shrink-0 text-suite-text-dim hover:text-destructive">
                       <Trash2 className="size-3.5" strokeWidth={1.6} />
                     </button>
                   </div>
@@ -354,6 +397,8 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
 
                   {/* Quick readout + expand */}
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] text-suite-text-dim">
+                    <span className="text-suite-text-muted font-semibold">{r.src.camera}</span>
+                    <span className="text-suite-text-dim/60">{r.src.mode}</span>
                     <span>{r.mbps >= 1000 ? `${(r.mbps / 1000).toFixed(2)} Gbps` : `${Math.round(r.mbps).toLocaleString()} Mbps`}</span>
                     <span>{fmtData(r.perHourGB)}/hr</span>
                     <span>{r.cardsPerDay > 0 ? `${r.cardsPerDay}× ${r.card.name.replace(/ \d.*$/, "")} / day` : "—"}</span>
@@ -375,6 +420,9 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
                       <MediaCell label={`runtime / ${r.mediaWord}`} value={fmtMin(r.cardMin)} hint={fmtData(r.card.gb)} />
                       <MediaCell label={`total ${r.mediaWord} loads`} value={`${r.totalLoads}`} hint={`${r.cam.shootDays}d · ${fmtData(r.shootCam)}`} />
                     </div>
+                    <p className="font-mono text-[10px] text-suite-text-dim">
+                      Proxies (<span className="text-suite-text-muted">{proxyCodec?.name}</span>) for this camera: <span className="text-suite-text-muted">{fmtData(r.proxyGB)}</span> over {r.cam.shootDays} days — part of the rig's proxy total above.
+                    </p>
                     <div className="border border-suite-border rounded-sm bg-suite-panel overflow-hidden">
                       <header className="flex items-center gap-2 px-3 py-2 border-b border-suite-border">
                         <Calculator className="size-3 text-suite-text-muted" strokeWidth={1.5} />
@@ -414,6 +462,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
           <button onClick={addCam} className="self-start mt-1 flex items-center gap-1.5 px-3 py-2 rounded-sm border border-dashed border-suite-border text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong font-mono text-[10px] uppercase tracking-[0.12em]">
             <Plus className="size-3.5" strokeWidth={2} /> Add camera
           </button>
+          </>)}
 
           <p className="mt-3 font-mono text-[9.5px] text-suite-text-dim leading-relaxed">
             Decimal GB/TB (1 TB = 1,000 GB), matching card capacities and Silverstack/Hedge. Bitrates use published vendor rates &amp; bits-per-pixel ratios. A starting estimate — confirm against camera tests and your DIT's measured rates.
