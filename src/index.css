@@ -8,6 +8,8 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
+
     /* Core surfaces */
     --background: 240 6% 7%;
     --foreground: 240 9% 91%;
@@ -70,9 +72,58 @@
     --sidebar-ring: 199 92% 64%;
   }
 
-  /* No light mode toggle — this is a finishing-suite dark tool. */
-  .dark {
-    color-scheme: dark;
+  /* Light mode — opt in via `.light` on <html>; overrides the dark defaults above. */
+  html.light {
+    color-scheme: light;
+
+    --background: 240 20% 97%;
+    --foreground: 240 14% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 14% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 14% 15%;
+    --primary: 240 12% 20%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 16% 95%;
+    --secondary-foreground: 240 14% 15%;
+    --muted: 240 16% 94%;
+    --muted-foreground: 240 7% 42%;
+    --accent: 240 16% 94%;
+    --accent-foreground: 240 14% 15%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 13% 86%;
+    --input: 240 14% 90%;
+    --ring: 28 92% 45%;
+
+    /* Suite surfaces — canvas (greyest) < bg < panel (white); elevated greys for hover */
+    --suite-bg: 240 20% 98%;
+    --suite-canvas: 240 18% 95%;
+    --suite-panel: 0 0% 100%;
+    --suite-panel-elevated: 240 16% 93%;
+    --suite-border: 240 13% 87%;
+    --suite-border-strong: 240 12% 75%;
+    --suite-text: 240 14% 16%;
+    --suite-text-muted: 240 8% 40%;
+    --suite-text-dim: 240 6% 52%;
+
+    /* Accents darkened for contrast on light surfaces */
+    --guide-source: 199 80% 40%;
+    --guide-target: 28 92% 44%;
+    --guide-mask: 240 8% 84%;
+    --guide-social: 280 52% 52%;
+
+    --status-ok: 142 62% 35%;
+    --status-warn: 33 88% 40%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 14% 15%;
+    --sidebar-primary: 240 12% 20%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 16% 94%;
+    --sidebar-accent-foreground: 240 14% 15%;
+    --sidebar-border: 240 13% 87%;
+    --sidebar-ring: 199 80% 40%;
   }
 }
 

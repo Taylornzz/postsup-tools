@@ -103,7 +103,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
     setRecipients((rs) => rs.map((r) => (r.id === recipientId ? { ...r, documents: (r.documents || []).filter((d) => d.id !== doc.id) } : r)));
   };
 
-  const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]";
+  const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-suite-canvas">

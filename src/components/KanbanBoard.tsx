@@ -489,7 +489,7 @@ function CardEditor({ card, onClose, onChange, onDelete }: {
               type="date"
               value={card.due || ""}
               onChange={(e) => onChange({ due: e.target.value || undefined })}
-              className="bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]"
+              className="bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target"
             />
             {card.due && <button onClick={() => onChange({ due: undefined })} className="font-mono text-[9px] uppercase tracking-[0.1em] text-suite-text-dim hover:text-suite-text">Clear</button>}
           </div>

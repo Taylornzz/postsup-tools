@@ -62,7 +62,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
-const inputCls = "w-full bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[13px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]";
+const inputCls = "w-full bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[13px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5">

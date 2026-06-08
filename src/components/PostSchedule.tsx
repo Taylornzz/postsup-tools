@@ -524,7 +524,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]"
+              className="bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target"
             />
           </label>
           <div className="flex items-center border border-suite-border rounded-sm bg-suite-bg">
@@ -811,7 +811,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
                     type="date"
                     value={addDaysISO(anchor, Math.round(selected.start * 7))}
                     onChange={(e) => { if (e.target.value) patch(selected.id, { start: Math.max(0, daysBetween(anchor, e.target.value) / 7) }); }}
-                    className="w-full bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]"
+                    className="w-full bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target"
                   />
                 </label>
                 {selected.dur > 0 && (

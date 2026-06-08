@@ -71,6 +71,7 @@ import {
   Download,
   ShieldCheck,
   Pencil,
+  Moon,
   Link2,
   Sun,
   Focus,
@@ -124,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.3.0";
+export const VERSION = "v2.4.0";
 const CHANGELOG = [
+  "v2.4.0 — Light mode. A sun/moon toggle in the header flips the whole site between dark and light; the choice persists and applies before first paint (no flash). Accent colours are darkened just enough to stay readable on light surfaces, dropdowns follow the theme, and the framing-chart preview keeps its dark field by design (you judge an image against neutral, like a scope).",
   "v2.3.0 — Storage rig, sharpened. Reset now clears the whole rig (build it back from scratch) and every camera has a Duplicate button for identical A/B/C bodies. The per-day footage is honest about mixed schedules: when cameras shoot different lengths it reads ‘Peak day’ (the busiest day, all rolling) with the shoot span in the header and a note explaining peak vs whole-shoot. Each camera card now shows its body (e.g. ARRI ALEXA 35), not just the mode. Proxies are first-class again — a totals tile, a per-camera figure, and folded into a prominent Total-storage-to-provision box (footage ×copies + proxies). All maths re-verified against the engine tests.",
   "v2.2.1 — Saved setups can be renamed: a rename (✎) button on each saved setup in Capture, alongside Load and Delete. The new name carries through to the Storage ‘From saved setups’ list too.",
   "v2.2.0 — Capture & Storage consolidated. The Optics tab folds into Capture as a ‘Framing / Optics’ toggle, and ‘Capture & Framing’ is now just ‘Capture’. Multicam is gone — Storage is now a single rig planner: add cameras (1…N), each carrying its own body, codec, fps, card, hours/day AND shoot days, with its media plan + codec comparison in-card and combined rig totals up top. Tick your saved Capture setups to drop them straight in as cameras. Offload now models the real act — copy each card/mag to a drive at the link speed, plus an optional checksum-verify pass (≈ doubles the time), spelled out in full. Post Schedule: the phase name now sits on the bar alongside its duration.",
@@ -1161,7 +1163,10 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <GlossaryTabButton active={appTab === "glossary"} onClick={() => setAppTab("glossary")} />
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
-        <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onOpenNews={() => setAppTab("news")} onProjects={onSwitchProject} />
+        <div className="flex items-center gap-2 shrink-0">
+          <ThemeToggle />
+          <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onOpenNews={() => setAppTab("news")} onProjects={onSwitchProject} />
+        </div>
       </header>
 
       {appTab === "home" ? (
@@ -2085,6 +2090,22 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
 function VersionBadge() {
   // Changelog kept in code (CHANGELOG above) for history, but no longer surfaced in the UI.
   return <span className="text-[10px] text-suite-text-dim ml-2 font-mono">{VERSION}</span>;
+}
+
+function ThemeToggle() {
+  const [light, setLight] = useState(() => typeof document !== "undefined" && document.documentElement.classList.contains("light"));
+  const toggle = () => {
+    const next = !light;
+    setLight(next);
+    document.documentElement.classList.toggle("light", next);
+    try { localStorage.setItem("kaos-theme", next ? "light" : "dark"); } catch { /* ignore */ }
+  };
+  return (
+    <button onClick={toggle} title={light ? "Switch to dark mode" : "Switch to light mode"} aria-label="Toggle light or dark mode"
+      className="flex items-center justify-center size-7 shrink-0 rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+      {light ? <Moon className="size-3.5" strokeWidth={1.6} /> : <Sun className="size-3.5" strokeWidth={1.6} />}
+    </button>
+  );
 }
 
 function SectionHeader({ label, dotClass }: { label: string; dotClass?: string }) {

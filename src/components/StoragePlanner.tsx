@@ -214,7 +214,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
   }, [rows, g.copies, g.stations, g.verify, bandwidth.mbps]);
   const proxyRatio = totals.shootTotal > 0 ? totals.proxyTotal / totals.shootTotal : 0;
 
-  const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]";
+  const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
   const num = "w-16 bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
 
   return (
