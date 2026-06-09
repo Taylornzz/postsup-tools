@@ -260,6 +260,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       autoFocus={focusBriefId === r.id}
                       sharedCount={shared}
                       onRecipientSpec={(p) => patch(r.id, p)}
+                      languages={r.languages || []}
+                      onLanguagesChange={(languages) => patch(r.id, { languages })}
                     />
                   </div>
 

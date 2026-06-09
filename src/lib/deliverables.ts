@@ -17,7 +17,7 @@ import {
   type CustomConfig, type CustomHero, type CustomDeliverable, type MasterNits,
   type MakeStep, type MasterFamily,
 } from "./mastering";
-import { templateDeliverables, type DeliverableItem } from "./deliverablesList";
+import { templateDeliverables, type DeliverableItem, type DeliveryLanguage } from "./deliverablesList";
 
 export type Region = "US" | "UK" | "EU" | "AU" | "NZ" | "Other";
 export type DRTier = "hdr" | "theatrical" | "sdr";
@@ -49,6 +49,7 @@ export interface Recipient {
   deliverables?: DeliverableItem[]; // this recipient's itemised punch-list
   isMain?: boolean;                 // the main/hero deliverable — the others derive from it
   fpsNative?: boolean;              // accepts the native source frame rate (streamers) — no standards conversion
+  languages?: DeliveryLanguage[];   // the OV + per-language VF version matrix
 }
 
 // ---- option sets (selects) ----

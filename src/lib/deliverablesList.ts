@@ -62,6 +62,30 @@ function subtitleItem(subs: string): string {
   return "Subtitles / captions (per language)";
 }
 
+// ---- language / version matrix (OV + per-language VF supplementals) ----
+export type LangKind = "OV" | "VF";
+export interface DeliveryLanguage { code: string; kind: LangKind; dub: boolean; sdh: boolean; forced: boolean; }
+export function newLanguage(code = ""): DeliveryLanguage { return { code, kind: "VF", dub: false, sdh: false, forced: false }; }
+
+/** Fan a language matrix into the localization deliverables it implies — a versioned (VF)
+ *  language with a dub needs a dub mix + dub card + localized titles; every language carries
+ *  full subs, plus SDH / forced narratives where flagged. Each is a distinct, typed artifact. */
+export function languageItems(langs: DeliveryLanguage[]): DeliverableItem[] {
+  const rows: [string, DelivCategory][] = [];
+  for (const l of langs) {
+    const tag = (l.code || "").trim().toUpperCase() || "??";
+    if (l.kind === "VF" && l.dub) {
+      rows.push([`Dub mix — ${tag}`, "audio"]);
+      rows.push([`Dub card — ${tag}`, "picture"]);
+      rows.push([`Localized titles / textless fill — ${tag}`, "picture"]);
+    }
+    rows.push([`Subtitles (full) — ${tag}`, "subtitles"]);
+    if (l.sdh) rows.push([`SDH — ${tag}`, "subtitles"]);
+    if (l.forced) rows.push([`Forced narratives — ${tag}`, "subtitles"]);
+  }
+  return rows.map(([label, category]) => ({ ...newItem(category), label }));
+}
+
 /** A spec-aware starter punch-list for a Build-from-template recipient — tailored to the
  *  platform's audio config (Atmos vs 5.1 vs stereo), HDR/SDR, and subtitle type. A sensible
  *  starting point; edit or Grow with AI to finish. */

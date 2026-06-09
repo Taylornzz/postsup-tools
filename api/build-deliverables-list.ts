@@ -23,7 +23,10 @@ const SYSTEM =
   "• Picture: clean/textless master, texted master, textless elements — one each. Call it a " +
   "'Picture master' (or 'Programme master' for TV) — NEVER 'Feature master' unless it really is a theatrical " +
   "feature film; 'feature' means a film and is confusing on a TV title.\n" +
-  "• Subtitles/captions: one per language + type.\n\n" +
+  "• Subtitles/captions: one per language AND per type — full subs, SDH (deaf/HoH), forced narratives (foreign " +
+  "dialogue/signage), closed captions (CEA-608/708), dub card — these are DISTINCT items, never one 'subtitles' line.\n" +
+  "• Versions / languages: if the brief implies localisation, list the OV plus each versioned (VF/dubbed) language's " +
+  "supplementals — dub mix, M&E, localized titles / textless fill, dub card — alongside that language's subtitle items.\n\n" +
   "NOT deliverables — NEVER list these as items; they are requirements baked into a master, so fold them into the " +
   "relevant master's note or omit: sync pop / 2-pop, 1kHz line-up tone, bars, slates, leaders, head/tail build, " +
   "timecode start, channel mapping/layout, audio sync, aspect/active-picture.\n\n" +

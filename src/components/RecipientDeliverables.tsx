@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Paperclip, Trash2, Plus, Check, X } from "lucide-react";
+import { Sparkles, Paperclip, Trash2, Plus, Check, X, Languages, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  CATEGORIES, OWNERS, newItem, buildDeliverablesList,
-  type DeliverableItem, type DelivCategory,
+  CATEGORIES, OWNERS, newItem, buildDeliverablesList, newLanguage, languageItems,
+  type DeliverableItem, type DelivCategory, type DeliveryLanguage, type LangKind,
 } from "@/lib/deliverablesList";
 import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
 
@@ -12,7 +12,7 @@ import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/delivera
  *  brief + items (persisted by the parent). The AI brief box + document uploader build
  *  or grow the list; everything is also editable by hand. Used inside each recipient. */
 
-export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec }: {
+export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, languages, onLanguagesChange }: {
   brief: string;
   items: DeliverableItem[];
   onBriefChange: (s: string) => void;
@@ -20,6 +20,8 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   autoFocus?: boolean;
   sharedCount?: Map<string, number>;
   onRecipientSpec?: (patch: Partial<Recipient>) => void;
+  languages?: DeliveryLanguage[];
+  onLanguagesChange?: (langs: DeliveryLanguage[]) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [building, setBuilding] = useState(false);
@@ -60,6 +62,17 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
     } finally {
       setBuilding(false);
     }
+  };
+
+  const langs = languages || [];
+  const dedupKey = (i: { label: string; category: string }) => `${i.category}|${i.label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+  const addLangDeliverables = () => {
+    if (!langs.length) { toast("Add a language first"); return; }
+    const seen = new Set(items.map(dedupKey));
+    const fresh = languageItems(langs).filter((it) => { const k = dedupKey(it); if (seen.has(k)) return false; seen.add(k); return true; });
+    if (!fresh.length) { toast("Those language deliverables are already on the list"); return; }
+    onItemsChange([...items, ...fresh]);
+    toast.success(`Added ${fresh.length} language deliverable${fresh.length === 1 ? "" : "s"} — edit owners / notes as needed`);
   };
 
   const inScope = items.filter((i) => i.inScope).length;
@@ -109,6 +122,35 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
           <span className="font-mono text-[9px] text-suite-text-dim">Drag &amp; drop or attach — PDF, Word, Excel, images, text.</span>
         </div>
       </div>
+
+      {/* Language / version matrix — fans out to dub mixes, dub cards, subs/SDH/forced per language */}
+      {onLanguagesChange && (
+        <details className="rounded-sm border border-suite-border bg-suite-bg/40 group">
+          <summary className="cursor-pointer list-none flex items-center gap-2 px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-muted hover:text-suite-text select-none">
+            <Languages className="size-3" strokeWidth={1.7} /> Languages / versions
+            {langs.length > 0 && <span className="text-suite-text-dim normal-case tracking-normal">· {langs.length}</span>}
+            <ChevronRight className="ml-auto size-3 transition-transform group-open:rotate-90 text-suite-text-dim" strokeWidth={2} />
+          </summary>
+          <div className="px-2.5 pb-2.5 flex flex-col gap-1.5">
+            {langs.length === 0 && <p className="font-mono text-[9px] text-suite-text-dim">Add the OV + each dub/sub language; “Add deliverables for these” fans them into dub mixes, dub cards, subs, SDH and forced narratives.</p>}
+            {langs.map((l, i) => (
+              <LangRow key={i} lang={l}
+                onChange={(p) => onLanguagesChange(langs.map((x, j) => (j === i ? { ...x, ...p } : x)))}
+                onRemove={() => onLanguagesChange(langs.filter((_, j) => j !== i))} />
+            ))}
+            <div className="flex items-center gap-2 flex-wrap pt-0.5">
+              <button onClick={() => onLanguagesChange([...langs, langs.length === 0 ? { ...newLanguage("EN"), kind: "OV" as LangKind } : newLanguage()])} className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase tracking-[0.12em] font-mono border border-dashed border-suite-border rounded-sm text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong">
+                <Plus className="size-2.5" strokeWidth={2} /> language
+              </button>
+              {langs.length > 0 && (
+                <button onClick={addLangDeliverables} className="px-2 py-1 text-[9px] uppercase tracking-[0.12em] font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20">
+                  Add deliverables for these
+                </button>
+              )}
+            </div>
+          </div>
+        </details>
+      )}
 
       {/* The itemised list, grouped by category */}
       {items.length > 0 && (
@@ -166,6 +208,28 @@ function ItemRow({ item, shared, onChange, onRemove }: { item: DeliverableItem; 
       <input value={item.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="notes…"
         className="flex-1 min-w-0 bg-transparent text-[10px] font-mono text-suite-text-muted placeholder:text-suite-text-dim focus:outline-none" />
       <button onClick={onRemove} title="Remove" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3" strokeWidth={1.6} /></button>
+    </div>
+  );
+}
+
+function LangToggle({ on, label, onClick, title }: { on: boolean; label: string; onClick: () => void; title?: string }) {
+  return <button onClick={onClick} title={title} className={cn("px-1.5 py-0.5 rounded-sm border font-mono text-[8.5px] uppercase tracking-[0.1em] transition-colors", on ? "text-guide-target border-guide-target/50 bg-guide-target/10" : "text-suite-text-dim border-suite-border hover:text-suite-text")}>{label}</button>;
+}
+
+function LangRow({ lang, onChange, onRemove }: { lang: DeliveryLanguage; onChange: (p: Partial<DeliveryLanguage>) => void; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <input value={lang.code} onChange={(e) => onChange({ code: e.target.value })} placeholder="EN / ES-419…"
+        className="w-[9ch] bg-suite-bg border border-suite-border rounded-sm px-1.5 py-0.5 text-[10px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target" />
+      <select value={lang.kind} onChange={(e) => onChange({ kind: e.target.value as LangKind })}
+        title="Original Version vs Versioned (dub / localised)" className="bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none [color-scheme:dark]">
+        <option value="OV">OV</option>
+        <option value="VF">VF</option>
+      </select>
+      <LangToggle on={lang.dub} label="dub" title="Dub mix required (vs subtitle-only)" onClick={() => onChange({ dub: !lang.dub })} />
+      <LangToggle on={lang.sdh} label="SDH" title="SDH (deaf/HoH) subtitles required" onClick={() => onChange({ sdh: !lang.sdh })} />
+      <LangToggle on={lang.forced} label="forced" title="Forced narratives (foreign dialogue / signage)" onClick={() => onChange({ forced: !lang.forced })} />
+      <button onClick={onRemove} title="Remove language" className="ml-auto text-suite-text-dim hover:text-destructive"><X className="size-3" strokeWidth={2} /></button>
     </div>
   );
 }
