@@ -178,6 +178,7 @@ export function coerceRecipientSpec(raw: unknown): Partial<Recipient> {
 // the date + the must-confirm caveat. Drop one in and edit.
 export interface DeliveryTemplate { id: string; name: string; spec: Partial<Recipient>; }
 export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
+  { id: "dcp-theatrical", name: "Feature film — DCP (theatrical)", spec: { region: "US", dr: "theatrical", resolution: "DCI 4K 4096×2160", fps: 24, container: "DCP", audio: "5.1", loudness: "Theatrical reference (no normalisation)", truePeak: "None (theatrical reference)", subtitles: "Open + sidecar", qc: "DCP QC (Clipster / Dolby) + KDM test", notes: "Feature theatrical release — SMPTE DCP (CPL/PKL/MXF reels), DCI-P3 24fps, 2K + 4K; 5.1 / 7.1 / Atmos printmasters, M&E, accessibility (HI/VI-N); subtitle/caption reels; KDM keys per-server, time-windowed. Confirm with the distributor / DCP lab. Starter spec (2026-06)." } },
   { id: "netflix", name: "Netflix", spec: { region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "IMF App 2E", audio: "5.1.4 Atmos", loudness: "-27 LKFS (Netflix streaming)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Photon + platform", notes: "Netflix original — Dolby Vision IMF mandatory for HDR (no ProRes path); 25p in PAL territories. Starter spec (2026-06) — confirm the per-title Netflix spec." } },
   { id: "amazon", name: "Amazon Prime Video", spec: { region: "US", dr: "hdr10", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 422 HQ", audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "platform QC / Baton", notes: "Amazon — self-serve Video Central takes ProRes 422 HQ + a mandatory SDR companion with every HDR; Studios originals require IMF. Starter spec (2026-06) — confirm." } },
   { id: "apple", name: "Apple TV+", spec: { region: "US", dr: "dolby-vision", peakNits: 1000, resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 4444 XQ", audio: "5.1.4 Atmos", loudness: "-24 LUFS (Apple TV+)", truePeak: "-1 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "platform QC / Baton", notes: "Apple TV+ — documented path is ProRes 4444 XQ + Dolby Vision sidecar; Atmos effectively required. -1 dBTP true-peak is tighter than Netflix/Amazon (top QC reject). Starter spec (2026-06) — confirm." } },
@@ -209,7 +210,7 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
 ];
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
   const r = { ...newRecipient(t.name), ...t.spec, name: t.name };
-  return { ...r, deliverables: templateDeliverables({ audio: r.audio, dr: r.dr, subtitles: r.subtitles }) };
+  return { ...r, deliverables: templateDeliverables({ audio: r.audio, dr: r.dr, subtitles: r.subtitles, container: r.container }) };
 }
 
 // ---- the plan ----

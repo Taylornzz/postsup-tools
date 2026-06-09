@@ -65,7 +65,31 @@ function subtitleItem(subs: string): string {
 /** A spec-aware starter punch-list for a Build-from-template recipient — tailored to the
  *  platform's audio config (Atmos vs 5.1 vs stereo), HDR/SDR, and subtitle type. A sensible
  *  starting point; edit or Grow with AI to finish. */
-export function templateDeliverables(spec?: { audio?: string; dr?: string; subtitles?: string }): DeliverableItem[] {
+export function templateDeliverables(spec?: { audio?: string; dr?: string; subtitles?: string; container?: string }): DeliverableItem[] {
+  // Theatrical / DCP is a different beast — DCP package, KDM keys, printmasters, accessibility.
+  const theatrical = spec?.dr === "theatrical" || (spec?.container || "").toUpperCase().includes("DCP");
+  if (theatrical) {
+    const dcp: [string, DelivCategory][] = [
+      ["DCDM — Digital Cinema Distribution Master", "picture"],
+      ["DCP — feature, SMPTE (OV) — 2K + 4K", "picture"],
+      ["CPL / PKL / ASSETMAP (composition + packing list)", "picture"],
+      ["VF / version DCPs (per language / edit)", "picture"],
+      ["Textless / clean master (for foreign VF)", "picture"],
+      ["Trailer / teaser DCP", "picture"],
+      ["KDM keys — per-server, time-windowed", "metadata"],
+      ["Printmaster — 5.1", "audio"],
+      ["Printmaster — 7.1", "audio"],
+      ["Printmaster — Dolby Atmos (if immersive)", "audio"],
+      ["M&E — 5.1 (for foreign dubs)", "audio"],
+      ["Accessibility — HI + VI-N audio tracks", "audio"],
+      ["Subtitle DCP / SMPTE-TT (per language)", "subtitles"],
+      ["Closed captions (CCAP) + open-caption version", "subtitles"],
+      ["DCP QC report (Clipster / Dolby / lab)", "metadata"],
+      ["Delivery paperwork (CPL list / version map)", "metadata"],
+    ];
+    return dcp.map(([label, category]) => ({ ...newItem(category), label }));
+  }
+
   const hdr = spec?.dr === "dolby-vision" || spec?.dr === "hdr10" || spec?.dr === "hlg";
   const configs = audioConfigs(spec?.audio || "5.1");
   const out: [string, DelivCategory][] = [];
