@@ -3,8 +3,9 @@
  *  notes. Built from a natural-language brief + uploaded documents via the AI itemiser,
  *  then freely edited. Persisted per-project (localStorage). v1 — expect iteration. */
 
-export type DelivCategory = "picture" | "audio" | "subtitles" | "metadata" | "marketing" | "other";
+export type DelivCategory = "picture" | "audio" | "subtitles" | "metadata" | "archive" | "editorial" | "legal" | "marketing" | "other";
 export type DelivOwner = "" | "post" | "sound" | "editorial" | "vfx" | "marketing" | "production" | "other";
+export type DelivStatus = "todo" | "wip" | "delivered" | "qc-fail" | "redeliver";
 
 export interface DeliverableItem {
   id: string;
@@ -13,13 +14,26 @@ export interface DeliverableItem {
   inScope: boolean;   // is this post-production's responsibility?
   owner: DelivOwner;
   notes: string;
+  status: DelivStatus; // QC / delivery lifecycle
+  version: number;     // redelivery version (v1, v2 after a QC fix)
 }
+
+export const STATUSES: { id: DelivStatus; label: string }[] = [
+  { id: "todo", label: "To do" },
+  { id: "wip", label: "In progress" },
+  { id: "delivered", label: "Delivered" },
+  { id: "qc-fail", label: "QC fail" },
+  { id: "redeliver", label: "Redeliver" },
+];
 
 export const CATEGORIES: { id: DelivCategory; label: string }[] = [
   { id: "picture", label: "Picture" },
   { id: "audio", label: "Audio" },
   { id: "subtitles", label: "Subtitles & captions" },
   { id: "metadata", label: "Metadata & paperwork" },
+  { id: "archive", label: "Archive & masters" },
+  { id: "editorial", label: "Editorial & conform" },
+  { id: "legal", label: "Legal & music" },
   { id: "marketing", label: "Publicity & marketing" },
   { id: "other", label: "Other" },
 ];
@@ -39,7 +53,7 @@ let _seq = 0;
 const uid = () => `d${Date.now().toString(36)}${(_seq++).toString(36)}`;
 
 export function newItem(category: DelivCategory = "picture"): DeliverableItem {
-  return { id: uid(), label: "", category, inScope: true, owner: "", notes: "" };
+  return { id: uid(), label: "", category, inScope: true, owner: "", notes: "", status: "todo", version: 1 };
 }
 
 /** Audio configurations a delivery implies, richest first. Atmos deliveries carry a 5.1 +
@@ -86,6 +100,18 @@ export function languageItems(langs: DeliveryLanguage[]): DeliverableItem[] {
   return rows.map(([label, category]) => ({ ...newItem(category), label }));
 }
 
+/** The non-rendition obligations that hold up final payment — cue sheet, conform handoff,
+ *  archive/LTO, archival master, chain-of-title. Mostly coordinated by post, owned elsewhere. */
+function editorialArchiveItems(): DeliverableItem[] {
+  return [
+    { ...newItem("legal"), label: "Music cue sheet", owner: "production", inScope: false },
+    { ...newItem("editorial"), label: "Conform AAF / XML + EDL", owner: "editorial" },
+    { ...newItem("archive"), label: "Project archive → LTO + MHL / checksum manifest", owner: "post" },
+    { ...newItem("archive"), label: "Archival master (graded ACES / OCN handover)", owner: "post" },
+    { ...newItem("legal"), label: "Chain-of-title / E&O paperwork", owner: "production", inScope: false },
+  ];
+}
+
 /** A spec-aware starter punch-list for a Build-from-template recipient — tailored to the
  *  platform's audio config (Atmos vs 5.1 vs stereo), HDR/SDR, and subtitle type. A sensible
  *  starting point; edit or Grow with AI to finish. */
@@ -111,7 +137,7 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
       ["DCP QC report (Clipster / Dolby / lab)", "metadata"],
       ["Delivery paperwork (CPL list / version map)", "metadata"],
     ];
-    return dcp.map(([label, category]) => ({ ...newItem(category), label }));
+    return [...dcp.map(([label, category]) => ({ ...newItem(category), label })), ...editorialArchiveItems()];
   }
 
   const hdr = spec?.dr === "dolby-vision" || spec?.dr === "hdr10" || spec?.dr === "hlg";
@@ -143,7 +169,7 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
   out.push(["QC report", "metadata"]);
   out.push(["Delivery paperwork (as-run / spec sheet)", "metadata"]);
 
-  return out.map(([label, category]) => ({ ...newItem(category), label }));
+  return [...out.map(([label, category]) => ({ ...newItem(category), label })), ...editorialArchiveItems()];
 }
 
 function coerceItem(x: Record<string, unknown>): DeliverableItem {
@@ -154,6 +180,8 @@ function coerceItem(x: Record<string, unknown>): DeliverableItem {
     inScope: x.inScope !== false,
     owner: OWNERS.some((o) => o.id === x.owner) ? (x.owner as DelivOwner) : "",
     notes: typeof x.notes === "string" ? x.notes : "",
+    status: STATUSES.some((s) => s.id === x.status) ? (x.status as DelivStatus) : "todo",
+    version: typeof x.version === "number" && x.version > 0 ? x.version : 1,
   };
 }
 

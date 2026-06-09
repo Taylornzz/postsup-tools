@@ -156,6 +156,15 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
 
           <ProductionList groups={rollup} />
 
+          {plan.watchOuts.length > 0 && (
+            <div className="rounded-sm border border-status-warn/30 bg-status-warn/5 px-3 py-2">
+              <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-status-warn mb-1">⚠ Watch-outs</div>
+              <ul className="flex flex-col gap-0.5">
+                {plan.watchOuts.map((w) => <li key={w} className="font-mono text-[10px] text-suite-text-muted leading-relaxed flex gap-1.5"><span className="text-status-warn">!</span>{w}</li>)}
+              </ul>
+            </div>
+          )}
+
           {/* Recipients — each carries its spec + its own AI-built deliverables list */}
           <div className="flex flex-col gap-2.5">
             {recipients.map((r) => {

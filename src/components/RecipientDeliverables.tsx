@@ -3,9 +3,16 @@ import { Sparkles, Paperclip, Trash2, Plus, Check, X, Languages, ChevronRight } 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  CATEGORIES, OWNERS, newItem, buildDeliverablesList, newLanguage, languageItems,
-  type DeliverableItem, type DelivCategory, type DeliveryLanguage, type LangKind,
+  CATEGORIES, OWNERS, STATUSES, newItem, buildDeliverablesList, newLanguage, languageItems,
+  type DeliverableItem, type DelivCategory, type DeliveryLanguage, type LangKind, type DelivStatus,
 } from "@/lib/deliverablesList";
+
+const statusClass = (s?: DelivStatus) =>
+  s === "delivered" ? "text-emerald-400 border-emerald-400/40"
+  : s === "qc-fail" ? "text-destructive border-destructive/50"
+  : s === "redeliver" ? "text-status-warn border-status-warn/50"
+  : s === "wip" ? "text-guide-source border-guide-source/40"
+  : "text-suite-text-dim border-suite-border";
 import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
 
 /** A recipient's own deliverables punch-list. Controlled: operates on the recipient's
@@ -201,9 +208,15 @@ function ItemRow({ item, shared, onChange, onRemove }: { item: DeliverableItem; 
         <span title={`Same artifact as ${shared - 1} other recipient${shared - 1 === 1 ? "" : "s"} — produced once, not a separate make`}
           className="shrink-0 font-mono text-[8px] uppercase tracking-[0.1em] px-1 py-0.5 rounded-full border border-guide-target/40 text-guide-target/90">shared ×{shared}</span>
       )}
+      {(item.version || 1) > 1 && <span className="shrink-0 font-mono text-[8px] text-status-warn" title="Redelivery version">v{item.version}</span>}
       <select value={item.owner} onChange={(e) => onChange({ owner: e.target.value as DeliverableItem["owner"] })}
         title="Owner" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark]">
         {OWNERS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+      </select>
+      <select value={item.status || "todo"} title="Delivery / QC status — Redeliver bumps the version"
+        onChange={(e) => { const v = e.target.value as DelivStatus; onChange({ status: v, ...(v === "redeliver" && item.status !== "redeliver" ? { version: (item.version || 1) + 1 } : {}) }); }}
+        className={cn("shrink-0 bg-suite-bg border rounded-sm px-1 py-0.5 text-[9px] font-mono focus:outline-none [color-scheme:dark]", statusClass(item.status))}>
+        {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
       </select>
       <input value={item.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="notes…"
         className="flex-1 min-w-0 bg-transparent text-[10px] font-mono text-suite-text-muted placeholder:text-suite-text-dim focus:outline-none" />
