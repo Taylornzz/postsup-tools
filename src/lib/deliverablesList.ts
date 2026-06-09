@@ -224,9 +224,35 @@ export function saveBrief(pid: string | undefined, brief: string) {
   try { localStorage.setItem(briefKey(pid), brief); } catch { /* ignore */ }
 }
 
+// PDFs up to ~3 MB go to the AI natively (best quality — layout/tables). Larger ones would
+// exceed the serverless request limit (4.5 MB) once base64-encoded, so we extract their text in
+// the browser instead — the binary stays on-device; only the (small) text is sent.
+const PDF_NATIVE_MAX = 3 * 1024 * 1024;
+
+async function extractPdfText(file: File): Promise<string> {
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  const data = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjs.getDocument({ data }).promise;
+  const parts: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    parts.push(content.items.map((it) => ("str" in it ? it.str : "")).join(" "));
+  }
+  return parts.join("\n\n").trim();
+}
+
 async function fileToDoc(file: File): Promise<{ name: string; mediaType: string; dataBase64: string }> {
-  // Send the raw bytes + a media type; the serverless function reads PDFs/images natively
-  // and extracts text from Word/Excel (Node-side) so nothing heavy ships in the browser bundle.
+  const lower = file.name.toLowerCase();
+  // Large PDF → extract text client-side so the request fits the serverless limit.
+  if ((file.type === "application/pdf" || lower.endsWith(".pdf")) && file.size >= PDF_NATIVE_MAX) {
+    const text = await extractPdfText(file);
+    if (!text) throw new Error(`“${file.name}” is large and has no selectable text (it may be scanned) — paste the key spec text, or attach a smaller PDF.`);
+    return { name: file.name, mediaType: "text/plain", dataBase64: btoa(unescape(encodeURIComponent(`[${file.name}]\n\n${text}`))) };
+  }
+  // Otherwise send the raw bytes + a media type; the serverless function reads PDFs/images
+  // natively and extracts text from Word/Excel (Node-side) so nothing heavy ships in the bundle.
   const dataUrl: string = await new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => resolve(String(fr.result));
@@ -234,7 +260,6 @@ async function fileToDoc(file: File): Promise<{ name: string; mediaType: string;
     fr.readAsDataURL(file);
   });
   const base64 = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
-  const lower = file.name.toLowerCase();
   let mediaType = file.type;
   if (!mediaType) {
     if (lower.endsWith(".pdf")) mediaType = "application/pdf";
@@ -271,6 +296,7 @@ export async function buildDeliverablesList(
   try { data = await resp.json(); } catch { /* non-JSON */ }
   if (!resp.ok) {
     if (resp.status === 404) throw new Error("AI endpoint not found — it runs on the deployed site, not local vite dev.");
+    if (resp.status === 413) throw new Error("The attached document is too large to send (over ~4.5 MB once encoded). Try a smaller file, or paste the key text into the brief.");
     throw new Error(data?.message || `Build failed (${resp.status}).`);
   }
   const rawList = Array.isArray(data?.items) ? (data!.items as Record<string, unknown>[]) : [];
