@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.5";
+export const VERSION = "v2.7.6";
 const CHANGELOG = [
+  "v2.7.6 — Build from template now also drops in a standard starter deliverables list (masters, textless, M&E, stems, captions, QC, paperwork, proxy) so you're editing rather than starting blank — Grow with AI or edit to tailor. And Build with AI now starts a genuinely blank recipient: every spec dropdown shows a dash until you build, so the AI fills them instead of inheriting defaults.",
   "v2.7.5 — Dropped the recipient-level ‘Textless’ tick box — textless is a deliverable (its own clean submaster, or textless at tail of the master), so it belongs in the list, not as a recipient property. And the AI now matches the delivery container to the real territory standard: NZ / Australia broadcasters (TVNZ, ABC AU…) get XDCAM HD 50 (MXF) or ProRes, not AS-11 DPP (which is UK-only).",
   "v2.7.4 — Build with AI now also fills the recipient's spec dropdowns — name, colour pipeline, peak nits, resolution, fps, container, audio, loudness, true-peak, subtitles — not just the deliverables list. Type a platform (e.g. ‘TVNZ’) and it sets that platform's standard spec and builds the list in one go. (Spec is filled on the first build only, so it won't overwrite your tweaks on a later Grow.)",
   "v2.7.3 — Removed the redundant ‘Build from clean’ button (‘Build with AI’ already adds a blank recipient — the brief box is just there ready, build with AI or by hand).",

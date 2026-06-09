@@ -17,7 +17,7 @@ import {
   type CustomConfig, type CustomHero, type CustomDeliverable, type MasterNits,
   type MakeStep, type MasterFamily,
 } from "./mastering";
-import type { DeliverableItem } from "./deliverablesList";
+import { templateDeliverables, type DeliverableItem } from "./deliverablesList";
 
 export type Region = "US" | "UK" | "EU" | "AU" | "NZ" | "Other";
 export type DRTier = "hdr" | "theatrical" | "sdr";
@@ -126,6 +126,16 @@ export function newRecipient(name = "New recipient"): Recipient {
   };
 }
 
+/** A recipient with no spec chosen yet — every dropdown shows a dash until you (or the AI)
+ *  fill it. Used by Build with AI, where the AI fills the spec from the brief. */
+export function blankRecipient(name = "New recipient"): Recipient {
+  return {
+    id: uid(), name, region: "" as Region, dr: "" as DRId, peakNits: 0,
+    resolution: "", fps: 0, container: "", audio: "", loudness: "", truePeak: "", subtitles: "",
+    textless: true, naming: "", qc: "", notes: "", documents: [], brief: "", deliverables: [], isMain: false,
+  };
+}
+
 // ---- AI recipient-spec helpers (per-recipient build fills the spec dropdowns too) ----
 export function specOptions() {
   return {
@@ -177,7 +187,7 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
   { id: "abc-au", name: "ABC Australia", spec: { region: "AU", dr: "sdr", resolution: "1080i 1920×1080", fps: 25, container: "AS-11 DPP", audio: "5.1", loudness: "-24 LKFS (Free TV OP-59)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Baton / platform", notes: "ABC Australia — Free TV OP-59 -24 LKFS; air-ready AS-11 (AU) or XDCAM HD422 50, 1080i/25 SDR. No ABC-specific public spec found — confirm. Starter spec (2026-06)." } },
 ];
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
-  return { ...newRecipient(t.name), ...t.spec, name: t.name };
+  return { ...newRecipient(t.name), ...t.spec, name: t.name, deliverables: templateDeliverables() };
 }
 
 // ---- the plan ----

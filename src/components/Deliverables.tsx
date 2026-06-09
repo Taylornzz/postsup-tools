@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
-  loadRecipients, saveRecipients, newRecipient, buildPlan, recipientChecklist, sendToBoard,
+  loadRecipients, saveRecipients, newRecipient, blankRecipient, buildPlan, recipientChecklist, sendToBoard,
   buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL, DELIVERY_TEMPLATES, recipientFromTemplate,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, TRUEPEAK_OPTIONS, TRUEPEAK_BY_REGION, isHdr,
@@ -46,7 +46,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "", truePeak: TRUEPEAK_BY_REGION[region] || "" });
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
-  const addWithAI = () => { const r = newRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); };
+  const addWithAI = () => { const r = blankRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); };
   const setMain = (id: string) => setRecipients((rs) => rs.map((r) => ({ ...r, isMain: r.id === id ? !r.isMain : false })));
   const addTemplate = (id: string) => {
     const t = DELIVERY_TEMPLATES.find((x) => x.id === id);
@@ -174,6 +174,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       className="flex-1 min-w-0 bg-transparent border-0 border-b border-transparent focus:border-suite-border px-0.5 text-[13px] font-mono text-suite-text font-semibold focus:outline-none"
                     />
                     <select value={r.region} onChange={(e) => changeRegion(r.id, e.target.value as Region)} className={sel} title="Region — sets a default loudness target">
+                      <option value="">—</option>
                       {REGIONS.map((rg) => <option key={rg} value={rg}>{rg}</option>)}
                     </select>
                     <button onClick={() => remove(r.id)} title="Remove recipient" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3.5" strokeWidth={1.6} /></button>
@@ -182,6 +183,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                   <div className="flex flex-wrap items-end gap-2.5">
                     <Field label="Colour / range">
                       <select value={r.dr} onChange={(e) => patch(r.id, { dr: e.target.value as DRId })} className={sel}>
+                        <option value="">—</option>
                         {DR_OPTIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
                       </select>
                     </Field>
@@ -194,36 +196,43 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                     )}
                     <Field label="Resolution">
                       <select value={r.resolution} onChange={(e) => patch(r.id, { resolution: e.target.value })} className={cn(sel, "max-w-[12rem]")}>
+                        <option value="">—</option>
                         {RESOLUTION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
                     <Field label="FPS">
-                      <select value={r.fps} onChange={(e) => patch(r.id, { fps: parseFloat(e.target.value) })} className={sel}>
+                      <select value={r.fps || ""} onChange={(e) => patch(r.id, { fps: e.target.value ? parseFloat(e.target.value) : 0 })} className={sel}>
+                        <option value="">—</option>
                         {FPS_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
                       </select>
                     </Field>
                     <Field label="Container">
                       <select value={r.container} onChange={(e) => patch(r.id, { container: e.target.value })} className={cn(sel, "max-w-[11rem]")}>
+                        <option value="">—</option>
                         {CONTAINER_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
                     <Field label="Audio">
                       <select value={r.audio} onChange={(e) => patch(r.id, { audio: e.target.value })} className={sel}>
+                        <option value="">—</option>
                         {AUDIO_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
                     <Field label="Loudness">
                       <select value={r.loudness} onChange={(e) => patch(r.id, { loudness: e.target.value })} className={cn(sel, "max-w-[14rem]")}>
+                        <option value="">—</option>
                         {[r.loudness, ...LOUDNESS_OPTIONS.filter((o) => o !== r.loudness)].filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
                     <Field label="True-peak">
                       <select value={r.truePeak} onChange={(e) => patch(r.id, { truePeak: e.target.value })} className={cn(sel, "max-w-[12rem]")} title="Maximum true-peak ceiling (dBTP)">
+                        <option value="">—</option>
                         {[r.truePeak, ...TRUEPEAK_OPTIONS.filter((o) => o !== r.truePeak)].filter(Boolean).map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
                     <Field label="Subtitles">
                       <select value={r.subtitles} onChange={(e) => patch(r.id, { subtitles: e.target.value })} className={cn(sel, "max-w-[13rem]")}>
+                        <option value="">—</option>
                         {SUBTITLE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>

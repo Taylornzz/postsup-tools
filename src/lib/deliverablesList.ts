@@ -42,6 +42,26 @@ export function newItem(category: DelivCategory = "picture"): DeliverableItem {
   return { id: uid(), label: "", category, inScope: true, owner: "", notes: "" };
 }
 
+/** A sensible generic starter punch-list for a Build-from-template recipient — the common
+ *  artifacts most deliveries need. Edit, or Grow with AI, to tailor it to the platform. */
+export function templateDeliverables(): DeliverableItem[] {
+  const std: [string, DelivCategory][] = [
+    ["Feature master — textless / clean", "picture"],
+    ["Feature master — texted", "picture"],
+    ["Textless elements (titles / graphics)", "picture"],
+    ["Audio mix — 5.1", "audio"],
+    ["Audio mix — Stereo", "audio"],
+    ["M&E — 5.1", "audio"],
+    ["M&E — Stereo", "audio"],
+    ["Stems (D/M/E) — 5.1", "audio"],
+    ["Subtitles / captions (per language)", "subtitles"],
+    ["QC report", "metadata"],
+    ["Delivery paperwork (as-run / spec sheet)", "metadata"],
+    ["Proxy / viewing copy", "picture"],
+  ];
+  return std.map(([label, category]) => ({ ...newItem(category), label }));
+}
+
 function coerceItem(x: Record<string, unknown>): DeliverableItem {
   return {
     id: typeof x.id === "string" ? x.id : uid(),
