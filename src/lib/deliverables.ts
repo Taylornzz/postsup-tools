@@ -51,6 +51,7 @@ export interface Recipient {
   fpsNative?: boolean;              // accepts the native source frame rate (streamers) — no standards conversion
   languages?: DeliveryLanguage[];   // the OV + per-language VF version matrix
   verified?: { at: string; source?: string; confidence?: "high" | "medium" | "low" }; // spec provenance / freshness
+  due?: string;                     // delivery due date (yyyy-mm-dd)
 }
 
 const TEMPLATE_VERIFIED_AT = "2026-06-01"; // when the starter platform specs were last web-checked
@@ -229,6 +230,12 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
 // Platforms that ingest at the NATIVE source frame rate (streaming mezzanines) — no standards
 // conversion; they take whatever cadence you finished at. Broadcasters lock to a territory fps.
 const NATIVE_FPS_IDS = new Set(["netflix", "amazon", "apple", "max", "disney", "hulu", "paramount-plus", "peacock", "discovery-plus", "tubi", "roku"]);
+
+/** Clone a recipient (new ids, " copy" name, not the main) — most shows deliver near-identical
+ *  specs to many endpoints, so duplicating beats re-picking ~10 dropdowns. */
+export function duplicateRecipient(r: Recipient): Recipient {
+  return { ...r, id: uid(), name: `${r.name} copy`, isMain: false, deliverables: (r.deliverables || []).map((d) => ({ ...d, id: uid("d") })) };
+}
 
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
   const r = { ...newRecipient(t.name), ...t.spec, name: t.name, fpsNative: NATIVE_FPS_IDS.has(t.id),
@@ -412,7 +419,7 @@ export function sendToBoard(projectId: string | undefined, recipients: Recipient
   }
   const have = new Set(cols.flatMap((c) => c.cards.map((k) => (k.title || "").toLowerCase().trim())));
 
-  const draft: { title: string; notes: string; color: string; checks: string[] }[] = [];
+  const draft: { title: string; notes: string; color: string; checks: string[]; due?: string }[] = [];
   plan.passes.forEach((p, i) => draft.push({
     title: `Grade ${i + 1}: ${p.label}`,
     notes: [p.note, p.covers.length ? `Covers: ${p.covers.join(", ")}` : ""].filter(Boolean).join(" · "),
@@ -424,11 +431,12 @@ export function sendToBoard(projectId: string | undefined, recipients: Recipient
     notes: r.notes || `${r.region} · ${r.container}`,
     color: "#38bdf8",
     checks: recipientChecklist(r),
+    due: r.due,
   }));
 
   const fresh: BoardCard[] = draft
     .filter((c) => !have.has(c.title.toLowerCase().trim()))
-    .map((c) => ({ id: uid("cd"), title: c.title, notes: c.notes, color: c.color, checks: c.checks.map((t) => ({ id: uid("ch"), text: t, done: false })) }));
+    .map((c) => ({ id: uid("cd"), title: c.title, notes: c.notes, color: c.color, due: c.due, checks: c.checks.map((t) => ({ id: uid("ch"), text: t, done: false })) }));
 
   cols[0] = { ...cols[0], cards: [...cols[0].cards, ...fresh] };
   try { localStorage.setItem(key, JSON.stringify(cols)); } catch { /* ignore */ }

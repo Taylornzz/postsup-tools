@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
-  PackageCheck, Plus, Trash2, Sparkles, Send,
-  Paperclip, FileText, GitBranch, Cloud, X, ChevronRight, Star,
+  PackageCheck, Plus, Trash2, Sparkles, Send, Copy,
+  Paperclip, FileText, GitBranch, X, ChevronRight, Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
-  loadRecipients, saveRecipients, newRecipient, blankRecipient, buildPlan, recipientChecklist, sendToBoard,
+  loadRecipients, saveRecipients, newRecipient, blankRecipient, duplicateRecipient, buildPlan, recipientChecklist, sendToBoard,
   buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL, DELIVERY_TEMPLATES, recipientFromTemplate,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, TRUEPEAK_OPTIONS, TRUEPEAK_BY_REGION, isHdr,
@@ -49,6 +49,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
   const addWithAI = () => { const r = blankRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); };
   const setMain = (id: string) => setRecipients((rs) => rs.map((r) => ({ ...r, isMain: r.id === id ? !r.isMain : false })));
+  const dup = (r: Recipient) => setRecipients((rs) => { const i = rs.findIndex((x) => x.id === r.id); return [...rs.slice(0, i + 1), duplicateRecipient(r), ...rs.slice(i + 1)]; });
   const addTemplate = (id: string) => {
     const t = DELIVERY_TEMPLATES.find((x) => x.id === id);
     if (!t) return;
@@ -89,7 +90,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   };
-  const cloudSoon = (name: string) => toast(`${name} import is coming soon`, { description: "For now add the file directly — cloud connect arrives with the AI ingest." });
 
   const addFiles = async (recipientId: string, fileList: FileList) => {
     const metas: DocMeta[] = [];
@@ -187,6 +187,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       <option value="">—</option>
                       {REGIONS.map((rg) => <option key={rg} value={rg}>{rg}</option>)}
                     </select>
+                    <input type="date" value={r.due || ""} onChange={(e) => patch(r.id, { due: e.target.value })} title="Delivery due date" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1.5 py-1 text-[10px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark] max-w-[8.5rem]" />
+                    <button onClick={() => dup(r)} title="Duplicate this recipient (clone its spec + deliverables)" className="shrink-0 text-suite-text-dim hover:text-suite-text"><Copy className="size-3.5" strokeWidth={1.6} /></button>
                     <button onClick={() => remove(r.id)} title="Remove recipient" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3.5" strokeWidth={1.6} /></button>
                   </div>
 
@@ -280,14 +282,12 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                   {/* Attachments — source docs for this recipient */}
                   <div className="mt-2.5 pt-2.5 border-t border-suite-border/50">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim mr-0.5">Source docs</span>
+                      <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim mr-0.5">Reference files</span>
                       <label className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-suite-border text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong cursor-pointer font-mono text-[9.5px]">
                         <Paperclip className="size-3" strokeWidth={1.7} /> Add file
                         <input type="file" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) addFiles(r.id, e.target.files); e.target.value = ""; }} />
                       </label>
-                      <CloudBtn label="Drive" onClick={() => cloudSoon("Google Drive")} />
-                      <CloudBtn label="Box" onClick={() => cloudSoon("Box")} />
-                      <CloudBtn label="OneDrive" onClick={() => cloudSoon("OneDrive")} />
+                      <span className="font-mono text-[8.5px] text-suite-text-dim">kept on device for reference — to have the AI read a spec, drop it on the brief box above</span>
                     </div>
                     {(r.documents || []).length > 0 && (
                       <div className="mt-1.5 flex flex-col gap-1">
@@ -355,13 +355,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const fmtSize = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b >= 1e3 ? `${Math.round(b / 1e3)} KB` : `${b} B`);
 
-function CloudBtn({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} title={`${label} — coming soon`} className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-dashed border-suite-border text-suite-text-dim hover:text-suite-text font-mono text-[9.5px]">
-      <Cloud className="size-3" strokeWidth={1.6} /> {label}
-    </button>
-  );
-}
 
 // Re-seed helper — the three starter rows from the brief (all editable).
 function loadRecipientsSeed(): Recipient[] {
