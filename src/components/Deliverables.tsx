@@ -147,7 +147,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
             <button onClick={addWithAI} title="Add a recipient and build its deliverables with AI" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20 transition-colors">
               <Sparkles className="size-3" strokeWidth={2} /> Build with AI
             </button>
-            <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[15rem] !text-guide-target !border-guide-target/50")} title="Add a recipient pre-filled from a platform template, then grow it">
+            <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[15rem] !text-guide-target !border-guide-target/50 uppercase tracking-[0.14em]")} title="Add a recipient pre-filled from a platform template, then grow it">
               <option value="">⬚ Build from template…</option>
               {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -292,9 +292,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
               <div className="text-center py-12">
                 <PackageCheck className="size-7 text-suite-text-dim mx-auto mb-3" strokeWidth={1.4} />
                 <p className="font-mono text-[12px] text-suite-text-muted">No recipients yet.</p>
-                <button onClick={add} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-sm border font-mono text-[10px] uppercase tracking-[0.1em] text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20">
-                  <Plus className="size-3.5" strokeWidth={2} /> Add a recipient
-                </button>
+                <p className="mt-1 font-mono text-[10px] text-suite-text-dim">Use <span className="text-guide-source">Build with AI</span> or <span className="text-guide-target">Build from template</span> above.</p>
               </div>
             )}
           </div>
