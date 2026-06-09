@@ -37,11 +37,15 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
     if (!brief.trim() && files.length === 0) { toast("Add a brief or attach a document first"); return; }
     setBuilding(true);
     try {
-      const built = await buildDeliverablesList(brief, files);
-      onItemsChange([...items, ...built]);
+      const built = await buildDeliverablesList(brief, files, items);
       setFiles([]);
+      if (built.length === 0) {
+        toast(items.length ? "Nothing new to add — the list already covers it" : "Couldn’t itemise that — try a clearer brief");
+        return;
+      }
+      onItemsChange([...items, ...built]);
       const out = built.filter((i) => !i.inScope).length;
-      toast.success(`${items.length ? "Grew" : "Built"} the list — ${built.length} item${built.length === 1 ? "" : "s"}`, { description: `${out} flagged out of post's scope · verify and annotate each.` });
+      toast.success(`${items.length ? "Added" : "Built"} ${built.length} item${built.length === 1 ? "" : "s"}`, { description: out ? `${out} flagged out of post's scope · verify each.` : "Verify and annotate each." });
     } catch (e) {
       toast.error("Couldn’t build the list", { description: e instanceof Error ? e.message : "AI request failed." });
     } finally {
@@ -56,6 +60,7 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
       <div className="flex items-center gap-2">
         <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-suite-text-muted">Deliverables</span>
         {items.length > 0 && <span className="font-mono text-[9px] text-suite-text-dim">· {inScope} in scope · {items.length - inScope} not yours</span>}
+        {items.length > 0 && <button onClick={() => { if (window.confirm("Clear this recipient’s deliverables list?")) onItemsChange([]); }} title="Clear this list to rebuild it" className="ml-auto font-mono text-[9px] uppercase tracking-[0.12em] text-suite-text-dim hover:text-destructive transition-colors">Clear</button>}
       </div>
 
       {/* AI brief — describe / drop docs → build or grow */}

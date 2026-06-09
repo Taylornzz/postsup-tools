@@ -96,15 +96,20 @@ async function fileToDoc(file: File): Promise<{ name: string; mediaType: string;
   return { name: file.name, mediaType, dataBase64: base64 };
 }
 
-/** Send the brief + documents to the AI itemiser and return new deliverable items. */
-export async function buildDeliverablesList(brief: string, files: File[]): Promise<DeliverableItem[]> {
+const normKey = (label: string, category: string) => `${category}|${label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+
+/** Send the brief + documents (+ what's already on the list) to the AI itemiser and return
+ *  the NEW deliverable items only — deduped against `existing` and within the batch, so a
+ *  Grow doesn't re-add what's already there. Returns [] if there's nothing new. */
+export async function buildDeliverablesList(brief: string, files: File[], existing: DeliverableItem[] = []): Promise<DeliverableItem[]> {
   const documents = await Promise.all(files.map(fileToDoc));
+  const existingPayload = existing.filter((i) => i.label?.trim()).map((i) => ({ label: i.label, category: i.category }));
   let resp: Response;
   try {
     resp = await fetch("/api/build-deliverables-list", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ brief, documents }),
+      body: JSON.stringify({ brief, documents, existing: existingPayload }),
     });
   } catch {
     throw new Error("Couldn’t reach the AI service — it only runs on the deployed site, not local dev.");
@@ -116,6 +121,16 @@ export async function buildDeliverablesList(brief: string, files: File[]): Promi
     throw new Error(data?.message || `Build failed (${resp.status}).`);
   }
   const rawList = Array.isArray(data?.items) ? (data!.items as Record<string, unknown>[]) : [];
-  if (rawList.length === 0) throw new Error("Nothing to itemise — add a brief or a document.");
-  return rawList.map((x) => ({ ...coerceItem(x), id: uid() }));
+  // Safety net: drop anything matching an existing item or repeated within this batch.
+  const seen = new Set(existing.filter((i) => i.label?.trim()).map((i) => normKey(i.label, i.category)));
+  const out: DeliverableItem[] = [];
+  for (const x of rawList) {
+    const item = { ...coerceItem(x), id: uid() };
+    if (!item.label.trim()) continue;
+    const k = normKey(item.label, item.category);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(item);
+  }
+  return out;
 }
