@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, Sparkles, Send, Copy,
-  GitBranch, X, ChevronRight, Star,
+  GitBranch, X, ChevronRight, Star, Download, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import type { CustomConfig, MasterNits } from "@/lib/mastering";
 import { RecipientDeliverables } from "./RecipientDeliverables";
 import { RecipientVerify } from "./RecipientVerify";
 import { ProductionList } from "./ProductionList";
+import { exportDeliverables } from "@/lib/deliverablesExport";
 import { rollupDeliverables, shareCounts } from "@/lib/deliverablesRollup";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
@@ -28,6 +29,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
 }) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
   const [focusBriefId, setFocusBriefId] = useState<string | null>(null);
+  const [showExport, setShowExport] = useState(false);
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
   const splitRef = useRef<HTMLDivElement>(null);
   const [chartW, setChartW] = useState<number>(() => { const v = Number(localStorage.getItem("kaos.deliverables.chartW")); return v >= 320 ? v : 480; });
@@ -130,6 +132,20 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
               <GitBranch className="size-3" strokeWidth={1.7} /> Open in Mastering
             </button>
           )}
+          <div className="relative">
+            <button onClick={() => setShowExport((s) => !s)} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+              <Download className="size-3" strokeWidth={1.6} /> Export <ChevronDown className="size-3" strokeWidth={2} />
+            </button>
+            {showExport && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExport(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col">
+                  <button onClick={() => { exportDeliverables("pdf", recipients, rollup, projectName?.trim() || ""); setShowExport(false); }} className="text-left px-2.5 py-1.5 text-[11px] font-mono text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated rounded-sm">PDF — handoff document</button>
+                  <button onClick={() => { exportDeliverables("csv", recipients, rollup, projectName?.trim() || ""); setShowExport(false); }} className="text-left px-2.5 py-1.5 text-[11px] font-mono text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated rounded-sm">CSV — spreadsheet</button>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={push} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Send className="size-3" strokeWidth={1.6} /> To board
           </button>

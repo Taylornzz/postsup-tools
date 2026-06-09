@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen, Newspaper,
+  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen, Newspaper, HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
+import { exportProjectPDF, exportProjectJSON } from "@/lib/projectExport";
 
-type Panel = "about" | "vendors" | "feedback" | "privacy" | "terms";
+type Panel = "about" | "help" | "vendors" | "feedback" | "privacy" | "terms";
 
 const MENU: { id: Panel | "news"; label: string; icon: typeof Info; group: 1 | 2 }[] = [
   { id: "about", label: "About", icon: Info, group: 1 },
+  { id: "help", label: "Help — how to use", icon: HelpCircle, group: 1 },
   { id: "vendors", label: "Vendor directory", icon: Building2, group: 1 },
   { id: "news", label: "News watches", icon: Newspaper, group: 1 },
   { id: "feedback", label: "Send feedback", icon: MessageSquare, group: 1 },
@@ -17,7 +19,7 @@ const MENU: { id: Panel | "news"; label: string; icon: typeof Info; group: 1 | 2
   { id: "terms", label: "Terms & disclaimer", icon: FileText, group: 2 },
 ];
 
-export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects }: { version: string; onOpenVendors: () => void; onOpenNews?: () => void; onProjects?: () => void }) {
+export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects, projectId, projectName }: { version: string; onOpenVendors: () => void; onOpenNews?: () => void; onProjects?: () => void; projectId?: string; projectName?: string }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
 
@@ -60,6 +62,12 @@ export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects }: { ve
                   <button onClick={() => { setOpen(false); onProjects(); }} className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left">
                     <FolderOpen className="size-3.5 shrink-0 text-suite-text-dim" strokeWidth={1.6} /> All projects
                   </button>
+                  <button onClick={() => { setOpen(false); exportProjectPDF(projectId, projectName?.trim() || "Untitled project"); }} className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left">
+                    <FileText className="size-3.5 shrink-0 text-suite-text-dim" strokeWidth={1.6} /> Export project — PDF
+                  </button>
+                  <button onClick={() => { setOpen(false); exportProjectJSON(projectId, projectName?.trim() || "Untitled project"); }} className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated text-left">
+                    <FileText className="size-3.5 shrink-0 text-suite-text-dim" strokeWidth={1.6} /> Export project — JSON backup
+                  </button>
                   <div className="my-1 border-t border-suite-border/60" />
                 </>
               )}
@@ -89,6 +97,7 @@ export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects }: { ve
 function Modal({ panel, onClose, version }: { panel: Panel; onClose: () => void; version: string }) {
   const titles: Record<Panel, string> = {
     about: "About Kaos Theory",
+    help: "Help — how to use Kaos Theory",
     vendors: "Vendor directory",
     feedback: "Send feedback",
     privacy: "Privacy",
@@ -106,6 +115,7 @@ function Modal({ panel, onClose, version }: { panel: Panel; onClose: () => void;
         </div>
         <div className="overflow-y-auto px-5 py-4">
           {panel === "about" && <About />}
+          {panel === "help" && <Help />}
           {panel === "feedback" && <Feedback />}
           {panel === "privacy" && <Privacy />}
           {panel === "terms" && <Terms />}
@@ -122,6 +132,40 @@ const P = ({ children }: { children: React.ReactNode }) => (
 const H = ({ children }: { children: React.ReactNode }) => (
   <h3 className="font-mono text-[10px] tracking-[0.16em] uppercase text-suite-text-dim mt-4 mb-1.5">{children}</h3>
 );
+
+function Help() {
+  const TABS: [string, string][] = [
+    ["Capture", "Pick your camera + recording mode and see the real numbers: codec, data rate, framing/extraction, and the interactive lens view — drag focal length, aperture and distance and watch the 3D frustum, framing box and focus zone update. Save setups to reuse across the app."],
+    ["Storage", "Per-camera shoot-day planning: cards/mags, offload at real link speeds (with checksum read-back), proxies, copies, and a combined-rig grand total. Saved Capture setups flow in as a checklist."],
+    ["Deliverables", "The heart of delivery. Add recipients three ways — Build with AI (type a platform or paste a spec/email; it fills the spec dropdowns and itemises the punch-list), Build from template (27 platform starters incl. theatrical DCP), or by hand. Each recipient holds its own spec, language/version matrix, documents and deliverables with QC status. The Production list rolls everything up into what you actually make once. ⭐ marks the main deliverable; the Workflow graph shows the derive order and flags fps clashes."],
+    ["Mastering", "The grade-once-derive-everything doctrine as an interactive tree: pick a strategy (or custom hero + deliverables) and see the make-order with fresh-pass warnings."],
+    ["Workflow", "An editable node-graph of your whole pipeline — seed it from Deliverables/Mastering, then drag, edit and extend."],
+    ["Planner", "A post schedule with phases on bars — plan the weeks from wrap to delivery."],
+    ["Board", "A kanban task board with checklists and due dates. Drag to move and reorder (amber line shows where it lands), shift-click to multi-select, import cards from Deliverables/Mastering/Planner, export PDF/CSV/JSON or push the whole board to Trello."],
+    ["Glossary", "Post terminology, searchable — from ACES to true peak."],
+    ["Tools", "Calculators: timecode, frame rate, EDL/sequence converters and more."],
+  ];
+  return (
+    <div>
+      <P><span className="text-suite-text">The 30-second tour.</span> Kaos Theory follows a real job's shape: plan the shoot (Capture, Storage), plan the finish (Mastering, Deliverables), then run it (Workflow, Planner, Board). Everything saves per-project in your browser; sign in to sync.</P>
+      <H>The tabs</H>
+      <ul className="space-y-2 mb-3 list-none">
+        {TABS.map(([t, d]) => (
+          <li key={t} className="font-mono text-[12px] leading-relaxed text-suite-text-muted flex gap-2">
+            <span className="text-guide-target mt-0.5 shrink-0">·</span>
+            <span><span className="text-suite-text">{t}.</span> {d}</span>
+          </li>
+        ))}
+      </ul>
+      <H>A typical flow</H>
+      <P>1) Capture: pick camera/mode, check framing and the lens view. 2) Storage: size the shoot. 3) Deliverables: add your recipients (AI or template), verify each spec against the platform's own doc, star the hero. 4) Mastering: sanity-check the grade order. 5) Push to Board, schedule in Planner, track to delivery. Export anything as you go — each tab has an Export, and the project menu has Export project.</P>
+      <H>The AI bits</H>
+      <P>Deliverables' Build/Grow with AI reads briefs and documents (PDF, Word, Excel, images — drag &amp; drop) and returns an itemised, deduplicated punch-list; Verify spec web-checks a platform's current delivery spec and shows a field-by-field diff you apply by hand. AI runs on the deployed site, never stores your documents server-side, and everything it produces is a starting point to verify — not gospel.</P>
+      <H>Good to know</H>
+      <P>Data lives per-project in this browser (localStorage) unless you sign in. The Vendor directory (this menu) answers "who do I use for X" by region. If something looks wrong, the Send feedback panel goes straight to the developer.</P>
+    </div>
+  );
+}
 
 function About() {
   return (

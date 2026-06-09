@@ -214,6 +214,30 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
   }, [rows, g.copies, g.stations, g.verify, bandwidth.mbps]);
   const proxyRatio = totals.shootTotal > 0 ? totals.proxyTotal / totals.shootTotal : 0;
 
+  /** Copy the whole storage plan (per camera + rig totals) as paste-anywhere text. */
+  const exportPlan = () => {
+    const f = (gb: number) => (gb >= 1000 ? `${(gb / 1000).toFixed(2)} TB` : `${Math.round(gb)} GB`);
+    const lines: string[] = [
+      `STORAGE PLAN${projectName?.trim() ? ` — ${projectName.trim()}` : ""}`,
+      `${new Date().toLocaleString()} · ${totals.count} camera${totals.count === 1 ? "" : "s"} · ${g.copies}× copies${g.verify ? " + checksum verify" : ""} · ${bandwidth.label || ""}`,
+      "",
+      ...rows.filter((r) => r.cam.enabled).map((r) =>
+        `• ${r.cam.label || r.src.camera} — ${r.src.camera} ${r.src.mode} · ${r.codec.name} @ ${r.cam.fps}fps · ${r.cam.hoursPerDay}h/day × ${r.cam.shootDays} days
+  ${f(r.camDaily)}/day · ${f(r.shootCam)} shoot total · ${r.cardsPerDay} ${r.mediaWord}s/day (${r.card.label}, ~${Math.round(r.cardMin)} min each)${r.proxyGB ? ` · proxies ${f(r.proxyGB)}` : ""}`),
+      "",
+      `RIG TOTALS`,
+      `Daily (all rolling): ${f(totals.totalDaily)} · ${totals.cardsPerDay} loads/day`,
+      `Whole shoot (1 copy): ${f(totals.shootTotal)} · with ${g.copies}× copies: ${f(totals.shootWithCopies)}`,
+      `Proxies: ${f(totals.proxyTotal)} (${Math.round(proxyRatio * 100)}% of OCF)`,
+      `Grand total to store: ${f(totals.shootWithCopies + totals.proxyTotal)}`,
+      `Daily offload: ${totals.transferHrs.toFixed(1)}h copy${g.verify ? ` + ${totals.verifyHrs.toFixed(1)}h verify = ${totals.offloadHrs.toFixed(1)}h` : ""} (${g.stations} station${g.stations === 1 ? "" : "s"})`,
+    ];
+    navigator.clipboard.writeText(lines.join("\n")).then(
+      () => toast.success("Storage plan copied", { description: "Paste into an email, doc or message." }),
+      () => toast.error("Couldn't copy to clipboard"),
+    );
+  };
+
   const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
   const num = "w-16 bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
 
@@ -230,6 +254,9 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={addCam} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
             <Plus className="size-3" strokeWidth={2} /> Camera
+          </button>
+          <button onClick={exportPlan} title="Copy the full storage plan (per camera + rig totals) as text" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+            Export
           </button>
           <button onClick={reset} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Reset

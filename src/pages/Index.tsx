@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.9.0";
+export const VERSION = "v2.10.0";
 const CHANGELOG = [
+  "v2.10.0 — Five upgrades. (1) The Optics page is now a live 3D scene: drag the sliders and watch the camera's wireframe frustum, the amber framing rectangle, the green in-focus slab (near→far), the hyperfocal tick and a 1.8 m subject move in real time — with fainter figures behind showing how a long lens compresses spacing. Drag to orbit, wheel to zoom. (2) Board: cards now reorder precisely — an amber line shows exactly where the drop lands (above or below) — and the whole board can be pushed to Trello (lists, cards, due dates, checklists) using your own free Trello key/token. (3) New Help section in the menu — the 30-second tour, every tab explained, the AI bits, a typical flow. (4) Exports everywhere: Deliverables exports a PDF handoff document or CSV (per-recipient specs + itemised lists + the make-once Production list); Storage copies the full rig plan as text; Board, Planner, Workflow and Tools already had theirs. (5) Export project — one PDF dossier (deliverables, production list, schedule, board) or a JSON backup of everything, from the top-right menu.",
   "v2.9.0 — Vendor Directory rebuilt and re-enabled (top-right menu): 257 vendors across NZ, Australia, SE Asia (Singapore/Bangkok/KL/Jakarta/HCMC/Manila), US, UK, France, Germany and Western Europe (NL/BE/IT/ES/IE/CH) — every listing web-verified as operating in June 2026. Defunct companies removed: Technicolor/MPC (collapsed Feb 2025), Milk VFX, Jellyfish, Pixomondo, Glassworks, Windmill Lane, Éclair, VHQ, One Animation and more; renames tracked (The Mill relaunched under TransPerfect, Hiventy → TransPerfect Media, Mikros → Rodeo FX, Scanline → Eyeline, Camwerkz → Showtec). New ‘Who do I use for…’ playbooks answer the real questions: who develops + scans 35mm in each region, who masters and delivers an international feature DCP from Auckland, KDM/distribution servicers, and restoration houses. Film labs are explicitly marked DEVELOPS vs SCAN-ONLY.",
   "v2.8.5 — Fixed building from a large PDF (the ‘Build failed (413)’ error). PDFs over ~3 MB now have their text extracted in the browser and only that text is sent to the AI — so the file stays on your device and the request fits the size limit. Smaller PDFs still go to the AI natively for best quality. Clearer message if a document is still too big (paste the key text instead).",
   "v2.8.4 — Google Drive import (read-only). A ‘Drive’ button on each recipient's AI box opens the Google Picker so you can pull deliverable docs from a Drive folder; they download into the on-device store and the AI reads them on build. The OAuth token is never persisted, scope is read-only. Needs a Google OAuth client ID + API key (browser-side, not secret — see docs/google-drive-setup.md); until they're set, the button shows a setup hint.",
@@ -1192,7 +1193,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle />
-          <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onOpenNews={() => setAppTab("news")} onProjects={onSwitchProject} />
+          <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onOpenNews={() => setAppTab("news")} onProjects={onSwitchProject} projectId={project.id} projectName={projectName} />
         </div>
       </header>
 

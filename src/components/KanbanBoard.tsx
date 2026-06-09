@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { STAGES } from "@/lib/pipeline";
 import { buildMasterGraph, buildCustomGraph, type CustomConfig, type MasteringStrategy, type MasterNits } from "@/lib/mastering";
 import { exportBoard, type BoardExportFormat } from "@/lib/boardExport";
+import { loadTrelloAuth, saveTrelloAuth, sendBoardToTrello, trelloAuthorizeUrl } from "@/lib/trello";
 
 /** Kanban Board — a per-project task board with drag-between columns and a checklist
  *  (the "basic to-do") on every card. State is per-project in localStorage, like the
@@ -87,9 +88,13 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const [addText, setAddText] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showTrello, setShowTrello] = useState(false);
+  const [trelloAuth, setTrelloAuth] = useState(() => loadTrelloAuth());
+  const [trelloBusy, setTrelloBusy] = useState(false);
   const drag = useRef<{ ids: string[] } | null>(null);
   const [draggingIds, setDraggingIds] = useState<string[]>([]);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [overCard, setOverCard] = useState<{ cardId: string; after: boolean } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(cols)); } catch { /* ignore */ } }, [cols, key]);
@@ -155,6 +160,19 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const resetBoard = () => { if (window.confirm("Reset the board to the starter template?")) setCols(seedBoard()); };
 
   const doExport = (fmt: BoardExportFormat) => { exportBoard(fmt, cols, projectName?.trim() || ""); setShowExport(false); };
+
+  const doTrello = async () => {
+    saveTrelloAuth(trelloAuth);
+    setTrelloBusy(true);
+    try {
+      const url = await sendBoardToTrello(trelloAuth, cols, `${projectName?.trim() || "Kaos Theory"} — Task Board`, (msg) => toast(msg));
+      toast.success("Board pushed to Trello", { description: url, action: { label: "Open", onClick: () => window.open(url, "_blank") } });
+      window.open(url, "_blank");
+      setShowTrello(false);
+    } catch (e) {
+      toast.error("Trello push failed", { description: e instanceof Error ? e.message : "" });
+    } finally { setTrelloBusy(false); }
+  };
 
   // ---- opt-in imports (read other tools' per-project state; never modify them) ----
   const sfx = projectId ? `-${projectId}` : "";
@@ -223,11 +241,31 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", cardId);
   };
-  const onDragEnd = () => { drag.current = null; setDraggingIds([]); setOverCol(null); };
+  const onDragEnd = () => { drag.current = null; setDraggingIds([]); setOverCol(null); setOverCard(null); };
   const allowDrop = (e: React.DragEvent) => e.preventDefault();
-  const dropOnCard = (e: React.DragEvent, colId: string, beforeCardId: string) => {
+  /** Insert before or after the hovered card depending on pointer position —
+   *  this is what makes precise same-column reordering possible. */
+  const dragOverCard = (e: React.DragEvent, cardId: string) => {
     e.preventDefault(); e.stopPropagation();
-    const d = drag.current; if (d) { moveSelection(d.ids, colId, beforeCardId); setSelectedIds([]); }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    setOverCard((prev) => (prev?.cardId === cardId && prev.after === after ? prev : { cardId, after }));
+  };
+  const dropOnCard = (e: React.DragEvent, colId: string, hoveredCardId: string) => {
+    e.preventDefault(); e.stopPropagation();
+    const d = drag.current;
+    if (d) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      let beforeId: string | null = hoveredCardId;
+      if (after) {
+        const col = cols.find((c) => c.id === colId);
+        const idx = col ? col.cards.findIndex((k) => k.id === hoveredCardId) : -1;
+        beforeId = col && idx >= 0 && idx + 1 < col.cards.length ? col.cards[idx + 1].id : null;
+      }
+      moveSelection(d.ids, colId, beforeId);
+      setSelectedIds([]);
+    }
     onDragEnd();
   };
   const dropOnCol = (e: React.DragEvent, colId: string) => {
@@ -285,6 +323,8 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
                   {([["pdf", "PDF — printable"], ["csv", "CSV — spreadsheet"], ["json", "JSON — backup"]] as [BoardExportFormat, string][]).map(([fmt, label]) => (
                     <button key={fmt} onClick={() => doExport(fmt)} className="text-left px-2.5 py-1.5 text-[11px] font-mono text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated rounded-sm">{label}</button>
                   ))}
+                  <div className="my-1 border-t border-suite-border/60" />
+                  <button onClick={() => { setShowExport(false); setShowTrello(true); }} className="text-left px-2.5 py-1.5 text-[11px] font-mono text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated rounded-sm">Send to Trello…</button>
                 </div>
               </>
             )}
@@ -331,16 +371,20 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
                       draggable
                       onDragStart={(e) => onDragStart(e, card.id)}
                       onDragEnd={onDragEnd}
-                      onDragOver={allowDrop}
+                      onDragOver={(e) => dragOverCard(e, card.id)}
+                      onDragLeave={() => setOverCard((p) => (p?.cardId === card.id ? null : p))}
                       onDrop={(e) => dropOnCard(e, col.id, card.id)}
                       onClick={(e) => {
                         if (e.shiftKey || e.metaKey || e.ctrlKey) { e.stopPropagation(); toggleSelect(card.id); }
                         else { setSelectedIds([]); setEditing({ colId: col.id, cardId: card.id }); }
                       }}
                       className={cn(
-                        "group/card rounded-sm border bg-suite-panel px-2.5 py-2 cursor-pointer transition-colors",
+                        "group/card relative rounded-sm border bg-suite-panel px-2.5 py-2 cursor-pointer transition-colors",
                         selectedIds.includes(card.id) ? "border-guide-target ring-1 ring-guide-target/60" : "border-suite-border hover:border-suite-border-strong",
                         draggingIds.includes(card.id) && "opacity-40",
+                        // insertion indicator — amber line above/below where the drop will land
+                        draggingIds.length > 0 && overCard?.cardId === card.id && !overCard.after && "shadow-[0_-2px_0_0_#f59e0b]",
+                        draggingIds.length > 0 && overCard?.cardId === card.id && overCard.after && "shadow-[0_2px_0_0_#f59e0b]",
                       )}
                       style={{ borderLeft: `3px solid ${card.color}` }}
                     >
@@ -419,6 +463,38 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
           onChange={(p) => patchCard(editing.colId, editing.cardId, p)}
           onDelete={() => { removeCard(editing.colId, editing.cardId); setEditing(null); }}
         />
+      )}
+
+      {/* Send-to-Trello dialog */}
+      {showTrello && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onClick={() => !trelloBusy && setShowTrello(false)}>
+          <div className="w-full max-w-md rounded-md border border-suite-border-strong bg-suite-panel p-4 flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-[12px] tracking-[0.14em] uppercase text-suite-text font-semibold">Send board to Trello</h3>
+              <button onClick={() => setShowTrello(false)} className="text-suite-text-dim hover:text-suite-text"><X className="size-4" strokeWidth={2} /></button>
+            </div>
+            <p className="font-mono text-[10px] text-suite-text-dim leading-relaxed">
+              Creates a new Trello board with your columns, cards, due dates and checklists. Needs your own (free) Trello credentials —
+              they're stored only in this browser and sent only to api.trello.com.
+            </p>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-muted">API key — from <a href="https://trello.com/power-ups/admin" target="_blank" rel="noreferrer" className="text-guide-target hover:underline">trello.com/power-ups/admin</a></span>
+              <input value={trelloAuth.key} onChange={(e) => setTrelloAuth((a) => ({ ...a, key: e.target.value.trim() }))} placeholder="32-char key…"
+                className="bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-muted">
+                Token — {trelloAuth.key ? <a href={trelloAuthorizeUrl(trelloAuth.key)} target="_blank" rel="noreferrer" className="text-guide-target hover:underline">authorize with this key</a> : "enter the key first, then authorize"}
+              </span>
+              <input value={trelloAuth.token} onChange={(e) => setTrelloAuth((a) => ({ ...a, token: e.target.value.trim() }))} placeholder="token from the authorize page…"
+                className="bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target" />
+            </label>
+            <button onClick={doTrello} disabled={trelloBusy || !trelloAuth.key || !trelloAuth.token}
+              className="self-end flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] rounded-sm border border-guide-target/50 text-guide-target bg-guide-target/10 hover:bg-guide-target/20 disabled:opacity-50">
+              {trelloBusy ? "Pushing…" : "Push to Trello"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
