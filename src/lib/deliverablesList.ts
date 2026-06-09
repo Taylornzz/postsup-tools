@@ -113,6 +113,10 @@ export function languageItems(langs: DeliveryLanguage[]): DeliverableItem[] {
   return rows.map((r) => ({ ...newItem(r.category), label: r.label, owner: r.owner }));
 }
 
+/** A sensible default owner per category so template items arrive pre-assigned. */
+const defaultOwner = (c: DelivCategory): DelivOwner =>
+  c === "audio" ? "sound" : c === "picture" || c === "subtitles" || c === "metadata" ? "post" : "";
+
 /** The non-rendition obligations that hold up final payment — cue sheet, conform handoff,
  *  archive/LTO, archival master, chain-of-title. Mostly coordinated by post, owned elsewhere. */
 function editorialArchiveItems(): DeliverableItem[] {
@@ -151,7 +155,7 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
       ["DCP QC report (Clipster / Dolby / lab)", "metadata"],
       ["Delivery paperwork (CPL list / version map)", "metadata"],
     ];
-    return [...dcp.map(([label, category]) => ({ ...newItem(category), label })), ...editorialArchiveItems()];
+    return [...dcp.map(([label, category]) => ({ ...newItem(category), label, owner: defaultOwner(category) })), ...editorialArchiveItems()];
   }
 
   const hdr = spec?.dr === "dolby-vision" || spec?.dr === "hdr10" || spec?.dr === "hlg";
@@ -183,7 +187,7 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
   out.push(["QC report", "metadata"]);
   out.push(["Delivery paperwork (as-run / spec sheet)", "metadata"]);
 
-  return [...out.map(([label, category]) => ({ ...newItem(category), label })), ...editorialArchiveItems()];
+  return [...out.map(([label, category]) => ({ ...newItem(category), label, owner: defaultOwner(category) })), ...editorialArchiveItems()];
 }
 
 export function coerceItem(x: Record<string, unknown>): DeliverableItem {

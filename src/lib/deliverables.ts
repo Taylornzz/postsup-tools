@@ -52,6 +52,7 @@ export interface Recipient {
   languages?: DeliveryLanguage[];   // the OV + per-language VF version matrix
   verified?: { at: string; source?: string; confidence?: "high" | "medium" | "low" }; // spec provenance / freshness
   due?: string;                     // delivery due date (yyyy-mm-dd)
+  aiLog?: { prompt: string; added: number; at: number }[]; // recent AI brief requests (history)
 }
 
 const TEMPLATE_VERIFIED_AT = "2026-06-01"; // when the starter platform specs were last web-checked

@@ -6,20 +6,20 @@ import {
   CATEGORIES, OWNERS, STATUSES, newItem, buildDeliverablesList, newLanguage, languageItems,
   type DeliverableItem, type DelivCategory, type DeliveryLanguage, type LangKind, type DelivStatus,
 } from "@/lib/deliverablesList";
+import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
 
 const statusClass = (s?: DelivStatus) =>
-  s === "delivered" ? "text-emerald-400 border-emerald-400/40"
+  s === "delivered" || s === "accepted" ? "text-emerald-400 border-emerald-400/40"
   : s === "qc-fail" ? "text-destructive border-destructive/50"
   : s === "redeliver" ? "text-status-warn border-status-warn/50"
   : s === "wip" ? "text-guide-source border-guide-source/40"
   : "text-suite-text-dim border-suite-border";
-import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
 
 /** A recipient's own deliverables punch-list. Controlled: operates on the recipient's
  *  brief + items (persisted by the parent). The AI brief box + document uploader build
  *  or grow the list; everything is also editable by hand. Used inside each recipient. */
 
-export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, languages, onLanguagesChange }: {
+export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, languages, onLanguagesChange, aiLog, onLogChange }: {
   brief: string;
   items: DeliverableItem[];
   onBriefChange: (s: string) => void;
@@ -29,6 +29,8 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   onRecipientSpec?: (patch: Partial<Recipient>) => void;
   languages?: DeliveryLanguage[];
   onLanguagesChange?: (langs: DeliveryLanguage[]) => void;
+  aiLog?: { prompt: string; added: number; at: number }[];
+  onLogChange?: (log: { prompt: string; added: number; at: number }[]) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [building, setBuilding] = useState(false);
@@ -59,8 +61,11 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
       if (built.length > 0) onItemsChange([...items, ...built]);
       if (built.length === 0 && !specFilled) {
         toast(items.length ? "Nothing new to add — the list already covers it" : "Couldn’t itemise that — try a clearer brief");
-        return;
+        return; // keep the brief so you can refine it
       }
+      // success → log the request to the history, then clear the box for the next one
+      if (onLogChange && (brief.trim() || files.length)) onLogChange([...(aiLog || []), { prompt: brief.trim() || `${files.length} document(s)`, added: built.length, at: Date.now() }].slice(-12));
+      onBriefChange("");
       const out = built.filter((i) => !i.inScope).length;
       const head = built.length ? `${items.length ? "Added" : "Built"} ${built.length} item${built.length === 1 ? "" : "s"}` : "Filled the spec";
       toast.success(`${head}${specFilled && built.length ? " + filled the spec" : ""}`, { description: out ? `${out} flagged out of post's scope · verify each.` : "Verify the spec and each item." });
@@ -92,6 +97,20 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
         {items.length > 0 && <span className="font-mono text-[9px] text-suite-text-dim">· {inScope} in scope · {items.length - inScope} not yours</span>}
         {items.length > 0 && <button onClick={() => { if (window.confirm("Clear this recipient’s deliverables list?")) onItemsChange([]); }} title="Clear this list to rebuild it" className="ml-auto font-mono text-[9px] uppercase tracking-[0.12em] text-suite-text-dim hover:text-destructive transition-colors">Clear</button>}
       </div>
+
+      {/* Recent AI requests — chat-like history; click one to reuse / refine it */}
+      {aiLog && aiLog.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-suite-text-dim">Recent AI requests</span>
+          {aiLog.slice(-4).reverse().map((e, i) => (
+            <button key={i} onClick={() => onBriefChange(e.prompt)} title="Click to reuse / refine this prompt"
+              className="flex items-center gap-2 text-left px-2 py-1 rounded-sm border border-suite-border/60 bg-suite-bg/30 hover:border-suite-border-strong transition-colors">
+              <span className="flex-1 min-w-0 truncate font-mono text-[9.5px] text-suite-text-muted">{e.prompt}</span>
+              <span className="shrink-0 font-mono text-[8.5px] text-guide-source">+{e.added}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* AI brief — describe / drop docs → build or grow */}
       <div
@@ -197,19 +216,23 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
 
 function ItemRow({ item, shared, onChange, onRemove }: { item: DeliverableItem; shared?: number; onChange: (patch: Partial<DeliverableItem>) => void; onRemove: () => void }) {
   return (
-    <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-sm border", item.inScope ? "border-suite-border bg-suite-bg/40" : "border-suite-border/40 bg-transparent")}>
+    <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-sm border flex-wrap", item.inScope ? "border-suite-border bg-suite-bg/40" : "border-suite-border/40 bg-transparent")}>
       <button onClick={() => onChange({ inScope: !item.inScope })}
         title={item.inScope ? "In your scope — click to mark “not my issue”" : "Not your issue — click to claim it"}
         className={cn("shrink-0 size-3.5 rounded-[3px] border grid place-items-center transition-colors", item.inScope ? "bg-guide-target/15 border-guide-target text-guide-target" : "border-suite-text-dim text-transparent")}>
         {item.inScope ? <Check className="size-2.5" strokeWidth={3} /> : null}
       </button>
       <input value={item.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="Deliverable…"
-        className={cn("flex-[2] min-w-0 bg-transparent text-[11px] font-mono focus:outline-none", item.inScope ? "text-suite-text" : "text-suite-text-dim line-through")} />
+        className={cn("flex-1 min-w-[8rem] bg-transparent text-[11px] font-mono focus:outline-none", item.inScope ? "text-suite-text" : "text-suite-text-dim line-through")} />
       {shared && shared > 1 && (
         <span title={`Same artifact as ${shared - 1} other recipient${shared - 1 === 1 ? "" : "s"} — produced once, not a separate make`}
           className="shrink-0 font-mono text-[8px] uppercase tracking-[0.1em] px-1 py-0.5 rounded-full border border-guide-target/40 text-guide-target/90">shared ×{shared}</span>
       )}
       {(item.version || 1) > 1 && <span className="shrink-0 font-mono text-[8px] text-status-warn" title="Redelivery version">v{item.version}</span>}
+      <select value={item.category} onChange={(e) => onChange({ category: e.target.value as DelivCategory })}
+        title="Category — change this to move the item to another group" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark] max-w-[6.5rem]">
+        {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
       <select value={item.owner} onChange={(e) => onChange({ owner: e.target.value as DeliverableItem["owner"] })}
         title="Owner" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark]">
         {OWNERS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}

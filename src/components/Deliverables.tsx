@@ -276,6 +276,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       onRecipientSpec={(p) => patch(r.id, p)}
                       languages={r.languages || []}
                       onLanguagesChange={(languages) => patch(r.id, { languages })}
+                      aiLog={r.aiLog || []}
+                      onLogChange={(aiLog) => patch(r.id, { aiLog })}
                     />
                   </div>
 
