@@ -41,9 +41,17 @@ const INSTRUCTION =
 const CATEGORY = ["picture", "audio", "subtitles", "metadata", "marketing", "other"];
 const OWNER = ["", "post", "sound", "editorial", "vfx", "marketing", "production", "other"];
 
-const SCHEMA: Record<string, unknown> = {
-  type: "object",
-  properties: {
+const SPEC_INSTRUCTION =
+  "Also set the `recipient` object — this recipient's technical delivery spec: name, colour pipeline (dr), peak nits " +
+  "(if HDR), resolution, fps, container, audio config, loudness, true-peak, subtitles, textless — choosing ONLY allowed " +
+  "values. If the brief is just a platform name (e.g. 'TVNZ', 'Netflix', 'BBC'), fill that platform's standard known " +
+  "delivery spec and its name. Only set fields you're reasonably confident about; omit the rest.";
+
+type Opts = Record<string, (string | number)[]>;
+
+function schema(opts: Opts, wantSpec: boolean): Record<string, unknown> {
+  const en = (k: string) => (Array.isArray(opts[k]) && opts[k].length ? { enum: opts[k] } : {});
+  const properties: Record<string, unknown> = {
     items: {
       type: "array",
       description: "Every deliverable artifact, one entry each.",
@@ -59,9 +67,29 @@ const SCHEMA: Record<string, unknown> = {
         required: ["label", "category"],
       },
     },
-  },
-  required: ["items"],
-};
+  };
+  if (wantSpec) {
+    properties.recipient = {
+      type: "object",
+      description: "This recipient's technical delivery spec, inferred from the brief / platform.",
+      properties: {
+        name: { type: "string", description: "Platform / recipient name." },
+        region: { type: "string", ...en("region") },
+        dr: { type: "string", description: "Colour pipeline / dynamic range.", ...en("dr") },
+        peakNits: { type: "number", description: "HDR peak luminance in nits (only when an HDR tier)." },
+        resolution: { type: "string", ...en("resolution") },
+        fps: { type: "number", description: "Delivery frame rate.", ...en("fps") },
+        container: { type: "string", ...en("container") },
+        audio: { type: "string", ...en("audio") },
+        loudness: { type: "string", ...en("loudness") },
+        truePeak: { type: "string", ...en("truePeak") },
+        subtitles: { type: "string", ...en("subtitles") },
+        textless: { type: "boolean", description: "Whether a textless / clean master is required." },
+      },
+    };
+  }
+  return { type: "object", properties, required: ["items"] };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") { res.status(405).json({ error: "method_not_allowed" }); return; }
@@ -73,6 +101,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const brief: string = typeof body.brief === "string" ? body.brief : "";
     const documents: { name: string; mediaType: string; dataBase64: string }[] = Array.isArray(body.documents) ? body.documents : [];
     const existing: { label?: string; category?: string }[] = Array.isArray(body.existing) ? body.existing : [];
+    const specOptions: Opts = body.specOptions && typeof body.specOptions === "object" ? body.specOptions : {};
+    const wantSpec: boolean = typeof body.wantSpec === "boolean" ? body.wantSpec : existing.length === 0;
     if (!brief.trim() && documents.length === 0) { res.status(400).json({ error: "no_input", message: "Add a brief or attach a document." }); return; }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,6 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const lines = existing.filter((e) => e && typeof e.label === "string").map((e) => `- ${e.label}${e.category ? ` [${e.category}]` : ""}`).join("\n");
       if (lines) content.push({ type: "text", text: `ALREADY ON THIS RECIPIENT'S LIST — do NOT repeat these or their equivalents (the same artifact worded differently). Only return genuinely NEW artifacts the brief implies that are still missing:\n${lines}` });
     }
+    if (wantSpec) content.push({ type: "text", text: SPEC_INSTRUCTION });
     content.push({ type: "text", text: INSTRUCTION });
 
     const client = new Anthropic({ apiKey });
@@ -117,7 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       max_tokens: 8192,
       system: SYSTEM,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tools: [{ name: "deliverables_list", description: "Return the itemised deliverables punch-list.", input_schema: SCHEMA as any }],
+      tools: [{ name: "deliverables_list", description: "Return the recipient spec (if asked) + the itemised deliverables punch-list.", input_schema: schema(specOptions, wantSpec) as any }],
       tool_choice: { type: "tool", name: "deliverables_list" },
       messages: [{ role: "user", content }],
     });

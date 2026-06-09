@@ -101,20 +101,23 @@ const normKey = (label: string, category: string) => `${category}|${label.toLowe
 /** Send the brief + documents (+ what's already on the list) to the AI itemiser and return
  *  the NEW deliverable items only — deduped against `existing` and within the batch, so a
  *  Grow doesn't re-add what's already there. Returns [] if there's nothing new. */
-export async function buildDeliverablesList(brief: string, files: File[], existing: DeliverableItem[] = []): Promise<DeliverableItem[]> {
+export async function buildDeliverablesList(
+  brief: string, files: File[], existing: DeliverableItem[] = [], opts: Record<string, (string | number)[]> = {},
+): Promise<{ items: DeliverableItem[]; recipientRaw: unknown }> {
   const documents = await Promise.all(files.map(fileToDoc));
   const existingPayload = existing.filter((i) => i.label?.trim()).map((i) => ({ label: i.label, category: i.category }));
+  const wantSpec = existingPayload.length === 0; // fill the recipient spec only on the first build
   let resp: Response;
   try {
     resp = await fetch("/api/build-deliverables-list", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ brief, documents, existing: existingPayload }),
+      body: JSON.stringify({ brief, documents, existing: existingPayload, specOptions: opts, wantSpec }),
     });
   } catch {
     throw new Error("Couldn’t reach the AI service — it only runs on the deployed site, not local dev.");
   }
-  let data: { items?: unknown; message?: string } | null = null;
+  let data: { items?: unknown; recipient?: unknown; message?: string } | null = null;
   try { data = await resp.json(); } catch { /* non-JSON */ }
   if (!resp.ok) {
     if (resp.status === 404) throw new Error("AI endpoint not found — it runs on the deployed site, not local vite dev.");
@@ -132,5 +135,5 @@ export async function buildDeliverablesList(brief: string, files: File[], existi
     seen.add(k);
     out.push(item);
   }
-  return out;
+  return { items: out, recipientRaw: data?.recipient ?? null };
 }

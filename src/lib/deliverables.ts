@@ -126,6 +126,43 @@ export function newRecipient(name = "New recipient"): Recipient {
   };
 }
 
+// ---- AI recipient-spec helpers (per-recipient build fills the spec dropdowns too) ----
+export function specOptions() {
+  return {
+    region: REGIONS,
+    dr: DR_OPTIONS.map((d) => d.id),
+    resolution: RESOLUTION_OPTIONS,
+    fps: FPS_OPTIONS,
+    container: CONTAINER_OPTIONS,
+    audio: AUDIO_OPTIONS,
+    loudness: LOUDNESS_OPTIONS,
+    truePeak: TRUEPEAK_OPTIONS,
+    subtitles: SUBTITLE_OPTIONS,
+  };
+}
+
+const pickOpt = <T>(v: unknown, allowed: readonly T[]): T | undefined => ((allowed as readonly unknown[]).includes(v) ? (v as T) : undefined);
+
+/** Validate a raw AI recipient spec into a Partial<Recipient> patch — only fields with allowed values. */
+export function coerceRecipientSpec(raw: unknown): Partial<Recipient> {
+  if (!raw || typeof raw !== "object") return {};
+  const r = raw as Record<string, unknown>;
+  const p: Partial<Recipient> = {};
+  if (typeof r.name === "string" && r.name.trim()) p.name = r.name.trim();
+  const region = pickOpt(r.region, REGIONS); if (region) p.region = region;
+  const dr = pickOpt(r.dr as DRId, DR_OPTIONS.map((d) => d.id)); if (dr) p.dr = dr;
+  if (typeof r.peakNits === "number" && r.peakNits > 0) p.peakNits = r.peakNits;
+  const resolution = pickOpt(r.resolution, RESOLUTION_OPTIONS); if (resolution) p.resolution = resolution;
+  const fps = pickOpt(r.fps, FPS_OPTIONS); if (fps) p.fps = fps;
+  const container = pickOpt(r.container, CONTAINER_OPTIONS); if (container) p.container = container;
+  const audio = pickOpt(r.audio, AUDIO_OPTIONS); if (audio) p.audio = audio;
+  const loudness = pickOpt(r.loudness, LOUDNESS_OPTIONS); if (loudness) p.loudness = loudness;
+  const truePeak = pickOpt(r.truePeak, TRUEPEAK_OPTIONS); if (truePeak) p.truePeak = truePeak;
+  const subtitles = pickOpt(r.subtitles, SUBTITLE_OPTIONS); if (subtitles) p.subtitles = subtitles;
+  if (typeof r.textless === "boolean") p.textless = r.textless;
+  return p;
+}
+
 // ---- platform delivery templates ------------------------------------------
 // Starting-point specs for common platforms, web-verified mid-2026. NOT contracts —
 // every platform issues per-title specs through its partner portal; each note carries

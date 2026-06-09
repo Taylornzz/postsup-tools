@@ -249,6 +249,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       onItemsChange={(deliverables) => patch(r.id, { deliverables })}
                       autoFocus={focusBriefId === r.id}
                       sharedCount={shared}
+                      onRecipientSpec={(p) => patch(r.id, p)}
                     />
                   </div>
 

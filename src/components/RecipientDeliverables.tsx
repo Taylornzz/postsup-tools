@@ -6,18 +6,20 @@ import {
   CATEGORIES, OWNERS, newItem, buildDeliverablesList,
   type DeliverableItem, type DelivCategory,
 } from "@/lib/deliverablesList";
+import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
 
 /** A recipient's own deliverables punch-list. Controlled: operates on the recipient's
  *  brief + items (persisted by the parent). The AI brief box + document uploader build
  *  or grow the list; everything is also editable by hand. Used inside each recipient. */
 
-export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount }: {
+export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec }: {
   brief: string;
   items: DeliverableItem[];
   onBriefChange: (s: string) => void;
   onItemsChange: (items: DeliverableItem[]) => void;
   autoFocus?: boolean;
   sharedCount?: Map<string, number>;
+  onRecipientSpec?: (patch: Partial<Recipient>) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [building, setBuilding] = useState(false);
@@ -37,15 +39,22 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
     if (!brief.trim() && files.length === 0) { toast("Add a brief or attach a document first"); return; }
     setBuilding(true);
     try {
-      const built = await buildDeliverablesList(brief, files, items);
+      const wasEmpty = items.length === 0;
+      const { items: built, recipientRaw } = await buildDeliverablesList(brief, files, items, specOptions());
       setFiles([]);
-      if (built.length === 0) {
+      let specFilled = false;
+      if (wasEmpty && recipientRaw && onRecipientSpec) {
+        const patch = coerceRecipientSpec(recipientRaw);
+        if (Object.keys(patch).length) { onRecipientSpec(patch); specFilled = true; }
+      }
+      if (built.length > 0) onItemsChange([...items, ...built]);
+      if (built.length === 0 && !specFilled) {
         toast(items.length ? "Nothing new to add — the list already covers it" : "Couldn’t itemise that — try a clearer brief");
         return;
       }
-      onItemsChange([...items, ...built]);
       const out = built.filter((i) => !i.inScope).length;
-      toast.success(`${items.length ? "Added" : "Built"} ${built.length} item${built.length === 1 ? "" : "s"}`, { description: out ? `${out} flagged out of post's scope · verify each.` : "Verify and annotate each." });
+      const head = built.length ? `${items.length ? "Added" : "Built"} ${built.length} item${built.length === 1 ? "" : "s"}` : "Filled the spec";
+      toast.success(`${head}${specFilled && built.length ? " + filled the spec" : ""}`, { description: out ? `${out} flagged out of post's scope · verify each.` : "Verify the spec and each item." });
     } catch (e) {
       toast.error("Couldn’t build the list", { description: e instanceof Error ? e.message : "AI request failed." });
     } finally {
