@@ -96,13 +96,13 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
 
   // Picture
   if (hdr) {
-    out.push(["Feature master — HDR (clean / textless)", "picture"]);
-    out.push(["Feature master — SDR (clean / textless)", "picture"]);
+    out.push(["Picture master — HDR (clean / textless)", "picture"]);
+    out.push(["Picture master — SDR (clean / textless)", "picture"]);
     if (spec?.dr === "dolby-vision") out.push(["Dolby Vision metadata (XML)", "picture"]);
   } else {
-    out.push(["Feature master — clean / textless", "picture"]);
+    out.push(["Picture master — clean / textless", "picture"]);
   }
-  out.push(["Feature master — texted", "picture"]);
+  out.push(["Picture master — texted", "picture"]);
   out.push(["Textless elements (titles / graphics)", "picture"]);
   out.push(["Proxy / viewing copy", "picture"]);
 

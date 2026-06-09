@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.10";
+export const VERSION = "v2.7.11";
 const CHANGELOG = [
+  "v2.7.11 — Stopped calling a TV master a ‘feature’ (that means a film). The template + AI now use ‘Picture master’ for the generic picture deliverables; ‘feature’ is reserved for the actual theatrical DCP template.",
   "v2.7.10 — New ‘Feature film — DCP (theatrical)’ template at the top of Build from template. It sets the theatrical spec (DCI-P3, DCP, 24fps, 2K + 4K) and seeds the full theatrical punch-list: DCDM, DCP package (CPL/PKL/ASSETMAP), VF/version DCPs, trailer DCP, KDM keys (per-server, time-windowed), 5.1/7.1/Atmos printmasters, M&E, HI/VI-N accessibility tracks, subtitle/caption reels, and DCP QC.",
   "v2.7.9 — Bigger AI brief box by default on each recipient, so there's room to paste an email or notes without resizing (still resizable).",
   "v2.7.8 — Build from template now covers 27 platforms — added Disney+, Hulu, Paramount+, Peacock, Discovery+ and Discovery, Tubi, The Roku Channel, NBC, CBS, ABC, FOX, PBS, Scripps, A+E, AMC, ITV, Channel 4, Sky UK and ARD/ZDF (all starter specs — confirm per-title). The button now reads in caps to match the others, and the redundant ‘Add a recipient’ button is gone — use Build with AI or Build from template.",

@@ -20,7 +20,9 @@ const SYSTEM =
   "• M&E: ONE per configuration.\n" +
   "• Stems: ONE deliverable per configuration — the Dialogue/Music/Effects set together (note dipped vs undipped on " +
   "that one item). NEVER split into separate Dialogue, Music, Effects items.\n" +
-  "• Picture: clean/textless master, texted master, textless elements — one each.\n" +
+  "• Picture: clean/textless master, texted master, textless elements — one each. Call it a " +
+  "'Picture master' (or 'Programme master' for TV) — NEVER 'Feature master' unless it really is a theatrical " +
+  "feature film; 'feature' means a film and is confusing on a TV title.\n" +
   "• Subtitles/captions: one per language + type.\n\n" +
   "NOT deliverables — NEVER list these as items; they are requirements baked into a master, so fold them into the " +
   "relevant master's note or omit: sync pop / 2-pop, 1kHz line-up tone, bars, slates, leaders, head/tail build, " +
@@ -33,7 +35,7 @@ const SYSTEM =
 const INSTRUCTION =
   "Return this recipient's deliverables via the `deliverables_list` tool — ONE entry per DISTINCT artifact, no " +
   "duplicates, and with line-up / reference / QC requirements folded into a note rather than listed as their own " +
-  "items. For each: a clear canonical `label` (e.g. 'Feature — textless/clean', 'M&E — 5.1', 'Stems (D/M/E) — 5.1', " +
+  "items. For each: a clear canonical `label` (e.g. 'Picture master — clean/textless', 'M&E — 5.1', 'Stems (D/M/E) — 5.1', " +
   "'Closed captions (EN SDH)'); its `category`; whether it is in post's scope (`inScope` false for " +
   "publicity/marketing/EPK/stills/bios); the likely `owner`; and a short `notes` (a source quote, the channel map, " +
   "or 'confirm'). Be especially careful not to over-split audio.";
