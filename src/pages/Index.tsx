@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.0";
+export const VERSION = "v2.7.1";
 const CHANGELOG = [
+  "v2.7.1 — Hid the version badge in the header for now (still tracked in code, git and exports).",
   "v2.7.0 — Deliverables reworked around the recipient. Three clear ways in: Build with AI, Build from template, Build from clean — and every recipient is self-contained, with its own AI brief box + document uploader (drag &amp; drop; PDF, Word, Excel, images, text — Office docs read server-side) and its own itemised deliverables list (picture / audio / subs / paperwork / marketing), each item flagged in/out of post's scope with an owner + notes, AI-grown or hand-edited. Star the main deliverable (the hero others derive from). The build options + Open in Mastering moved to the top; the old make-plan block is gone (the plan still shows in the Workflow graph). New Production list — a make-once rollup that collapses identical artifacts (spec-aware, so a different loudness stays a separate make) and tags each ‘shared ×N’ with who needs it, while naming &amp; timing stay per-recipient.",
   "v2.6.0 — Deliverables list (the post-super's punch-list). A new section above the platform specs: paste/describe what you've been told to deliver and/or attach documents, hit Build the list, and the AI itemises every artifact — picture, audio (M&E, stems, fold-downs), subtitles/captions, paperwork — grouped by category, with each item flagged in/out of post's scope, an owner, and notes. It pre-flags publicity stills/cast bios/EPK as not-your-issue. Fully editable by hand. This replaces the old 'AI from spec' button. (v1 — more variations to come.) Also: Conversions & finishing is now a collapsible dropdown with the deliverable name shown next to each conversion.",
   "v2.5.0 — Deliverables: AI from spec. Upload a delivery spec / contract / platform tech-doc (PDF, image or text) and Claude reads it and fills the recipients — colour pipeline, peak nits, resolution, fps, container, audio, loudness, true-peak, subtitles — each field constrained to the app's own option sets, with a verbatim source quote on every field in the notes so you verify before delivering. Runs through a serverless function; the API key lives server-side only, never in the browser.",
@@ -2093,8 +2094,10 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
 };
 
 function VersionBadge() {
-  // Changelog kept in code (CHANGELOG above) for history, but no longer surfaced in the UI.
-  return <span className="text-[10px] text-suite-text-dim ml-2 font-mono">{VERSION}</span>;
+  // Version hidden from the UI for now (still tracked in code/git + exports). Restore by
+  // returning the span below.
+  return null;
+  // return <span className="text-[10px] text-suite-text-dim ml-2 font-mono">{VERSION}</span>;
 }
 
 function ThemeToggle() {
