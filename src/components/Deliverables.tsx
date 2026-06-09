@@ -91,7 +91,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
     document.body.style.userSelect = "none";
   };
 
-  const addFiles = async (recipientId: string, fileList: FileList) => {
+  const addFiles = async (recipientId: string, fileList: FileList | File[]) => {
     const metas: DocMeta[] = [];
     for (const f of Array.from(fileList)) {
       const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;

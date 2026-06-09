@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Paperclip, Trash2, Plus, Check, X, Languages, ChevronRight, FileText, Eye } from "lucide-react";
+import { Sparkles, Paperclip, Trash2, Plus, Check, X, Languages, ChevronRight, FileText, Eye, Cloud } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { pickDriveFiles, driveConfigured } from "@/lib/googleDrive";
 import {
   CATEGORIES, OWNERS, STATUSES, newItem, buildDeliverablesList, newLanguage, languageItems,
   type DeliverableItem, type DelivCategory, type DeliveryLanguage, type LangKind, type DelivStatus,
@@ -35,7 +36,7 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   aiLog?: { prompt: string; added: number; at: number }[];
   onLogChange?: (log: { prompt: string; added: number; at: number }[]) => void;
   documents?: DocMeta[];
-  onAttach?: (files: FileList) => void;
+  onAttach?: (files: FileList | File[]) => void;
   onOpenDoc?: (doc: DocMeta) => void;
   onRemoveDoc?: (doc: DocMeta) => void;
 }) {
@@ -52,6 +53,13 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   const removeItem = (id: string) => onItemsChange(items.filter((i) => i.id !== id));
   const addItem = (category: DelivCategory) => onItemsChange([...items, newItem(category)]);
   const attach = (list: FileList | null) => { if (list && list.length && onAttach) onAttach(list); };
+  const pickFromDrive = async () => {
+    if (!driveConfigured()) { toast("Google Drive isn’t connected yet", { description: "Add a Google OAuth client ID + API key (see docs/google-drive-setup.md), then redeploy." }); return; }
+    try {
+      const got = await pickDriveFiles();
+      if (got.length && onAttach) { onAttach(got); toast.success(`Imported ${got.length} file${got.length === 1 ? "" : "s"} from Drive`); }
+    } catch (e) { toast.error("Couldn’t import from Drive", { description: e instanceof Error ? e.message : "" }); }
+  };
 
   const build = async () => {
     if (!brief.trim() && docs.length === 0) { toast("Add a brief or attach a document first"); return; }
@@ -149,6 +157,9 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-2 py-1 text-[9.5px] tracking-[0.12em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Paperclip className="size-3" strokeWidth={1.6} /> Attach docs
+          </button>
+          <button onClick={pickFromDrive} title="Import deliverable docs from Google Drive (read-only)" className="flex items-center gap-1.5 px-2 py-1 text-[9.5px] tracking-[0.12em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+            <Cloud className="size-3" strokeWidth={1.6} /> Drive
           </button>
           <input ref={fileRef} type="file" multiple
             accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.md,image/png,image/jpeg,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
