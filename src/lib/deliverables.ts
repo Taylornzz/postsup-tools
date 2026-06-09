@@ -50,6 +50,21 @@ export interface Recipient {
   isMain?: boolean;                 // the main/hero deliverable — the others derive from it
   fpsNative?: boolean;              // accepts the native source frame rate (streamers) — no standards conversion
   languages?: DeliveryLanguage[];   // the OV + per-language VF version matrix
+  verified?: { at: string; source?: string; confidence?: "high" | "medium" | "low" }; // spec provenance / freshness
+}
+
+const TEMPLATE_VERIFIED_AT = "2026-06-01"; // when the starter platform specs were last web-checked
+
+/** How fresh a recipient's spec is — drives the staleness badge. Specs drift; a verified
+ *  date older than ~6 months should be re-checked against the platform's own delivery doc. */
+export function specStaleness(at?: string): { level: "fresh" | "aging" | "stale" | "none"; days: number; label: string } {
+  if (!at) return { level: "none", days: -1, label: "Spec not verified" };
+  const t = Date.parse(at);
+  if (isNaN(t)) return { level: "none", days: -1, label: "Spec not verified" };
+  const days = Math.floor((Date.now() - t) / 86400000);
+  if (days < 90) return { level: "fresh", days, label: days <= 1 ? "Verified today" : `Verified ${days}d ago` };
+  if (days < 180) return { level: "aging", days, label: `Verified ${Math.round(days / 30)}mo ago` };
+  return { level: "stale", days, label: `Unverified ${Math.round(days / 30)}mo` };
 }
 
 // ---- option sets (selects) ----
@@ -216,7 +231,8 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
 const NATIVE_FPS_IDS = new Set(["netflix", "amazon", "apple", "max", "disney", "hulu", "paramount-plus", "peacock", "discovery-plus", "tubi", "roku"]);
 
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
-  const r = { ...newRecipient(t.name), ...t.spec, name: t.name, fpsNative: NATIVE_FPS_IDS.has(t.id) };
+  const r = { ...newRecipient(t.name), ...t.spec, name: t.name, fpsNative: NATIVE_FPS_IDS.has(t.id),
+    verified: { at: TEMPLATE_VERIFIED_AT, confidence: "medium" as const, source: "Starter spec — confirm against the platform's partner portal" } };
   return { ...r, deliverables: templateDeliverables({ audio: r.audio, dr: r.dr, subtitles: r.subtitles, container: r.container }) };
 }
 

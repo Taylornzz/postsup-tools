@@ -15,6 +15,7 @@ import {
 } from "@/lib/deliverables";
 import type { CustomConfig, MasterNits } from "@/lib/mastering";
 import { RecipientDeliverables } from "./RecipientDeliverables";
+import { RecipientVerify } from "./RecipientVerify";
 import { ProductionList } from "./ProductionList";
 import { rollupDeliverables, shareCounts } from "@/lib/deliverablesRollup";
 
@@ -179,6 +180,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                     </select>
                     <button onClick={() => remove(r.id)} title="Remove recipient" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3.5" strokeWidth={1.6} /></button>
                   </div>
+
+                  <RecipientVerify recipient={r} onPatch={(p) => patch(r.id, p)} />
 
                   <div className="flex flex-wrap items-end gap-2.5">
                     <Field label="Colour / range">
