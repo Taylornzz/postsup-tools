@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.5.0";
+export const VERSION = "v2.6.0";
 const CHANGELOG = [
+  "v2.6.0 — Deliverables list (the post-super's punch-list). A new section above the platform specs: paste/describe what you've been told to deliver and/or attach documents, hit Build the list, and the AI itemises every artifact — picture, audio (M&E, stems, fold-downs), subtitles/captions, paperwork — grouped by category, with each item flagged in/out of post's scope, an owner, and notes. It pre-flags publicity stills/cast bios/EPK as not-your-issue. Fully editable by hand. This replaces the old 'AI from spec' button. (v1 — more variations to come.) Also: Conversions & finishing is now a collapsible dropdown with the deliverable name shown next to each conversion.",
   "v2.5.0 — Deliverables: AI from spec. Upload a delivery spec / contract / platform tech-doc (PDF, image or text) and Claude reads it and fills the recipients — colour pipeline, peak nits, resolution, fps, container, audio, loudness, true-peak, subtitles — each field constrained to the app's own option sets, with a verbatim source quote on every field in the notes so you verify before delivering. Runs through a serverless function; the API key lives server-side only, never in the browser.",
   "v2.4.2 — Light mode fix: the framing-chart labels (Source, the extraction / delivery box, reframe hints) were washing out — their pills had gone light, hiding the coloured text. The overlay chrome now stays dark on the image in both themes, like a scope, so the extraction text reads on any plate.",
   "v2.4.1 — Light mode is now a softer mid-grey instead of stark white (it was too bright), and the node graphs work in it: the Deliverables / Workflow / Mastering builders had light-on-light node text, a dark minimap and a pinned-dark canvas — all now follow the theme (React Flow’s own light/dark tracks the toggle). Dark mode unchanged.",

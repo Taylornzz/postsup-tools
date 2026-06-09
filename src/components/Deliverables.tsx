@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, AlertTriangle, ListChecks, Crown, ArrowDownToLine, Flame, Sparkles, Send,
-  Paperclip, FileText, GitBranch, Cloud, X,
+  Paperclip, FileText, GitBranch, Cloud, X, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,7 @@ import {
   type Recipient, type Region, type DRId, type Pass, type DocMeta, type Conversion,
 } from "@/lib/deliverables";
 import type { CustomConfig, MasterNits } from "@/lib/mastering";
-import { ingestDeliverySpec } from "@/lib/aiIngest";
+import { DeliverablesList } from "./DeliverablesList";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
@@ -33,8 +33,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
   const mastering = useMemo(() => recipientsToMasteringConfig(recipients), [recipients]);
   const [flowKey, setFlowKey] = useState(0);
-  const [ingesting, setIngesting] = useState(false);
-  const specInputRef = useRef<HTMLInputElement>(null);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
     setFlowKey((k) => k + 1);
@@ -48,19 +46,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
     if (!t) return;
     setRecipients((rs) => [...rs, recipientFromTemplate(t)]);
     toast.success(`Added ${t.name}`, { description: "Starter spec — confirm against the platform's current delivery document." });
-  };
-  const onSpecFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setIngesting(true);
-    try {
-      const found = await ingestDeliverySpec(Array.from(files));
-      setRecipients((rs) => [...rs, ...found]);
-      toast.success(`Read ${found.length} recipient${found.length === 1 ? "" : "s"} from the spec`, { description: "Each field carries its source quote in the notes — verify before you deliver." });
-    } catch (e) {
-      toast.error("AI ingest failed", { description: e instanceof Error ? e.message : "Couldn't read that spec." });
-    } finally {
-      setIngesting(false);
-    }
   };
   const remove = (id: string) => {
     const r = recipients.find((x) => x.id === id);
@@ -177,12 +162,15 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
               </>
             )}
             {plan.conversions.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-suite-border/60">
-                <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim mb-1.5">Conversions &amp; finishing</div>
-                <ul className="flex flex-col gap-1.5">
+              <details className="mt-3 pt-3 border-t border-suite-border/60 group">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim hover:text-suite-text select-none">
+                  <span>Conversions &amp; finishing <span className="text-suite-text-dim/60">· {plan.conversions.length}</span></span>
+                  <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" strokeWidth={2} />
+                </summary>
+                <ul className="flex flex-col gap-1.5 mt-2">
                   {plan.conversions.map((c, i) => <ConversionRow key={i} conv={c} />)}
                 </ul>
-              </div>
+              </details>
             )}
             {(plan.common.length > 0 || plan.watchOuts.length > 0) && (
               <div className="mt-3 pt-3 border-t border-suite-border/60 grid sm:grid-cols-2 gap-3">
@@ -206,9 +194,12 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
             )}
           </section>
 
-          {/* Recipients */}
+          <DeliverablesList projectId={projectId} />
+
+          {/* Recipients — the per-platform technical specs */}
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold mr-1">Platform specs</span>
               <button onClick={add} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
                 <Plus className="size-3" strokeWidth={2} /> Add recipient
               </button>
@@ -216,13 +207,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                 <option value="">+ From template…</option>
                 {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
-              <button onClick={() => specInputRef.current?.click()} disabled={ingesting}
-                title="AI reads an uploaded delivery spec / contract (PDF, image or text) and fills the recipients — with a source quote on every field"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20 disabled:opacity-50 transition-colors">
-                <Sparkles className="size-3" strokeWidth={2} /> {ingesting ? "Reading spec…" : "AI from spec…"}
-              </button>
-              <input ref={specInputRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp,.txt,.md,.csv" className="hidden"
-                onChange={(e) => { onSpecFiles(e.target.files); e.currentTarget.value = ""; }} />
             </div>
             {recipients.map((r) => {
               const checks = recipientChecklist(r);
@@ -408,9 +392,11 @@ function ConversionRow({ conv }: { conv: Conversion }) {
     <li className="flex items-start gap-2.5 rounded-sm border border-suite-border bg-suite-bg/50 px-2.5 py-1.5">
       <span className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full border shrink-0" style={{ color: m.color, borderColor: m.color + "66" }}>{m.tag}</span>
       <div className="min-w-0 flex-1">
-        <div className="font-mono text-[11px] text-suite-text">{conv.label}</div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-mono text-[11px] text-suite-text">{conv.label}</span>
+          {conv.covers.length > 0 && <span className="font-mono text-[9.5px] text-guide-target shrink-0 truncate max-w-[48%] text-right" title={conv.covers.join(" · ")}>{conv.covers.join(" · ")}</span>}
+        </div>
         <div className="font-mono text-[9.5px] text-suite-text-muted leading-relaxed">{conv.detail}</div>
-        {conv.covers.length > 0 && <div className="font-mono text-[9px] text-suite-text-dim mt-0.5">covers: {conv.covers.join(" · ")}</div>}
       </div>
     </li>
   );
