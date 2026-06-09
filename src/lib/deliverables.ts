@@ -449,7 +449,7 @@ export function saveRecipients(projectId: string | undefined, recipients: Recipi
 // ---- Commit → workflow graph (feeds the Custom Workflow builder) ----
 // Fans the make-plan out into a node-graph the existing WorkflowBuilder loads:
 // Conform → grade passes → per-recipient Package → QC → Deliver.
-type WFNode = { id: string; type: "step"; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string } };
+type WFNode = { id: string; type: "step"; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string; warn?: string } };
 type WFEdge = { id: string; source: string; target: string; data?: { label?: string } };
 
 export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes: WFNode[]; edges: WFEdge[] } {
@@ -513,12 +513,12 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
     const warns: string[] = [];
     if (fpsClash) warns.push(`convert ${heroFps}→${r.fps} fps`);
     if (reframe) warns.push(`reframe ${finishAR.toFixed(2)}:1→${(d.w / d.h).toFixed(2)}:1`);
-    const warn = warns.length > 0;
+    const hasWarn = warns.length > 0;
     const pkgDetail = `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`;
-    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: warn ? `⚠ Package: ${name} — ${warns.join(" · ")}` : `Package: ${name}`, owner: "Online / Mastering", detail: warn ? `⚠ ${warns.join(" · ")} · ${pkgDetail}` : pkgDetail, color: warn ? "#fb923c" : "#38bdf8" } });
+    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: pkgDetail, color: hasWarn ? "#fb923c" : "#38bdf8", warn: hasWarn ? warns.join(" · ") : undefined } });
     nodes.push({ id: qc, type: "step", position: { x, y: yQc }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
     nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
-    link(master, pkg, warn ? `⚠ ${warns.join(" · ")}` : "master");
+    link(master, pkg, hasWarn ? `⚠ ${warns.join(" · ")}` : "master");
     link(pkg, qc);
     link(qc, del);
   });

@@ -12,7 +12,7 @@ import "@xyflow/react/dist/style.css";
  *  measured — then stays put. The Controls "fit view" button re-frames on demand. */
 
 export type FlowGraph = {
-  nodes: { id: string; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string } }[];
+  nodes: { id: string; position: { x: number; y: number }; data: { label: string; owner?: string; detail?: string; color: string; warn?: string } }[];
   edges: { id: string; source: string; target: string; data?: { label?: string } }[];
 };
 
@@ -22,36 +22,50 @@ function loadPos(pid?: string): Record<string, { x: number; y: number }> {
 }
 
 function toNodes(g: FlowGraph, saved: Record<string, { x: number; y: number }>): Node[] {
-  return g.nodes.map((n) => ({
-    id: n.id,
-    position: saved[n.id] ?? n.position,
-    data: { label: n.data.label, color: n.data.color },
-    sourcePosition: Position.Bottom,
-    targetPosition: Position.Top,
-    style: {
-      background: n.data.color + "22",
-      border: `1px solid ${n.data.color}`,
-      color: "hsl(var(--suite-text))",
-      fontSize: 9,
-      fontFamily: "ui-monospace, Menlo, monospace",
-      width: 150,
-      borderRadius: 4,
-      padding: "6px 8px",
-      lineHeight: 1.2,
-      textAlign: "center" as const,
-    },
-  }));
+  return g.nodes.map((n) => {
+    const warn = n.data.warn;
+    return {
+      id: n.id,
+      position: saved[n.id] ?? n.position,
+      data: {
+        label: warn ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+            <span>{n.data.label}</span>
+            <span style={{ color: "#fb923c", fontSize: 8.5, fontWeight: 600, lineHeight: 1.3, letterSpacing: 0.2 }}>⚠ {warn}</span>
+          </div>
+        ) : n.data.label,
+        color: n.data.color,
+      },
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
+      style: {
+        background: n.data.color + "22",
+        border: `1px solid ${n.data.color}`,
+        color: "hsl(var(--suite-text))",
+        fontSize: 9,
+        fontFamily: "ui-monospace, Menlo, monospace",
+        width: warn ? 176 : 150,
+        borderRadius: 4,
+        padding: "6px 8px",
+        lineHeight: 1.2,
+        textAlign: "center" as const,
+      },
+    };
+  });
 }
 function toEdges(g: FlowGraph): Edge[] {
-  return g.edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    label: e.data?.label,
-    style: { stroke: "hsl(var(--suite-text-dim))", strokeWidth: 1.2 },
-    labelStyle: { fontSize: 8, fill: "hsl(var(--suite-text-muted))", fontFamily: "ui-monospace, monospace" },
-    labelBgStyle: { fill: "hsl(var(--suite-canvas))", fillOpacity: 0.9 },
-  }));
+  return g.edges.map((e) => {
+    const isWarn = (e.data?.label || "").includes("⚠");
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label: e.data?.label,
+      style: { stroke: isWarn ? "#fb923c" : "hsl(var(--suite-text-dim))", strokeWidth: isWarn ? 1.6 : 1.2 },
+      labelStyle: { fontSize: 8, fill: isWarn ? "#fb923c" : "hsl(var(--suite-text-muted))", fontFamily: "ui-monospace, monospace", fontWeight: isWarn ? 700 : 400 },
+      labelBgStyle: { fill: "hsl(var(--suite-canvas))", fillOpacity: 0.92 },
+    };
+  });
 }
 
 function Flow({ graph, projectId }: { graph: FlowGraph; projectId?: string }) {
