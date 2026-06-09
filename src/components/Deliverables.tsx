@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, Sparkles, Send, Copy,
-  Paperclip, FileText, GitBranch, X, ChevronRight, Star,
+  GitBranch, X, ChevronRight, Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -278,32 +278,13 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       onLanguagesChange={(languages) => patch(r.id, { languages })}
                       aiLog={r.aiLog || []}
                       onLogChange={(aiLog) => patch(r.id, { aiLog })}
+                      documents={r.documents || []}
+                      onAttach={(fl) => addFiles(r.id, fl)}
+                      onOpenDoc={openFile}
+                      onRemoveDoc={(d) => removeFile(r.id, d)}
                     />
                   </div>
 
-                  {/* Attachments — source docs for this recipient */}
-                  <div className="mt-2.5 pt-2.5 border-t border-suite-border/50">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim mr-0.5">Reference files</span>
-                      <label className="inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-suite-border text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong cursor-pointer font-mono text-[9.5px]">
-                        <Paperclip className="size-3" strokeWidth={1.7} /> Add file
-                        <input type="file" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) addFiles(r.id, e.target.files); e.target.value = ""; }} />
-                      </label>
-                      <span className="font-mono text-[8.5px] text-suite-text-dim">kept on device for reference — to have the AI read a spec, drop it on the brief box above</span>
-                    </div>
-                    {(r.documents || []).length > 0 && (
-                      <div className="mt-1.5 flex flex-col gap-1">
-                        {(r.documents || []).map((doc) => (
-                          <div key={doc.id} className="flex items-center gap-2 font-mono text-[10px]">
-                            <FileText className="size-3 text-suite-text-dim shrink-0" strokeWidth={1.6} />
-                            <button onClick={() => openFile(doc)} className="truncate text-suite-text-muted hover:text-guide-target text-left">{doc.name}</button>
-                            <span className="text-suite-text-dim shrink-0">{fmtSize(doc.size)} · {new Date(doc.addedAt).toLocaleDateString()}</span>
-                            <button onClick={() => removeFile(r.id, doc)} title="Remove" className="ml-auto text-suite-text-dim hover:text-destructive shrink-0"><X className="size-3" strokeWidth={2} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
                   <div className="mt-2 font-mono text-[9.5px] text-suite-text-dim">{checks.length} variables to confirm{(r.documents || []).length ? ` · ${(r.documents || []).length} doc${(r.documents || []).length === 1 ? "" : "s"} attached` : ""}{r.notes ? ` · ${r.notes}` : ""}</div>
                 </div>
@@ -355,7 +336,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const fmtSize = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b >= 1e3 ? `${Math.round(b / 1e3)} KB` : `${b} B`);
 
 
 // Re-seed helper — the three starter rows from the brief (all editable).

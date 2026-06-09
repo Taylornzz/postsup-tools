@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Paperclip, Trash2, Plus, Check, X, Languages, ChevronRight } from "lucide-react";
+import { Sparkles, Paperclip, Trash2, Plus, Check, X, Languages, ChevronRight, FileText, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   CATEGORIES, OWNERS, STATUSES, newItem, buildDeliverablesList, newLanguage, languageItems,
   type DeliverableItem, type DelivCategory, type DeliveryLanguage, type LangKind, type DelivStatus,
 } from "@/lib/deliverablesList";
-import { specOptions, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
+import { specOptions, coerceRecipientSpec, type Recipient, type DocMeta } from "@/lib/deliverables";
+import { getFile } from "@/lib/fileStore";
 
 const statusClass = (s?: DelivStatus) =>
   s === "delivered" || s === "accepted" ? "text-emerald-400 border-emerald-400/40"
@@ -15,11 +16,13 @@ const statusClass = (s?: DelivStatus) =>
   : s === "wip" ? "text-guide-source border-guide-source/40"
   : "text-suite-text-dim border-suite-border";
 
+const fmtSize = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b >= 1e3 ? `${Math.round(b / 1e3)} KB` : `${b} B`);
+
 /** A recipient's own deliverables punch-list. Controlled: operates on the recipient's
  *  brief + items (persisted by the parent). The AI brief box + document uploader build
  *  or grow the list; everything is also editable by hand. Used inside each recipient. */
 
-export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, languages, onLanguagesChange, aiLog, onLogChange }: {
+export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, languages, onLanguagesChange, aiLog, onLogChange, documents, onAttach, onOpenDoc, onRemoveDoc }: {
   brief: string;
   items: DeliverableItem[];
   onBriefChange: (s: string) => void;
@@ -31,9 +34,13 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   onLanguagesChange?: (langs: DeliveryLanguage[]) => void;
   aiLog?: { prompt: string; added: number; at: number }[];
   onLogChange?: (log: { prompt: string; added: number; at: number }[]) => void;
+  documents?: DocMeta[];
+  onAttach?: (files: FileList) => void;
+  onOpenDoc?: (doc: DocMeta) => void;
+  onRemoveDoc?: (doc: DocMeta) => void;
 }) {
-  const [files, setFiles] = useState<File[]>([]);
   const [building, setBuilding] = useState(false);
+  const docs = documents || [];
   const [addCat, setAddCat] = useState<DelivCategory>("picture");
   const [dragActive, setDragActive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -44,15 +51,15 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   const setItem = (id: string, patch: Partial<DeliverableItem>) => onItemsChange(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   const removeItem = (id: string) => onItemsChange(items.filter((i) => i.id !== id));
   const addItem = (category: DelivCategory) => onItemsChange([...items, newItem(category)]);
-  const attach = (list: FileList | null) => { if (list && list.length) setFiles((f) => [...f, ...Array.from(list)]); };
+  const attach = (list: FileList | null) => { if (list && list.length && onAttach) onAttach(list); };
 
   const build = async () => {
-    if (!brief.trim() && files.length === 0) { toast("Add a brief or attach a document first"); return; }
+    if (!brief.trim() && docs.length === 0) { toast("Add a brief or attach a document first"); return; }
     setBuilding(true);
     try {
       const wasEmpty = items.length === 0;
-      const { items: built, recipientRaw } = await buildDeliverablesList(brief, files, items, specOptions());
-      setFiles([]);
+      const docFiles = (await Promise.all(docs.map(async (d) => { const blob = await getFile(d.id); return blob ? new File([blob], d.name, { type: d.type }) : null; }))).filter(Boolean) as File[];
+      const { items: built, recipientRaw } = await buildDeliverablesList(brief, docFiles, items, specOptions());
       let specFilled = false;
       if (wasEmpty && recipientRaw && onRecipientSpec) {
         const patch = coerceRecipientSpec(recipientRaw);
@@ -64,7 +71,7 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
         return; // keep the brief so you can refine it
       }
       // success → log the request to the history, then clear the box for the next one
-      if (onLogChange && (brief.trim() || files.length)) onLogChange([...(aiLog || []), { prompt: brief.trim() || `${files.length} document(s)`, added: built.length, at: Date.now() }].slice(-12));
+      if (onLogChange && (brief.trim() || docs.length)) onLogChange([...(aiLog || []), { prompt: brief.trim() || `${docs.length} document(s)`, added: built.length, at: Date.now() }].slice(-12));
       onBriefChange("");
       const out = built.filter((i) => !i.inScope).length;
       const head = built.length ? `${items.length ? "Added" : "Built"} ${built.length} item${built.length === 1 ? "" : "s"}` : "Filled the spec";
@@ -126,13 +133,16 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
         <textarea ref={briefRef} value={brief} onChange={(e) => onBriefChange(e.target.value)} rows={5}
           placeholder="Describe what this recipient needs — paste the email / call notes / a delivery clause…"
           className="w-full resize-y bg-transparent text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none leading-relaxed" />
-        {files.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {files.map((f, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm border border-suite-border bg-suite-panel font-mono text-[9.5px] text-suite-text-muted">
-                <Paperclip className="size-2.5" strokeWidth={1.6} /> <span className="truncate max-w-[16ch]">{f.name}</span>
-                <button onClick={() => setFiles((fs) => fs.filter((_, j) => j !== i))} className="text-suite-text-dim hover:text-destructive"><X className="size-2.5" strokeWidth={2} /></button>
-              </span>
+        {docs.length > 0 && (
+          <div className="flex flex-col gap-1">
+            {docs.map((d) => (
+              <div key={d.id} className="flex items-center gap-1.5 px-1.5 py-1 rounded-sm border border-suite-border bg-suite-panel font-mono text-[9.5px] text-suite-text-muted">
+                <FileText className="size-3 shrink-0 text-suite-text-dim" strokeWidth={1.6} />
+                <button onClick={() => onOpenDoc?.(d)} title="Open / preview" className="flex-1 min-w-0 truncate text-left hover:text-guide-source">{d.name}</button>
+                <span className="shrink-0 text-suite-text-dim">{fmtSize(d.size)}</span>
+                <button onClick={() => onOpenDoc?.(d)} title="Open / preview" className="shrink-0 text-suite-text-dim hover:text-guide-source"><Eye className="size-3" strokeWidth={1.7} /></button>
+                <button onClick={() => onRemoveDoc?.(d)} title="Remove" className="shrink-0 text-suite-text-dim hover:text-destructive"><X className="size-2.5" strokeWidth={2} /></button>
+              </div>
             ))}
           </div>
         )}
@@ -146,7 +156,7 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
           <button onClick={build} disabled={building} className="flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20 disabled:opacity-50 transition-colors">
             <Sparkles className={cn("size-3", building && "animate-pulse")} strokeWidth={2} /> {building ? "Working…" : items.length ? "Grow with AI" : "Build with AI"}
           </button>
-          <span className="font-mono text-[9px] text-suite-text-dim">Drag &amp; drop or attach — PDF, Word, Excel, images, text.</span>
+          <span className="font-mono text-[9px] text-suite-text-dim">Drag &amp; drop or attach — PDF, Word, Excel, images, text. Kept on this device; click to re-open.</span>
         </div>
       </div>
 
@@ -216,35 +226,41 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
 
 function ItemRow({ item, shared, onChange, onRemove }: { item: DeliverableItem; shared?: number; onChange: (patch: Partial<DeliverableItem>) => void; onRemove: () => void }) {
   return (
-    <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-sm border flex-wrap", item.inScope ? "border-suite-border bg-suite-bg/40" : "border-suite-border/40 bg-transparent")}>
-      <button onClick={() => onChange({ inScope: !item.inScope })}
-        title={item.inScope ? "In your scope — click to mark “not my issue”" : "Not your issue — click to claim it"}
-        className={cn("shrink-0 size-3.5 rounded-[3px] border grid place-items-center transition-colors", item.inScope ? "bg-guide-target/15 border-guide-target text-guide-target" : "border-suite-text-dim text-transparent")}>
-        {item.inScope ? <Check className="size-2.5" strokeWidth={3} /> : null}
-      </button>
-      <input value={item.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="Deliverable…"
-        className={cn("flex-1 min-w-[8rem] bg-transparent text-[11px] font-mono focus:outline-none", item.inScope ? "text-suite-text" : "text-suite-text-dim line-through")} />
-      {shared && shared > 1 && (
-        <span title={`Same artifact as ${shared - 1} other recipient${shared - 1 === 1 ? "" : "s"} — produced once, not a separate make`}
-          className="shrink-0 font-mono text-[8px] uppercase tracking-[0.1em] px-1 py-0.5 rounded-full border border-guide-target/40 text-guide-target/90">shared ×{shared}</span>
-      )}
-      {(item.version || 1) > 1 && <span className="shrink-0 font-mono text-[8px] text-status-warn" title="Redelivery version">v{item.version}</span>}
-      <select value={item.category} onChange={(e) => onChange({ category: e.target.value as DelivCategory })}
-        title="Category — change this to move the item to another group" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark] max-w-[6.5rem]">
-        {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-      </select>
-      <select value={item.owner} onChange={(e) => onChange({ owner: e.target.value as DeliverableItem["owner"] })}
-        title="Owner" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark]">
-        {OWNERS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-      </select>
-      <select value={item.status || "todo"} title="Delivery / QC status — Redeliver bumps the version"
-        onChange={(e) => { const v = e.target.value as DelivStatus; onChange({ status: v, ...(v === "redeliver" && item.status !== "redeliver" ? { version: (item.version || 1) + 1 } : {}) }); }}
-        className={cn("shrink-0 bg-suite-bg border rounded-sm px-1 py-0.5 text-[9px] font-mono focus:outline-none [color-scheme:dark]", statusClass(item.status))}>
-        {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-      </select>
-      <input value={item.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="notes…"
-        className="flex-1 min-w-0 bg-transparent text-[10px] font-mono text-suite-text-muted placeholder:text-suite-text-dim focus:outline-none" />
-      <button onClick={onRemove} title="Remove" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3" strokeWidth={1.6} /></button>
+    <div className={cn("flex flex-col gap-1 px-2 py-1.5 rounded-sm border", item.inScope ? "border-suite-border bg-suite-bg/40" : "border-suite-border/40 bg-transparent")}>
+      {/* Row 1 — the deliverable name, full width so it's readable */}
+      <div className="flex items-center gap-2">
+        <button onClick={() => onChange({ inScope: !item.inScope })}
+          title={item.inScope ? "In your scope — click to mark “not my issue”" : "Not your issue — click to claim it"}
+          className={cn("shrink-0 size-3.5 rounded-[3px] border grid place-items-center transition-colors", item.inScope ? "bg-guide-target/15 border-guide-target text-guide-target" : "border-suite-text-dim text-transparent")}>
+          {item.inScope ? <Check className="size-2.5" strokeWidth={3} /> : null}
+        </button>
+        <input value={item.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="Deliverable…"
+          className={cn("flex-1 min-w-0 bg-transparent text-[11px] font-mono focus:outline-none", item.inScope ? "text-suite-text" : "text-suite-text-dim line-through")} />
+        {shared && shared > 1 && (
+          <span title={`Same artifact as ${shared - 1} other recipient${shared - 1 === 1 ? "" : "s"} — produced once, not a separate make`}
+            className="shrink-0 font-mono text-[8px] uppercase tracking-[0.1em] px-1 py-0.5 rounded-full border border-guide-target/40 text-guide-target/90">shared ×{shared}</span>
+        )}
+        {(item.version || 1) > 1 && <span className="shrink-0 font-mono text-[8px] text-status-warn" title="Redelivery version">v{item.version}</span>}
+        <button onClick={onRemove} title="Remove" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3" strokeWidth={1.6} /></button>
+      </div>
+      {/* Row 2 — category · owner · status · notes, indented under the name */}
+      <div className="flex items-center gap-1.5 flex-wrap pl-[22px]">
+        <select value={item.category} onChange={(e) => onChange({ category: e.target.value as DelivCategory })}
+          title="Category — change this to move the item to another group" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark]">
+          {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        <select value={item.owner} onChange={(e) => onChange({ owner: e.target.value as DeliverableItem["owner"] })}
+          title="Owner" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark]">
+          {OWNERS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        <select value={item.status || "todo"} title="Delivery / QC status — Redeliver bumps the version"
+          onChange={(e) => { const v = e.target.value as DelivStatus; onChange({ status: v, ...(v === "redeliver" && item.status !== "redeliver" ? { version: (item.version || 1) + 1 } : {}) }); }}
+          className={cn("shrink-0 bg-suite-bg border rounded-sm px-1 py-0.5 text-[9px] font-mono focus:outline-none [color-scheme:dark]", statusClass(item.status))}>
+          {STATUSES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+        <input value={item.notes} onChange={(e) => onChange({ notes: e.target.value })} placeholder="notes…"
+          className="flex-1 min-w-[8rem] bg-transparent text-[10px] font-mono text-suite-text-muted placeholder:text-suite-text-dim focus:outline-none" />
+      </div>
     </div>
   );
 }
