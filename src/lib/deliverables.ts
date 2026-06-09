@@ -476,16 +476,30 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
     p.covers.forEach((name) => { gradeForName[name] = gid; });
   });
 
+  // Hero cadence — the framerate the grade finishes at: the starred (⭐ main) recipient if
+  // set, else the most common fps. A recipient at a different fps needs a standards conversion
+  // off the hero — flag it, it's a quality step (interpolate / pulldown / speed change), not free.
+  const heroFps = (() => {
+    const star = recipients.find((r) => r.isMain && r.fps);
+    if (star) return star.fps;
+    const byFps = new Map<number, number>();
+    recipients.forEach((r) => { if (r.fps) byFps.set(r.fps, (byFps.get(r.fps) || 0) + 1); });
+    const top = [...byFps.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+    return top ? top[0] : 0;
+  })();
+
   recipients.forEach((r, i) => {
     const x = i * COLW;
     const name = r.name || "Untitled";
     const master = gradeForName[name] ?? heroId ?? srcId;
     const rid = r.id || `i${i}`;
     const pkg = `dlv-pkg-${rid}`, qc = `dlv-qc-${rid}`, del = `dlv-del-${rid}`;
-    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`, color: "#38bdf8" } });
+    const fpsClash = heroFps > 0 && r.fps > 0 && r.fps !== heroFps;
+    const pkgDetail = `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`;
+    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: fpsClash ? `⚠ Package: ${name} — convert ${heroFps}→${r.fps} fps` : `Package: ${name}`, owner: "Online / Mastering", detail: fpsClash ? `⚠ Standards convert ${heroFps}→${r.fps} fps · ${pkgDetail}` : pkgDetail, color: fpsClash ? "#fb923c" : "#38bdf8" } });
     nodes.push({ id: qc, type: "step", position: { x, y: yQc }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
     nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
-    link(master, pkg, "master");
+    link(master, pkg, fpsClash ? `⚠ ${heroFps}→${r.fps} fps` : "master");
     link(pkg, qc);
     link(qc, del);
   });
