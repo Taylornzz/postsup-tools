@@ -24,8 +24,10 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 // carry real content differences (a different loudness IS a different render); subs/metadata
 // are keyed on the label alone for now.
 function specFor(cat: DelivCategory, r: Recipient): string {
-  if (cat === "audio") return [r.loudness, r.truePeak].filter(Boolean).join(" · ");
-  if (cat === "picture") return [r.resolution, drLabel(r.dr)].filter(Boolean).join(" · ");
+  // Identity must distinguish a genuinely different render: a different frame rate IS a
+  // different picture master; a different channel layout IS a different audio render.
+  if (cat === "audio") return [r.audio, r.loudness, r.truePeak].filter(Boolean).join(" · ");
+  if (cat === "picture") return [r.resolution, drLabel(r.dr), r.fps ? `${r.fps} fps` : ""].filter(Boolean).join(" · ");
   return "";
 }
 

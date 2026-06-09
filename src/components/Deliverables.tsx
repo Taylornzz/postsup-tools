@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
-  PackageCheck, Plus, Trash2, AlertTriangle, ListChecks, Crown, ArrowDownToLine, Flame, Sparkles, Send,
+  PackageCheck, Plus, Trash2, Sparkles, Send,
   Paperclip, FileText, GitBranch, Cloud, X, ChevronRight, Star,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import {
   buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL, DELIVERY_TEMPLATES, recipientFromTemplate,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, TRUEPEAK_OPTIONS, TRUEPEAK_BY_REGION, isHdr,
-  type Recipient, type Region, type DRId, type Pass, type DocMeta, type Conversion,
+  type Recipient, type Region, type DRId, type DocMeta,
 } from "@/lib/deliverables";
 import type { CustomConfig, MasterNits } from "@/lib/mastering";
 import { RecipientDeliverables } from "./RecipientDeliverables";
@@ -163,7 +163,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                 <div key={r.id} className={cn("rounded-md border bg-suite-panel/60 px-3.5 py-3", r.isMain ? "border-guide-target/50" : "border-suite-border")}>
                   <div className="flex items-center gap-2 mb-2.5">
                     <button onClick={() => setMain(r.id)}
-                      title={r.isMain ? "Main deliverable — the others derive from it. Click to unset." : "Mark as the main deliverable (the hero the others derive from)"}
+                      title={r.isMain ? "Main deliverable — sets the source cadence the others convert from. Click to unset." : "Mark as the main deliverable — sets the source frame-rate the others derive from (grade order itself is set by dynamic range in Mastering)"}
                       className={cn("shrink-0 transition-colors", r.isMain ? "text-guide-target" : "text-suite-text-dim hover:text-suite-text")}>
                       <Star className="size-3.5" strokeWidth={1.7} fill={r.isMain ? "currentColor" : "none"} />
                     </button>
@@ -302,11 +302,11 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
             )}
           </div>
 
-          {/* Phase-1 note */}
+          {/* How-to note */}
           <div className="flex gap-2 rounded-sm border border-guide-target/30 bg-guide-target/5 px-3 py-2">
             <Sparkles className="size-3.5 shrink-0 text-guide-target mt-0.5" strokeWidth={1.6} />
             <p className="font-mono text-[10px] leading-relaxed text-suite-text-dim">
-              Attach the contract / spec / email to a recipient — it's stored on this device. <span className="text-suite-text-muted">Coming next: an AI reads those docs and pre-fills each recipient</span> with the source line beside every field so you verify it. Cloud-drive connect (Drive / Box / OneDrive) lands then too.
+              <span className="text-suite-text-muted">Drop a spec, email or call notes onto any recipient's AI box</span> — it itemises the deliverables and fills the spec dropdowns, which you then verify against the platform's own delivery document. Everything stays on this device. Cloud-drive connect (Drive / Box / OneDrive) is still to come.
             </p>
           </div>
         </div>
@@ -327,53 +327,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
         </aside>
       </div>
     </div>
-  );
-}
-
-const PASS_META = {
-  hero: { icon: Crown, color: "#f59e0b", tag: "GRADE" },
-  derive: { icon: ArrowDownToLine, color: "#34d399", tag: "DERIVE" },
-  regrade: { icon: Flame, color: "#f87171", tag: "RE-GRADE" },
-} as const;
-
-function PassRow({ index, pass }: { index: number; pass: Pass }) {
-  const m = PASS_META[pass.kind];
-  return (
-    <li className="flex items-start gap-2.5 rounded-sm border border-suite-border bg-suite-bg/50 px-2.5 py-2">
-      <span className="mt-0.5 font-mono text-[10px] text-suite-text-dim tabular w-4 shrink-0">{index + 1}</span>
-      <m.icon className="size-3.5 mt-0.5 shrink-0" strokeWidth={1.7} style={{ color: m.color }} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[12px] text-suite-text font-semibold">{pass.label}</span>
-          <span className="font-mono text-[8px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-full border" style={{ color: m.color, borderColor: m.color + "66" }}>{m.tag}</span>
-          {pass.flag && <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-status-warn">fresh pass</span>}
-        </div>
-        {pass.note && <p className="font-mono text-[10px] text-suite-text-muted leading-relaxed mt-0.5">{pass.note}</p>}
-        {pass.covers.length > 0 && <p className="font-mono text-[9.5px] text-suite-text-dim mt-0.5">covers: {pass.covers.join(" · ")}</p>}
-      </div>
-    </li>
-  );
-}
-
-const CONV_META = {
-  standards: { color: "#fbbf24", tag: "STANDARDS" },
-  downscale: { color: "#38bdf8", tag: "DOWN-SCALE" },
-  reframe: { color: "#f87171", tag: "REFRAME" },
-} as const;
-
-function ConversionRow({ conv }: { conv: Conversion }) {
-  const m = CONV_META[conv.kind];
-  return (
-    <li className="flex items-start gap-2.5 rounded-sm border border-suite-border bg-suite-bg/50 px-2.5 py-1.5">
-      <span className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full border shrink-0" style={{ color: m.color, borderColor: m.color + "66" }}>{m.tag}</span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono text-[11px] text-suite-text">{conv.label}</span>
-          {conv.covers.length > 0 && <span className="font-mono text-[9.5px] text-guide-target shrink-0 truncate max-w-[48%] text-right" title={conv.covers.join(" · ")}>{conv.covers.join(" · ")}</span>}
-        </div>
-        <div className="font-mono text-[9.5px] text-suite-text-muted leading-relaxed">{conv.detail}</div>
-      </div>
-    </li>
   );
 }
 

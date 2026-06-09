@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.14";
+export const VERSION = "v2.7.15";
 const CHANGELOG = [
+  "v2.7.15 — Deliverables audit fixes. The make-once Production list now keys artifacts on frame rate + audio channel layout, so a 23.976 and a 25 master (or a 5.1 and a 7.1) no longer wrongly collapse into one ‘shared — make once’ row. Corrected platform notes (Disney+ is -24 not -27 LKFS; Apple's mandatory SDR companion; Netflix ProRes-by-agreement; Max Atmos true-peak ≈ -0.1 dBTP). Fixed the stale ‘AI coming next’ note and the ⭐ tooltip (it sets the source cadence, not the grade hero), and removed dead make-plan code.",
   "v2.7.14 — Workflow warnings are easier to read: the package node keeps a clean name and shows the caution as a separate amber line (⚠ convert 23.976→25 fps), with the warning edge drawn in amber too.",
   "v2.7.13 — Smarter frame-rate warning. Streaming platforms ingest at the native source frame rate, so they no longer trigger a standards-conversion warning even when their fps differs from the hero — only fps-LOCKED broadcasters (25 PAL / 29.97 NTSC) get flagged. Each recipient now has a ‘native fps’ toggle (templates + the AI set it: streamers on, broadcasters off). The Workflow also flags a reframe (aspect change) now — a clean down-scale at the same aspect is left alone.",
   "v2.7.12 — The Workflow now flags a frame-rate clash: any recipient whose fps differs from the hero (the ⭐ main recipient, or the most common cadence if none is starred) gets an amber Package node — ‘⚠ convert 23.976→25 fps’ — and the master edge is labelled with the conversion. Standards conversion is a quality step (interpolate / pulldown / speed change), not a free re-stamp.",
