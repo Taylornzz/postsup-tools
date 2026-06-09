@@ -17,6 +17,7 @@ import {
   type CustomConfig, type CustomHero, type CustomDeliverable, type MasterNits,
   type MakeStep, type MasterFamily,
 } from "./mastering";
+import type { DeliverableItem } from "./deliverablesList";
 
 export type Region = "US" | "UK" | "EU" | "AU" | "NZ" | "Other";
 export type DRTier = "hdr" | "theatrical" | "sdr";
@@ -44,6 +45,9 @@ export interface Recipient {
   qc: string;
   notes: string;
   documents?: DocMeta[];
+  brief?: string;                   // the AI brief for this recipient's deliverables
+  deliverables?: DeliverableItem[]; // this recipient's itemised punch-list
+  isMain?: boolean;                 // the main/hero deliverable — the others derive from it
 }
 
 // ---- option sets (selects) ----
@@ -118,7 +122,7 @@ export function newRecipient(name = "New recipient"): Recipient {
     id: uid(), name, region: "US", dr: "sdr", peakNits: 1000,
     resolution: "UHD 3840×2160", fps: 23.976, container: "ProRes 422 HQ",
     audio: "5.1", loudness: LOUDNESS_BY_REGION.US, truePeak: TRUEPEAK_BY_REGION.US, subtitles: "Closed captions (CEA-608/708)",
-    textless: true, naming: "", qc: "", notes: "", documents: [],
+    textless: true, naming: "", qc: "", notes: "", documents: [], brief: "", deliverables: [], isMain: false,
   };
 }
 

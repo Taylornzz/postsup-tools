@@ -1,45 +1,47 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, Paperclip, Trash2, Plus, Check, ListChecks, X } from "lucide-react";
+import { Sparkles, Paperclip, Trash2, Plus, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  CATEGORIES, OWNERS, newItem, loadList, saveList, loadBrief, saveBrief, buildDeliverablesList,
+  CATEGORIES, OWNERS, newItem, buildDeliverablesList,
   type DeliverableItem, type DelivCategory,
 } from "@/lib/deliverablesList";
 
-/** The master deliverables list (punch-list). A natural-language brief + uploaded docs →
- *  AI itemises every artifact (picture / audio / subs / paperwork / marketing), each
- *  flagged in/out of post's scope with an owner + notes, then freely edited. Per-project. */
+/** A recipient's own deliverables punch-list. Controlled: operates on the recipient's
+ *  brief + items (persisted by the parent). The AI brief box + document uploader build
+ *  or grow the list; everything is also editable by hand. Used inside each recipient. */
 
-const sel = "bg-suite-bg border border-suite-border rounded-sm px-1.5 py-1 text-[10px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]";
-
-export function DeliverablesList({ projectId }: { projectId?: string }) {
-  const [items, setItems] = useState<DeliverableItem[]>(() => loadList(projectId));
-  const [brief, setBrief] = useState<string>(() => loadBrief(projectId));
+export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount }: {
+  brief: string;
+  items: DeliverableItem[];
+  onBriefChange: (s: string) => void;
+  onItemsChange: (items: DeliverableItem[]) => void;
+  autoFocus?: boolean;
+  sharedCount?: Map<string, number>;
+}) {
   const [files, setFiles] = useState<File[]>([]);
   const [building, setBuilding] = useState(false);
   const [addCat, setAddCat] = useState<DelivCategory>("picture");
+  const [dragActive, setDragActive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const briefRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { saveList(projectId, items); }, [items, projectId]);
-  useEffect(() => { saveBrief(projectId, brief); }, [brief, projectId]);
-  // reload when switching project
-  useEffect(() => { setItems(loadList(projectId)); setBrief(loadBrief(projectId)); }, [projectId]);
+  useEffect(() => { if (autoFocus) briefRef.current?.focus(); }, [autoFocus]);
 
-  const setItem = (id: string, patch: Partial<DeliverableItem>) => setItems((is) => is.map((i) => (i.id === id ? { ...i, ...patch } : i)));
-  const removeItem = (id: string) => setItems((is) => is.filter((i) => i.id !== id));
-  const addItem = (category: DelivCategory) => setItems((is) => [...is, newItem(category)]);
-
+  const setItem = (id: string, patch: Partial<DeliverableItem>) => onItemsChange(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  const removeItem = (id: string) => onItemsChange(items.filter((i) => i.id !== id));
+  const addItem = (category: DelivCategory) => onItemsChange([...items, newItem(category)]);
   const attach = (list: FileList | null) => { if (list && list.length) setFiles((f) => [...f, ...Array.from(list)]); };
+
   const build = async () => {
     if (!brief.trim() && files.length === 0) { toast("Add a brief or attach a document first"); return; }
     setBuilding(true);
     try {
       const built = await buildDeliverablesList(brief, files);
-      setItems((is) => [...is, ...built]);
+      onItemsChange([...items, ...built]);
       setFiles([]);
       const out = built.filter((i) => !i.inScope).length;
-      toast.success(`Itemised ${built.length} deliverable${built.length === 1 ? "" : "s"}`, { description: `${out} flagged out of post's scope · verify and annotate each one.` });
+      toast.success(`${items.length ? "Grew" : "Built"} the list — ${built.length} item${built.length === 1 ? "" : "s"}`, { description: `${out} flagged out of post's scope · verify and annotate each.` });
     } catch (e) {
       toast.error("Couldn’t build the list", { description: e instanceof Error ? e.message : "AI request failed." });
     } finally {
@@ -50,22 +52,26 @@ export function DeliverablesList({ projectId }: { projectId?: string }) {
   const inScope = items.filter((i) => i.inScope).length;
 
   return (
-    <section className="rounded-md border border-suite-border bg-suite-panel/60 px-3.5 py-3 flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <div className="flex items-center gap-2">
-        <ListChecks className="size-3.5 text-guide-target" strokeWidth={1.6} />
-        <h2 className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold">Deliverables list</h2>
-        {items.length > 0 && <span className="font-mono text-[10px] text-suite-text-dim">· {inScope} in scope · {items.length - inScope} not yours</span>}
+        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-suite-text-muted">Deliverables</span>
+        {items.length > 0 && <span className="font-mono text-[9px] text-suite-text-dim">· {inScope} in scope · {items.length - inScope} not yours</span>}
       </div>
 
-      {/* The brief — paste / write + attach docs → build */}
-      <div className="rounded-sm border border-suite-border bg-suite-bg/40 p-2.5 flex flex-col gap-2">
-        <textarea
-          value={brief}
-          onChange={(e) => setBrief(e.target.value)}
-          rows={3}
-          placeholder="Paste or describe what you've been told to deliver — the email, the call notes, a contract clause…"
-          className="w-full resize-y bg-transparent text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none leading-relaxed"
-        />
+      {/* AI brief — describe / drop docs → build or grow */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); if (!dragActive) setDragActive(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragActive(false); }}
+        onDrop={(e) => { e.preventDefault(); setDragActive(false); attach(e.dataTransfer?.files ?? null); }}
+        className={cn("relative rounded-sm border bg-suite-bg/40 p-2.5 flex flex-col gap-2 transition-colors", dragActive ? "border-guide-source border-dashed bg-guide-source/5" : "border-suite-border")}>
+        {dragActive && (
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-sm bg-suite-panel/85 backdrop-blur-sm pointer-events-none">
+            <span className="font-mono text-[11px] text-guide-source flex items-center gap-1.5"><Paperclip className="size-3.5" strokeWidth={1.6} /> Drop documents to attach</span>
+          </div>
+        )}
+        <textarea ref={briefRef} value={brief} onChange={(e) => onBriefChange(e.target.value)} rows={2}
+          placeholder="Describe what this recipient needs — paste the email / call notes / a delivery clause…"
+          className="w-full resize-y bg-transparent text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none leading-relaxed" />
         {files.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {files.map((f, i) => (
@@ -80,20 +86,18 @@ export function DeliverablesList({ projectId }: { projectId?: string }) {
           <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-2 py-1 text-[9.5px] tracking-[0.12em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Paperclip className="size-3" strokeWidth={1.6} /> Attach docs
           </button>
-          <input ref={fileRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp,.txt,.md,.csv" className="hidden" onChange={(e) => { attach(e.target.files); e.currentTarget.value = ""; }} />
+          <input ref={fileRef} type="file" multiple
+            accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.md,image/png,image/jpeg,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            className="hidden" onChange={(e) => { attach(e.target.files); e.currentTarget.value = ""; }} />
           <button onClick={build} disabled={building} className="flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20 disabled:opacity-50 transition-colors">
-            <Sparkles className={cn("size-3", building && "animate-pulse")} strokeWidth={2} /> {building ? "Building the list…" : "Build the list"}
+            <Sparkles className={cn("size-3", building && "animate-pulse")} strokeWidth={2} /> {building ? "Working…" : items.length ? "Grow with AI" : "Build with AI"}
           </button>
-          <span className="font-mono text-[9px] text-suite-text-dim">AI itemises it — incl. audio (M&E, stems) — and flags what isn't post's job.</span>
+          <span className="font-mono text-[9px] text-suite-text-dim">Drag &amp; drop or attach — PDF, Word, Excel, images, text.</span>
         </div>
       </div>
 
       {/* The itemised list, grouped by category */}
-      {items.length === 0 ? (
-        <p className="font-mono text-[10px] text-suite-text-dim leading-relaxed px-1">
-          No items yet. Write or paste the brief above and hit <span className="text-guide-source">Build the list</span> — or add items by hand below.
-        </p>
-      ) : (
+      {items.length > 0 && (
         <div className="flex flex-col gap-2.5">
           {CATEGORIES.map((cat) => {
             const catItems = items.filter((i) => i.category === cat.id);
@@ -106,7 +110,7 @@ export function DeliverablesList({ projectId }: { projectId?: string }) {
                   <div className="flex-1 h-px bg-suite-border/60" />
                   <button onClick={() => addItem(cat.id)} title={`Add a ${cat.label} item`} className="text-suite-text-dim hover:text-suite-text"><Plus className="size-3" strokeWidth={2} /></button>
                 </div>
-                {catItems.map((it) => <ItemRow key={it.id} item={it} onChange={(p) => setItem(it.id, p)} onRemove={() => removeItem(it.id)} />)}
+                {catItems.map((it) => <ItemRow key={it.id} item={it} shared={sharedCount?.get(it.id)} onChange={(p) => setItem(it.id, p)} onRemove={() => removeItem(it.id)} />)}
               </div>
             );
           })}
@@ -118,15 +122,16 @@ export function DeliverablesList({ projectId }: { projectId?: string }) {
         <button onClick={() => addItem(addCat)} className="flex items-center gap-1.5 px-2 py-1 text-[9.5px] tracking-[0.12em] uppercase font-mono border border-dashed border-suite-border rounded-sm text-suite-text-dim hover:text-suite-text hover:border-suite-border-strong">
           <Plus className="size-3" strokeWidth={2} /> Add item
         </button>
-        <select value={addCat} onChange={(e) => setAddCat(e.target.value as DelivCategory)} className={sel} title="Category for the next added item">
+        <select value={addCat} onChange={(e) => setAddCat(e.target.value as DelivCategory)}
+          className="bg-suite-bg border border-suite-border rounded-sm px-1.5 py-1 text-[10px] font-mono text-suite-text focus:outline-none focus:border-guide-target [color-scheme:dark]" title="Category for the next added item">
           {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
       </div>
-    </section>
+    </div>
   );
 }
 
-function ItemRow({ item, onChange, onRemove }: { item: DeliverableItem; onChange: (patch: Partial<DeliverableItem>) => void; onRemove: () => void }) {
+function ItemRow({ item, shared, onChange, onRemove }: { item: DeliverableItem; shared?: number; onChange: (patch: Partial<DeliverableItem>) => void; onRemove: () => void }) {
   return (
     <div className={cn("flex items-center gap-2 px-2 py-1.5 rounded-sm border", item.inScope ? "border-suite-border bg-suite-bg/40" : "border-suite-border/40 bg-transparent")}>
       <button onClick={() => onChange({ inScope: !item.inScope })}
@@ -136,6 +141,10 @@ function ItemRow({ item, onChange, onRemove }: { item: DeliverableItem; onChange
       </button>
       <input value={item.label} onChange={(e) => onChange({ label: e.target.value })} placeholder="Deliverable…"
         className={cn("flex-[2] min-w-0 bg-transparent text-[11px] font-mono focus:outline-none", item.inScope ? "text-suite-text" : "text-suite-text-dim line-through")} />
+      {shared && shared > 1 && (
+        <span title={`Same artifact as ${shared - 1} other recipient${shared - 1 === 1 ? "" : "s"} — produced once, not a separate make`}
+          className="shrink-0 font-mono text-[8px] uppercase tracking-[0.1em] px-1 py-0.5 rounded-full border border-guide-target/40 text-guide-target/90">shared ×{shared}</span>
+      )}
       <select value={item.owner} onChange={(e) => onChange({ owner: e.target.value as DeliverableItem["owner"] })}
         title="Owner" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1 py-0.5 text-[9px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark]">
         {OWNERS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}

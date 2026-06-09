@@ -75,6 +75,8 @@ export function saveBrief(pid: string | undefined, brief: string) {
 }
 
 async function fileToDoc(file: File): Promise<{ name: string; mediaType: string; dataBase64: string }> {
+  // Send the raw bytes + a media type; the serverless function reads PDFs/images natively
+  // and extracts text from Word/Excel (Node-side) so nothing heavy ships in the browser bundle.
   const dataUrl: string = await new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => resolve(String(fr.result));
@@ -82,7 +84,15 @@ async function fileToDoc(file: File): Promise<{ name: string; mediaType: string;
     fr.readAsDataURL(file);
   });
   const base64 = dataUrl.includes(",") ? dataUrl.slice(dataUrl.indexOf(",") + 1) : dataUrl;
-  const mediaType = file.type || (/\.pdf$/i.test(file.name) ? "application/pdf" : "text/plain");
+  const lower = file.name.toLowerCase();
+  let mediaType = file.type;
+  if (!mediaType) {
+    if (lower.endsWith(".pdf")) mediaType = "application/pdf";
+    else if (lower.endsWith(".docx")) mediaType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    else if (lower.endsWith(".xlsx")) mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    else if (lower.endsWith(".xls")) mediaType = "application/vnd.ms-excel";
+    else mediaType = "text/plain";
+  }
   return { name: file.name, mediaType, dataBase64: base64 };
 }
 

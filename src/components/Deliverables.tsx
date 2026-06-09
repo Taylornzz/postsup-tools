@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, AlertTriangle, ListChecks, Crown, ArrowDownToLine, Flame, Sparkles, Send,
-  Paperclip, FileText, GitBranch, Cloud, X, ChevronRight,
+  Paperclip, FileText, GitBranch, Cloud, X, ChevronRight, Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,9 @@ import {
   type Recipient, type Region, type DRId, type Pass, type DocMeta, type Conversion,
 } from "@/lib/deliverables";
 import type { CustomConfig, MasterNits } from "@/lib/mastering";
-import { DeliverablesList } from "./DeliverablesList";
+import { RecipientDeliverables } from "./RecipientDeliverables";
+import { ProductionList } from "./ProductionList";
+import { rollupDeliverables, shareCounts } from "@/lib/deliverablesRollup";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
@@ -24,6 +26,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   onSendToMastering?: (config: CustomConfig, nits: MasterNits) => void;
 }) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
+  const [focusBriefId, setFocusBriefId] = useState<string | null>(null);
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
   const splitRef = useRef<HTMLDivElement>(null);
   const [chartW, setChartW] = useState<number>(() => { const v = Number(localStorage.getItem("kaos.deliverables.chartW")); return v >= 320 ? v : 480; });
@@ -32,6 +35,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const plan = useMemo(() => buildPlan(recipients), [recipients]);
   const graph = useMemo(() => buildWorkflowGraph(recipients, plan), [recipients, plan]);
   const mastering = useMemo(() => recipientsToMasteringConfig(recipients), [recipients]);
+  const rollup = useMemo(() => rollupDeliverables(recipients), [recipients]);
+  const shared = useMemo(() => shareCounts(rollup), [rollup]);
   const [flowKey, setFlowKey] = useState(0);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
@@ -41,6 +46,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "", truePeak: TRUEPEAK_BY_REGION[region] || "" });
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
+  const addWithAI = () => { const r = newRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); };
+  const setMain = (id: string) => setRecipients((rs) => rs.map((r) => ({ ...r, isMain: r.id === id ? !r.isMain : false })));
   const addTemplate = (id: string) => {
     const t = DELIVERY_TEMPLATES.find((x) => x.id === id);
     if (!t) return;
@@ -117,6 +124,11 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
           <span className="font-mono text-[10px] text-suite-text-dim tabular">{plan.gradeCount} grade{plan.gradeCount === 1 ? "" : "s"} → {plan.deliverableCount} deliverable{plan.deliverableCount === 1 ? "" : "s"}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {onSendToMastering && recipients.length > 0 && (
+            <button onClick={openInMastering} title="Build this as a custom tree in the Mastering tab" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
+              <GitBranch className="size-3" strokeWidth={1.7} /> Open in Mastering
+            </button>
+          )}
           <button onClick={push} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Send className="size-3" strokeWidth={1.6} /> To board
           </button>
@@ -129,90 +141,35 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
       <div ref={splitRef} className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4">
           <div className="flex flex-col gap-4 max-w-3xl">
-          {/* Verify banner */}
-          <div className="flex gap-2 rounded-sm border border-status-warn/40 bg-status-warn/5 px-3 py-2">
-            <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
-            <p className="font-mono text-[10px] leading-relaxed text-suite-text-dim">
-              A planning aid — the make-order is derived from the dynamic-range rules, but <span className="text-suite-text-muted">every spec here must be confirmed against each recipient's own delivery document</span>. A wrong container or loudness means a rejected master.
-            </p>
+          {/* Build options — how to add deliverables + open the derived plan in Mastering */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold mr-1">Deliverables</h3>
+            <button onClick={addWithAI} title="Add a recipient and build its deliverables with AI" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-source border-guide-source/50 bg-guide-source/10 hover:bg-guide-source/20 transition-colors">
+              <Sparkles className="size-3" strokeWidth={2} /> Build with AI
+            </button>
+            <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[15rem] !text-guide-target !border-guide-target/50")} title="Add a recipient pre-filled from a platform template, then grow it">
+              <option value="">⬚ Build from template…</option>
+              {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button onClick={add} title="Add a blank recipient and build it by hand (or with AI)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+              <Plus className="size-3" strokeWidth={2} /> Build from clean
+            </button>
           </div>
 
-          {/* Make plan */}
-          <section className="rounded-md border border-suite-border bg-suite-panel/50 p-3.5">
-            <div className="flex items-center gap-2 mb-2.5">
-              <ListChecks className="size-3.5 text-guide-target" strokeWidth={1.7} />
-              <h3 className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold">Make plan</h3>
-              <span className="font-mono text-[10px] text-suite-text-dim hidden sm:inline">— grade once, derive the rest</span>
-              {onSendToMastering && recipients.length > 0 && (
-                <button onClick={openInMastering} title="Build this as a custom tree in the Mastering tab" className="ml-auto flex items-center gap-1.5 px-2 py-1 text-[9px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
-                  <GitBranch className="size-3" strokeWidth={1.7} /> Open in Mastering
-                </button>
-              )}
-            </div>
-            {plan.passes.length === 0 ? (
-              <p className="font-mono text-[11px] text-suite-text-dim">Add a recipient to see the plan.</p>
-            ) : (
-              <>
-                <p className="font-mono text-[10px] text-suite-text-dim leading-relaxed mb-2">
-                  Computed by the mastering engine — grade the <span className="text-suite-text-muted">{HERO_LABEL[mastering.config.hero]}</span> hero first, then trim down. Anything above the hero's range, or a theatrical / SDR off the archive, is a <span className="text-status-warn">fresh pass</span>, not a clean transform.
-                </p>
-                <ol className="flex flex-col gap-1.5">
-                  {plan.passes.map((p, i) => <PassRow key={i} index={i} pass={p} />)}
-                </ol>
-              </>
-            )}
-            {plan.conversions.length > 0 && (
-              <details className="mt-3 pt-3 border-t border-suite-border/60 group">
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim hover:text-suite-text select-none">
-                  <span>Conversions &amp; finishing <span className="text-suite-text-dim/60">· {plan.conversions.length}</span></span>
-                  <ChevronRight className="size-3.5 shrink-0 transition-transform group-open:rotate-90" strokeWidth={2} />
-                </summary>
-                <ul className="flex flex-col gap-1.5 mt-2">
-                  {plan.conversions.map((c, i) => <ConversionRow key={i} conv={c} />)}
-                </ul>
-              </details>
-            )}
-            {(plan.common.length > 0 || plan.watchOuts.length > 0) && (
-              <div className="mt-3 pt-3 border-t border-suite-border/60 grid sm:grid-cols-2 gap-3">
-                {plan.common.length > 0 && (
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-suite-text-dim mb-1">Shared across all</div>
-                    <div className="flex flex-wrap gap-1">
-                      {plan.common.map((c) => <span key={c} className="font-mono text-[10px] px-1.5 py-0.5 rounded-full border border-suite-border text-suite-text-muted">{c}</span>)}
-                    </div>
-                  </div>
-                )}
-                {plan.watchOuts.length > 0 && (
-                  <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-status-warn mb-1">Watch-outs</div>
-                    <ul className="flex flex-col gap-1">
-                      {plan.watchOuts.map((w) => <li key={w} className="font-mono text-[10px] text-suite-text-muted leading-relaxed flex gap-1.5"><span className="text-status-warn">!</span>{w}</li>)}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+          <ProductionList groups={rollup} />
 
-          <DeliverablesList projectId={projectId} />
-
-          {/* Recipients — the per-platform technical specs */}
+          {/* Recipients — each carries its spec + its own AI-built deliverables list */}
           <div className="flex flex-col gap-2.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-suite-text font-semibold mr-1">Platform specs</span>
-              <button onClick={add} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
-                <Plus className="size-3" strokeWidth={2} /> Add recipient
-              </button>
-              <select value="" onChange={(e) => addTemplate(e.target.value)} className={cn(sel, "max-w-[16rem]")} title="Add a recipient pre-filled from a platform's delivery spec (a starter — always confirm)">
-                <option value="">+ From template…</option>
-                {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
             {recipients.map((r) => {
               const checks = recipientChecklist(r);
               return (
-                <div key={r.id} className="rounded-md border border-suite-border bg-suite-panel/60 px-3.5 py-3">
+                <div key={r.id} className={cn("rounded-md border bg-suite-panel/60 px-3.5 py-3", r.isMain ? "border-guide-target/50" : "border-suite-border")}>
                   <div className="flex items-center gap-2 mb-2.5">
+                    <button onClick={() => setMain(r.id)}
+                      title={r.isMain ? "Main deliverable — the others derive from it. Click to unset." : "Mark as the main deliverable (the hero the others derive from)"}
+                      className={cn("shrink-0 transition-colors", r.isMain ? "text-guide-target" : "text-suite-text-dim hover:text-suite-text")}>
+                      <Star className="size-3.5" strokeWidth={1.7} fill={r.isMain ? "currentColor" : "none"} />
+                    </button>
                     <input
                       value={r.name}
                       onChange={(e) => patch(r.id, { name: e.target.value })}
@@ -284,6 +241,18 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       className="flex-1 min-w-[12rem] bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[10px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target" />
                     <input value={r.qc} onChange={(e) => patch(r.id, { qc: e.target.value })} placeholder="QC (Photon / Baton / platform)…"
                       className="flex-1 min-w-[10rem] bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[10px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target" />
+                  </div>
+
+                  {/* This recipient's deliverables — AI brief + itemised punch-list */}
+                  <div className="mt-2.5 pt-2.5 border-t border-suite-border/50">
+                    <RecipientDeliverables
+                      brief={r.brief || ""}
+                      items={r.deliverables || []}
+                      onBriefChange={(brief) => patch(r.id, { brief })}
+                      onItemsChange={(deliverables) => patch(r.id, { deliverables })}
+                      autoFocus={focusBriefId === r.id}
+                      sharedCount={shared}
+                    />
                   </div>
 
                   {/* Attachments — source docs for this recipient */}

@@ -74,6 +74,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: d.dataBase64 } });
       } else if (/^image\/(jpeg|png|gif|webp)$/.test(d.mediaType)) {
         content.push({ type: "image", source: { type: "base64", media_type: d.mediaType, data: d.dataBase64 } });
+      } else if (/\.docx$/i.test(d.name || "") || d.mediaType.includes("wordprocessingml")) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const m: any = await import("mammoth");
+          const extract = m.extractRawText || m.default?.extractRawText;
+          const { value } = await extract({ buffer: Buffer.from(d.dataBase64 || "", "base64") });
+          content.push({ type: "text", text: `--- ${d.name} (Word) ---\n${String(value).slice(0, 200_000)}` });
+        } catch { content.push({ type: "text", text: `--- ${d.name} (Word — couldn't be read) ---` }); }
+      } else if (/\.(xlsx|xls)$/i.test(d.name || "") || d.mediaType.includes("spreadsheetml") || d.mediaType.includes("ms-excel")) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mod: any = await import("xlsx");
+          const XLSX = mod.read ? mod : mod.default;
+          const wb = XLSX.read(Buffer.from(d.dataBase64 || "", "base64"), { type: "buffer" });
+          const text = wb.SheetNames.map((sn: string) => `# ${sn}\n${XLSX.utils.sheet_to_csv(wb.Sheets[sn])}`).join("\n\n");
+          content.push({ type: "text", text: `--- ${d.name} (Excel) ---\n${String(text).slice(0, 200_000)}` });
+        } catch { content.push({ type: "text", text: `--- ${d.name} (Excel — couldn't be read) ---` }); }
       } else {
         const decoded = Buffer.from(d.dataBase64 || "", "base64").toString("utf8").slice(0, 200_000);
         content.push({ type: "text", text: `--- ${d.name} ---\n${decoded}` });
