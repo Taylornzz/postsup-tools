@@ -5,7 +5,7 @@
 
 export type DelivCategory = "picture" | "audio" | "subtitles" | "metadata" | "archive" | "editorial" | "legal" | "marketing" | "other";
 export type DelivOwner = "" | "post" | "sound" | "editorial" | "vfx" | "marketing" | "production" | "other";
-export type DelivStatus = "todo" | "wip" | "delivered" | "qc-fail" | "redeliver";
+export type DelivStatus = "todo" | "wip" | "delivered" | "accepted" | "qc-fail" | "redeliver";
 
 export interface DeliverableItem {
   id: string;
@@ -21,7 +21,8 @@ export interface DeliverableItem {
 export const STATUSES: { id: DelivStatus; label: string }[] = [
   { id: "todo", label: "To do" },
   { id: "wip", label: "In progress" },
-  { id: "delivered", label: "Delivered" },
+  { id: "delivered", label: "Delivered (in QC)" },
+  { id: "accepted", label: "Accepted" },
   { id: "qc-fail", label: "QC fail" },
   { id: "redeliver", label: "Redeliver" },
 ];
@@ -50,7 +51,8 @@ export const OWNERS: { id: DelivOwner; label: string }[] = [
 ];
 
 let _seq = 0;
-const uid = () => `d${Date.now().toString(36)}${(_seq++).toString(36)}`;
+export const newItemId = () => `d${Date.now().toString(36)}${(_seq++).toString(36)}`;
+const uid = newItemId;
 
 export function newItem(category: DelivCategory = "picture"): DeliverableItem {
   return { id: uid(), label: "", category, inScope: true, owner: "", notes: "", status: "todo", version: 1 };
@@ -78,26 +80,37 @@ function subtitleItem(subs: string): string {
 
 // ---- language / version matrix (OV + per-language VF supplementals) ----
 export type LangKind = "OV" | "VF";
-export interface DeliveryLanguage { code: string; kind: LangKind; dub: boolean; sdh: boolean; forced: boolean; }
-export function newLanguage(code = ""): DeliveryLanguage { return { code, kind: "VF", dub: false, sdh: false, forced: false }; }
+export interface DeliveryLanguage { code: string; kind: LangKind; dub: boolean; sdh: boolean; forced: boolean; ad: boolean; }
+export function newLanguage(code = ""): DeliveryLanguage { return { code, kind: "VF", dub: false, sdh: false, forced: false, ad: false }; }
 
-/** Fan a language matrix into the localization deliverables it implies — a versioned (VF)
- *  language with a dub needs a dub mix + dub card + localized titles; every language carries
- *  full subs, plus SDH / forced narratives where flagged. Each is a distinct, typed artifact. */
+/** Fan a language matrix into the localization deliverables it implies. A versioned (VF) dub
+ *  needs a dub PRINTMASTER (dubbed dialogue + M&E), localized titles/credits and a dub card; the
+ *  source-language M&E and textless fill are shared (added once when any dub exists). The OV owes
+ *  forced narratives + SDH (not full same-language subs); VF languages owe full subs. Audio
+ *  description (AD) + AD script fan out per language flagged. Each is a distinct, typed artifact. */
 export function languageItems(langs: DeliveryLanguage[]): DeliverableItem[] {
-  const rows: [string, DelivCategory][] = [];
+  const rows: { label: string; category: DelivCategory; owner: DelivOwner }[] = [];
+  const anyDub = langs.some((l) => l.kind === "VF" && l.dub);
+  if (anyDub) {
+    rows.push({ label: "M&E — fully-filled (for foreign dubs)", category: "audio", owner: "sound" });
+    rows.push({ label: "Textless / clean fill (for localized graphics)", category: "picture", owner: "vfx" });
+  }
   for (const l of langs) {
     const tag = (l.code || "").trim().toUpperCase() || "??";
     if (l.kind === "VF" && l.dub) {
-      rows.push([`Dub mix — ${tag}`, "audio"]);
-      rows.push([`Dub card — ${tag}`, "picture"]);
-      rows.push([`Localized titles / textless fill — ${tag}`, "picture"]);
+      rows.push({ label: `Dub printmaster — ${tag} (dubbed D + M&E)`, category: "audio", owner: "sound" });
+      rows.push({ label: `Localized titles & credits — ${tag}`, category: "picture", owner: "vfx" });
+      rows.push({ label: `Dub card — ${tag}`, category: "picture", owner: "editorial" });
     }
-    rows.push([`Subtitles (full) — ${tag}`, "subtitles"]);
-    if (l.sdh) rows.push([`SDH — ${tag}`, "subtitles"]);
-    if (l.forced) rows.push([`Forced narratives — ${tag}`, "subtitles"]);
+    if (l.kind === "VF") rows.push({ label: `Subtitles (full) — ${tag}`, category: "subtitles", owner: "post" });
+    if (l.forced) rows.push({ label: `Forced narratives — ${tag}`, category: "subtitles", owner: "post" });
+    if (l.sdh) rows.push({ label: `SDH — ${tag}`, category: "subtitles", owner: "post" });
+    if (l.ad) {
+      rows.push({ label: `Audio description (AD) — ${tag}`, category: "audio", owner: "sound" });
+      rows.push({ label: `AD script — ${tag}`, category: "metadata", owner: "editorial" });
+    }
   }
-  return rows.map(([label, category]) => ({ ...newItem(category), label }));
+  return rows.map((r) => ({ ...newItem(r.category), label: r.label, owner: r.owner }));
 }
 
 /** The non-rendition obligations that hold up final payment — cue sheet, conform handoff,
@@ -106,6 +119,7 @@ function editorialArchiveItems(): DeliverableItem[] {
   return [
     { ...newItem("legal"), label: "Music cue sheet", owner: "production", inScope: false },
     { ...newItem("editorial"), label: "Conform AAF / XML + EDL", owner: "editorial" },
+    { ...newItem("editorial"), label: "As-broadcast script / CCSL (dialogue + spotting list)", owner: "editorial" },
     { ...newItem("archive"), label: "Project archive → LTO + MHL / checksum manifest", owner: "post" },
     { ...newItem("archive"), label: "Archival master (graded ACES / OCN handover)", owner: "post" },
     { ...newItem("legal"), label: "Chain-of-title / E&O paperwork", owner: "production", inScope: false },
@@ -172,7 +186,7 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
   return [...out.map(([label, category]) => ({ ...newItem(category), label })), ...editorialArchiveItems()];
 }
 
-function coerceItem(x: Record<string, unknown>): DeliverableItem {
+export function coerceItem(x: Record<string, unknown>): DeliverableItem {
   return {
     id: typeof x.id === "string" ? x.id : uid(),
     label: typeof x.label === "string" ? x.label : "",

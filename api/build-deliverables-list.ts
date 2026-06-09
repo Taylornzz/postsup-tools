@@ -25,8 +25,11 @@ const SYSTEM =
   "feature film; 'feature' means a film and is confusing on a TV title.\n" +
   "• Subtitles/captions: one per language AND per type — full subs, SDH (deaf/HoH), forced narratives (foreign " +
   "dialogue/signage), closed captions (CEA-608/708), dub card — these are DISTINCT items, never one 'subtitles' line.\n" +
-  "• Versions / languages: if the brief implies localisation, list the OV plus each versioned (VF/dubbed) language's " +
-  "supplementals — dub mix, M&E, localized titles / textless fill, dub card — alongside that language's subtitle items.\n\n" +
+  "• Versions / languages: if the brief implies localisation, list the OV plus each versioned (VF) language's " +
+  "supplementals — dub printmaster (dubbed D + M&E), M&E, localized titles/credits, dub card, and audio description " +
+  "(AD + AD script) where required — alongside that language's subtitle items.\n" +
+  "• Categories: use 'archive' (LTO/MHL, archival master), 'editorial' (conform AAF/EDL, as-broadcast script), 'legal' " +
+  "(music cue sheet, chain-of-title / E&O) for the non-rendition obligations; 'metadata' for QC reports + paperwork.\n\n" +
   "NOT deliverables — NEVER list these as items; they are requirements baked into a master, so fold them into the " +
   "relevant master's note or omit: sync pop / 2-pop, 1kHz line-up tone, bars, slates, leaders, head/tail build, " +
   "timecode start, channel mapping/layout, audio sync, aspect/active-picture.\n\n" +
@@ -43,7 +46,7 @@ const INSTRUCTION =
   "publicity/marketing/EPK/stills/bios); the likely `owner`; and a short `notes` (a source quote, the channel map, " +
   "or 'confirm'). Be especially careful not to over-split audio.";
 
-const CATEGORY = ["picture", "audio", "subtitles", "metadata", "marketing", "other"];
+const CATEGORY = ["picture", "audio", "subtitles", "metadata", "archive", "editorial", "legal", "marketing", "other"];
 const OWNER = ["", "post", "sound", "editorial", "vfx", "marketing", "production", "other"];
 
 const SPEC_INSTRUCTION =

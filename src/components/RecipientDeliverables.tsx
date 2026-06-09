@@ -74,9 +74,10 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   const langs = languages || [];
   const dedupKey = (i: { label: string; category: string }) => `${i.category}|${i.label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
   const addLangDeliverables = () => {
-    if (!langs.length) { toast("Add a language first"); return; }
+    const named = langs.filter((l) => (l.code || "").trim());
+    if (!named.length) { toast("Name each language (code) first"); return; }
     const seen = new Set(items.map(dedupKey));
-    const fresh = languageItems(langs).filter((it) => { const k = dedupKey(it); if (seen.has(k)) return false; seen.add(k); return true; });
+    const fresh = languageItems(named).filter((it) => { const k = dedupKey(it); if (seen.has(k)) return false; seen.add(k); return true; });
     if (!fresh.length) { toast("Those language deliverables are already on the list"); return; }
     onItemsChange([...items, ...fresh]);
     toast.success(`Added ${fresh.length} language deliverable${fresh.length === 1 ? "" : "s"} — edit owners / notes as needed`);
@@ -242,6 +243,7 @@ function LangRow({ lang, onChange, onRemove }: { lang: DeliveryLanguage; onChang
       <LangToggle on={lang.dub} label="dub" title="Dub mix required (vs subtitle-only)" onClick={() => onChange({ dub: !lang.dub })} />
       <LangToggle on={lang.sdh} label="SDH" title="SDH (deaf/HoH) subtitles required" onClick={() => onChange({ sdh: !lang.sdh })} />
       <LangToggle on={lang.forced} label="forced" title="Forced narratives (foreign dialogue / signage)" onClick={() => onChange({ forced: !lang.forced })} />
+      <LangToggle on={lang.ad} label="AD" title="Audio description / described video required" onClick={() => onChange({ ad: !lang.ad })} />
       <button onClick={onRemove} title="Remove language" className="ml-auto text-suite-text-dim hover:text-destructive"><X className="size-3" strokeWidth={2} /></button>
     </div>
   );

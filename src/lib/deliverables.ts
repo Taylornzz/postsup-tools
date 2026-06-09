@@ -17,7 +17,7 @@ import {
   type CustomConfig, type CustomHero, type CustomDeliverable, type MasterNits,
   type MakeStep, type MasterFamily,
 } from "./mastering";
-import { templateDeliverables, type DeliverableItem, type DeliveryLanguage } from "./deliverablesList";
+import { templateDeliverables, coerceItem, newItemId, type DeliverableItem, type DeliveryLanguage } from "./deliverablesList";
 
 export type Region = "US" | "UK" | "EU" | "AU" | "NZ" | "Other";
 export type DRTier = "hdr" | "theatrical" | "sdr";
@@ -234,7 +234,8 @@ const NATIVE_FPS_IDS = new Set(["netflix", "amazon", "apple", "max", "disney", "
 /** Clone a recipient (new ids, " copy" name, not the main) — most shows deliver near-identical
  *  specs to many endpoints, so duplicating beats re-picking ~10 dropdowns. */
 export function duplicateRecipient(r: Recipient): Recipient {
-  return { ...r, id: uid(), name: `${r.name} copy`, isMain: false, deliverables: (r.deliverables || []).map((d) => ({ ...d, id: uid("d") })) };
+  return { ...r, id: uid(), name: `${r.name} copy`, isMain: false, due: undefined,
+    deliverables: (r.deliverables || []).map((d) => ({ ...d, id: newItemId() })) };
 }
 
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
@@ -463,7 +464,7 @@ export function loadRecipients(projectId?: string): Recipient[] {
     if (raw === null) return seed();
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return seed();
-    return arr.filter((r) => r && typeof r.name === "string").map((r) => ({ ...newRecipient(), ...r, id: typeof r.id === "string" ? r.id : uid() }));
+    return arr.filter((r) => r && typeof r.name === "string").map((r) => ({ ...newRecipient(), ...r, id: typeof r.id === "string" ? r.id : uid(), deliverables: Array.isArray(r.deliverables) ? r.deliverables.map(coerceItem) : [] }));
   } catch { return seed(); }
 }
 export function saveRecipients(projectId: string | undefined, recipients: Recipient[]) {

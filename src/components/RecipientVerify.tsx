@@ -46,7 +46,10 @@ export function RecipientVerify({ recipient, onPatch }: { recipient: Recipient; 
   };
 
   const apply = (key: keyof Recipient, value: unknown) => {
-    onPatch({ [key]: value, verified: { at: new Date().toISOString(), confidence: result?.confidence, source: "Web-verified — confirm in portal" } } as Partial<Recipient>);
+    // Only stamp the spec "verified" once every diff is reconciled — applying one field
+    // shouldn't claim the whole spec was re-checked.
+    const remaining = SPEC_FIELDS.filter((f) => f.key !== key && result != null && result.spec[f.key] !== undefined && result.spec[f.key] !== "" && String(result.spec[f.key]) !== String(recipient[f.key] ?? "")).length;
+    onPatch({ [key]: value, ...(remaining === 0 ? { verified: { at: new Date().toISOString(), confidence: result?.confidence, source: "Web-verified — confirm in portal" } } : {}) } as Partial<Recipient>);
     setResult((prev) => (prev ? { ...prev, spec: { ...prev.spec, [key]: undefined } } : prev));
   };
 
@@ -79,7 +82,7 @@ export function RecipientVerify({ recipient, onPatch }: { recipient: Recipient; 
           {result.sources && result.sources.length > 0 && (
             <div className="flex flex-col gap-0.5 pt-1 border-t border-suite-border/50">
               {result.sources.slice(0, 3).map((s, i) => (
-                <a key={i} href={s.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-mono text-[9px] text-suite-text-dim hover:text-guide-source truncate" title={s.quote || s.url}>
+                <a key={i} href={/^https?:\/\//.test(s.url || "") ? s.url : "#"} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-mono text-[9px] text-suite-text-dim hover:text-guide-source truncate" title={s.quote || s.url}>
                   <ExternalLink className="size-2.5 shrink-0" strokeWidth={1.7} /> <span className="truncate">{s.url}</span>
                 </a>
               ))}
