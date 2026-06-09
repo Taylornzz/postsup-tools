@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.8";
+export const VERSION = "v2.7.9";
 const CHANGELOG = [
+  "v2.7.9 — Bigger AI brief box by default on each recipient, so there's room to paste an email or notes without resizing (still resizable).",
   "v2.7.8 — Build from template now covers 27 platforms — added Disney+, Hulu, Paramount+, Peacock, Discovery+ and Discovery, Tubi, The Roku Channel, NBC, CBS, ABC, FOX, PBS, Scripps, A+E, AMC, ITV, Channel 4, Sky UK and ARD/ZDF (all starter specs — confirm per-title). The button now reads in caps to match the others, and the redundant ‘Add a recipient’ button is gone — use Build with AI or Build from template.",
   "v2.7.7 — The Build-from-template starter list is now spec-aware. It reads the platform's audio config, HDR/SDR and subtitle type: an Atmos platform seeds Atmos + 5.1 + stereo mixes and M&E (stems in Atmos); a 5.1 platform seeds 5.1 + stereo. HDR platforms get both an HDR and an SDR master (plus a Dolby Vision XML where it's DV); SDR platforms get a single master. The subtitle item matches the spec — sidecar IMSC/TTML vs closed captions vs SDH.",
   "v2.7.6 — Build from template now also drops in a standard starter deliverables list (masters, textless, M&E, stems, captions, QC, paperwork, proxy) so you're editing rather than starting blank — Grow with AI or edit to tailor. And Build with AI now starts a genuinely blank recipient: every spec dropdown shows a dash until you build, so the AI fills them instead of inheriting defaults.",

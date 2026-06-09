@@ -83,7 +83,7 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
             <span className="font-mono text-[11px] text-guide-source flex items-center gap-1.5"><Paperclip className="size-3.5" strokeWidth={1.6} /> Drop documents to attach</span>
           </div>
         )}
-        <textarea ref={briefRef} value={brief} onChange={(e) => onBriefChange(e.target.value)} rows={2}
+        <textarea ref={briefRef} value={brief} onChange={(e) => onBriefChange(e.target.value)} rows={5}
           placeholder="Describe what this recipient needs — paste the email / call notes / a delivery clause…"
           className="w-full resize-y bg-transparent text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none leading-relaxed" />
         {files.length > 0 && (
