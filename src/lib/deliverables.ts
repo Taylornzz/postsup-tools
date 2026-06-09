@@ -159,7 +159,6 @@ export function coerceRecipientSpec(raw: unknown): Partial<Recipient> {
   const loudness = pickOpt(r.loudness, LOUDNESS_OPTIONS); if (loudness) p.loudness = loudness;
   const truePeak = pickOpt(r.truePeak, TRUEPEAK_OPTIONS); if (truePeak) p.truePeak = truePeak;
   const subtitles = pickOpt(r.subtitles, SUBTITLE_OPTIONS); if (subtitles) p.subtitles = subtitles;
-  if (typeof r.textless === "boolean") p.textless = r.textless;
   return p;
 }
 
@@ -452,7 +451,7 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
     const pkg = `dlv-pkg-${rid}`, qc = `dlv-qc-${rid}`, del = `dlv-del-${rid}`;
     nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: `Package: ${name}`, owner: "Online / Mastering", detail: `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`, color: "#38bdf8" } });
     nodes.push({ id: qc, type: "step", position: { x, y: yQc }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
-    nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.textless ? "textless" : "", r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
+    nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
     link(master, pkg, "master");
     link(pkg, qc);
     link(qc, del);

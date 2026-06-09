@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.4";
+export const VERSION = "v2.7.5";
 const CHANGELOG = [
+  "v2.7.5 — Dropped the recipient-level ‘Textless’ tick box — textless is a deliverable (its own clean submaster, or textless at tail of the master), so it belongs in the list, not as a recipient property. And the AI now matches the delivery container to the real territory standard: NZ / Australia broadcasters (TVNZ, ABC AU…) get XDCAM HD 50 (MXF) or ProRes, not AS-11 DPP (which is UK-only).",
   "v2.7.4 — Build with AI now also fills the recipient's spec dropdowns — name, colour pipeline, peak nits, resolution, fps, container, audio, loudness, true-peak, subtitles — not just the deliverables list. Type a platform (e.g. ‘TVNZ’) and it sets that platform's standard spec and builds the list in one go. (Spec is filled on the first build only, so it won't overwrite your tweaks on a later Grow.)",
   "v2.7.3 — Removed the redundant ‘Build from clean’ button (‘Build with AI’ already adds a blank recipient — the brief box is just there ready, build with AI or by hand).",
   "v2.7.2 — Deliverables AI, smarter and tidier. One item = one distinct artifact: an audio mix is one deliverable per configuration (not three names for the same stereo mix), stems are one item per config (not split into D/M/E legs), and line-up/reference bits — sync pop, tone, bars, slates, leaders, timecode start — are folded into notes, not listed as deliverables. ‘Grow with AI’ now only adds what's genuinely missing (it sees the existing list and the result is deduped) instead of re-listing everything. New Clear action to wipe a recipient's list and rebuild it clean.",

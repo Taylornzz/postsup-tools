@@ -43,9 +43,16 @@ const OWNER = ["", "post", "sound", "editorial", "vfx", "marketing", "production
 
 const SPEC_INSTRUCTION =
   "Also set the `recipient` object — this recipient's technical delivery spec: name, colour pipeline (dr), peak nits " +
-  "(if HDR), resolution, fps, container, audio config, loudness, true-peak, subtitles, textless — choosing ONLY allowed " +
-  "values. If the brief is just a platform name (e.g. 'TVNZ', 'Netflix', 'BBC'), fill that platform's standard known " +
-  "delivery spec and its name. Only set fields you're reasonably confident about; omit the rest.";
+  "(if HDR), resolution, fps, container, audio config, loudness, true-peak, subtitles — choosing ONLY allowed values. " +
+  "If the brief is just a platform name (e.g. 'TVNZ', 'Netflix', 'BBC'), fill that platform's standard known delivery " +
+  "spec and its name.\n" +
+  "Match the CONTAINER to the territory's real broadcast standard, not a generic one:\n" +
+  "• Streamers (Netflix, Max, Disney+, Paramount+) → IMF App 2E; Amazon / Apple also take ProRes.\n" +
+  "• UK broadcasters (BBC, ITV, Channel 4, Sky UK) → AS-11 DPP (MXF).\n" +
+  "• NZ & Australia broadcasters (TVNZ, Sky NZ, ABC / Seven / Nine / Ten AU) → XDCAM HD 50 (MXF OP1a) or ProRes — " +
+  "NOT AS-11 DPP, which is UK-specific.\n" +
+  "• US broadcasters → ProRes or XDCAM.\n" +
+  "Only set fields you're reasonably confident about; omit the rest.";
 
 type Opts = Record<string, (string | number)[]>;
 
@@ -84,7 +91,6 @@ function schema(opts: Opts, wantSpec: boolean): Record<string, unknown> {
         loudness: { type: "string", ...en("loudness") },
         truePeak: { type: "string", ...en("truePeak") },
         subtitles: { type: "string", ...en("subtitles") },
-        textless: { type: "boolean", description: "Whether a textless / clean master is required." },
       },
     };
   }

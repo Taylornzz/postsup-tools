@@ -227,10 +227,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                         {SUBTITLE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                       </select>
                     </Field>
-                    <label className="flex items-center gap-1.5 font-mono text-[10px] text-suite-text-muted pb-1.5 cursor-pointer">
-                      <input type="checkbox" checked={r.textless} onChange={(e) => patch(r.id, { textless: e.target.checked })} className="accent-guide-target" />
-                      Textless
-                    </label>
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
