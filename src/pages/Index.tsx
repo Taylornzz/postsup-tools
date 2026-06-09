@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.2";
+export const VERSION = "v2.7.3";
 const CHANGELOG = [
+  "v2.7.3 — Removed the redundant ‘Build from clean’ button (‘Build with AI’ already adds a blank recipient — the brief box is just there ready, build with AI or by hand).",
   "v2.7.2 — Deliverables AI, smarter and tidier. One item = one distinct artifact: an audio mix is one deliverable per configuration (not three names for the same stereo mix), stems are one item per config (not split into D/M/E legs), and line-up/reference bits — sync pop, tone, bars, slates, leaders, timecode start — are folded into notes, not listed as deliverables. ‘Grow with AI’ now only adds what's genuinely missing (it sees the existing list and the result is deduped) instead of re-listing everything. New Clear action to wipe a recipient's list and rebuild it clean.",
   "v2.7.1 — Hid the version badge in the header for now (still tracked in code, git and exports).",
   "v2.7.0 — Deliverables reworked around the recipient. Three clear ways in: Build with AI, Build from template, Build from clean — and every recipient is self-contained, with its own AI brief box + document uploader (drag &amp; drop; PDF, Word, Excel, images, text — Office docs read server-side) and its own itemised deliverables list (picture / audio / subs / paperwork / marketing), each item flagged in/out of post's scope with an owner + notes, AI-grown or hand-edited. Star the main deliverable (the hero others derive from). The build options + Open in Mastering moved to the top; the old make-plan block is gone (the plan still shows in the Workflow graph). New Production list — a make-once rollup that collapses identical artifacts (spec-aware, so a different loudness stays a separate make) and tags each ‘shared ×N’ with who needs it, while naming &amp; timing stay per-recipient.",

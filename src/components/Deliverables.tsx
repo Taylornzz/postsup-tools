@@ -151,9 +151,6 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
               <option value="">⬚ Build from template…</option>
               {DELIVERY_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-            <button onClick={add} title="Add a blank recipient and build it by hand (or with AI)" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
-              <Plus className="size-3" strokeWidth={2} /> Build from clean
-            </button>
           </div>
 
           <ProductionList groups={rollup} />
