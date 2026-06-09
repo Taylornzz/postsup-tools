@@ -54,6 +54,9 @@ const SPEC_INSTRUCTION =
   "• NZ & Australia broadcasters (TVNZ, Sky NZ, ABC / Seven / Nine / Ten AU) → XDCAM HD 50 (MXF OP1a) or ProRes — " +
   "NOT AS-11 DPP, which is UK-specific.\n" +
   "• US broadcasters → ProRes or XDCAM.\n" +
+  "Set `fpsNative` TRUE if the platform ingests at the native source frame rate (most streamers — Netflix, Amazon, " +
+  "Disney+, Max, etc. take whatever cadence you finished at); FALSE for broadcasters that lock to a territory fps " +
+  "(UK/EU/AU/NZ = 25, US = 29.97/59.94). This drives the workflow's standards-conversion warning.\n" +
   "Only set fields you're reasonably confident about; omit the rest.";
 
 type Opts = Record<string, (string | number)[]>;
@@ -93,6 +96,7 @@ function schema(opts: Opts, wantSpec: boolean): Record<string, unknown> {
         loudness: { type: "string", ...en("loudness") },
         truePeak: { type: "string", ...en("truePeak") },
         subtitles: { type: "string", ...en("subtitles") },
+        fpsNative: { type: "boolean", description: "True if the platform ingests at the native source frame rate (most streamers); false for broadcasters that lock to a fixed territory fps (PAL 25, NTSC 29.97/59.94)." },
       },
     };
   }

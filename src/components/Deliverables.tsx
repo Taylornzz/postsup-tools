@@ -206,6 +206,11 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                         {FPS_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
                       </select>
                     </Field>
+                    <button onClick={() => patch(r.id, { fpsNative: !r.fpsNative })}
+                      title={r.fpsNative ? "Accepts the native source frame rate — no standards conversion (most streamers). Click to lock to a fixed fps." : "Locked to this fps — the Workflow flags a standards conversion if it differs from the source. Click if the platform accepts the native source fps."}
+                      className={cn("self-end mb-[3px] px-2 py-1 rounded-sm border font-mono text-[9px] uppercase tracking-[0.12em] transition-colors", r.fpsNative ? "text-guide-source border-guide-source/50 bg-guide-source/10" : "text-suite-text-dim border-suite-border hover:text-suite-text hover:border-suite-border-strong")}>
+                      native fps
+                    </button>
                     <Field label="Container">
                       <select value={r.container} onChange={(e) => patch(r.id, { container: e.target.value })} className={cn(sel, "max-w-[11rem]")}>
                         <option value="">—</option>

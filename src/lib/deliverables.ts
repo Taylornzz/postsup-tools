@@ -48,6 +48,7 @@ export interface Recipient {
   brief?: string;                   // the AI brief for this recipient's deliverables
   deliverables?: DeliverableItem[]; // this recipient's itemised punch-list
   isMain?: boolean;                 // the main/hero deliverable — the others derive from it
+  fpsNative?: boolean;              // accepts the native source frame rate (streamers) — no standards conversion
 }
 
 // ---- option sets (selects) ----
@@ -169,6 +170,7 @@ export function coerceRecipientSpec(raw: unknown): Partial<Recipient> {
   const loudness = pickOpt(r.loudness, LOUDNESS_OPTIONS); if (loudness) p.loudness = loudness;
   const truePeak = pickOpt(r.truePeak, TRUEPEAK_OPTIONS); if (truePeak) p.truePeak = truePeak;
   const subtitles = pickOpt(r.subtitles, SUBTITLE_OPTIONS); if (subtitles) p.subtitles = subtitles;
+  if (typeof r.fpsNative === "boolean") p.fpsNative = r.fpsNative;
   return p;
 }
 
@@ -208,8 +210,12 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
   { id: "sky-uk", name: "Sky (UK)", spec: { region: "UK", dr: "hdr10", peakNits: 1000, resolution: "UHD 3840×2160", fps: 25, container: "IMF App 2E", audio: "5.1", loudness: "-23 LUFS (EBU R128)", truePeak: "-1 dBTP", subtitles: "Sidecar (IMSC/TTML)", qc: "platform QC", notes: "Sky UK / NOW — IMF or ProRes; HD/UHD HDR10; EBU R128 -23 LUFS. Starter spec (2026-06) — confirm." } },
   { id: "ard-zdf", name: "ARD / ZDF (DE)", spec: { region: "EU", dr: "sdr", resolution: "1080i 1920×1080", fps: 25, container: "XDCAM HD 50", audio: "5.1", loudness: "-23 LUFS (EBU R128)", truePeak: "-1 dBTP", subtitles: "Sidecar (IMSC/TTML)", qc: "platform QC", notes: "ARD / ZDF (Germany) — EBU R128 -23 LUFS; 1080i/25, XDCAM HD422 50 or ProRes; ARD/ZDF tech delivery. Starter spec (2026-06) — confirm." } },
 ];
+// Platforms that ingest at the NATIVE source frame rate (streaming mezzanines) — no standards
+// conversion; they take whatever cadence you finished at. Broadcasters lock to a territory fps.
+const NATIVE_FPS_IDS = new Set(["netflix", "amazon", "apple", "max", "disney", "hulu", "paramount-plus", "peacock", "discovery-plus", "tubi", "roku"]);
+
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
-  const r = { ...newRecipient(t.name), ...t.spec, name: t.name };
+  const r = { ...newRecipient(t.name), ...t.spec, name: t.name, fpsNative: NATIVE_FPS_IDS.has(t.id) };
   return { ...r, deliverables: templateDeliverables({ audio: r.audio, dr: r.dr, subtitles: r.subtitles, container: r.container }) };
 }
 
@@ -476,17 +482,24 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
     p.covers.forEach((name) => { gradeForName[name] = gid; });
   });
 
-  // Hero cadence — the framerate the grade finishes at: the starred (⭐ main) recipient if
-  // set, else the most common fps. A recipient at a different fps needs a standards conversion
-  // off the hero — flag it, it's a quality step (interpolate / pulldown / speed change), not free.
-  const heroFps = (() => {
-    const star = recipients.find((r) => r.isMain && r.fps);
-    if (star) return star.fps;
-    const byFps = new Map<number, number>();
-    recipients.forEach((r) => { if (r.fps) byFps.set(r.fps, (byFps.get(r.fps) || 0) + 1); });
-    const top = [...byFps.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
+  // Source cadence the grade finishes at: the ⭐ main recipient, else the cadence the native-fps
+  // (streaming) recipients carry, else the most common fps. Native-fps recipients (Netflix etc.)
+  // ingest the source as-is — no conversion; only an fps-LOCKED broadcaster at a different cadence
+  // needs a standards conversion (interpolate / pulldown / speed change), which we flag.
+  const mostCommonFps = (rs: Recipient[]) => {
+    const m = new Map<number, number>();
+    rs.forEach((r) => { if (r.fps) m.set(r.fps, (m.get(r.fps) || 0) + 1); });
+    const top = [...m.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0];
     return top ? top[0] : 0;
-  })();
+  };
+  const starRecip = recipients.find((r) => r.isMain && r.fps);
+  const natives = recipients.filter((r) => r.fpsNative && r.fps);
+  const heroFps = starRecip ? starRecip.fps : natives.length ? mostCommonFps(natives) : mostCommonFps(recipients);
+
+  // Finishing resolution = the largest pixel area; a recipient at a different ASPECT is a reframe
+  // (pad / crop — a framing call), distinct from a clean down-scale at the same aspect ratio.
+  const finishRes = recipients.map((r) => parseRes(r.resolution)).reduce((a, b) => (b.w * b.h > a.w * a.h ? b : a), { w: 0, h: 0 });
+  const finishAR = finishRes.h ? finishRes.w / finishRes.h : 0;
 
   recipients.forEach((r, i) => {
     const x = i * COLW;
@@ -494,12 +507,18 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
     const master = gradeForName[name] ?? heroId ?? srcId;
     const rid = r.id || `i${i}`;
     const pkg = `dlv-pkg-${rid}`, qc = `dlv-qc-${rid}`, del = `dlv-del-${rid}`;
-    const fpsClash = heroFps > 0 && r.fps > 0 && r.fps !== heroFps;
+    const fpsClash = r.fpsNative !== true && heroFps > 0 && r.fps > 0 && r.fps !== heroFps;
+    const d = parseRes(r.resolution);
+    const reframe = finishAR > 0 && d.h > 0 && Math.abs(d.w / d.h - finishAR) > 0.02;
+    const warns: string[] = [];
+    if (fpsClash) warns.push(`convert ${heroFps}→${r.fps} fps`);
+    if (reframe) warns.push(`reframe ${finishAR.toFixed(2)}:1→${(d.w / d.h).toFixed(2)}:1`);
+    const warn = warns.length > 0;
     const pkgDetail = `${r.container} · ${r.resolution} · ${r.fps} fps · ${r.audio} · ${r.loudness}`;
-    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: fpsClash ? `⚠ Package: ${name} — convert ${heroFps}→${r.fps} fps` : `Package: ${name}`, owner: "Online / Mastering", detail: fpsClash ? `⚠ Standards convert ${heroFps}→${r.fps} fps · ${pkgDetail}` : pkgDetail, color: fpsClash ? "#fb923c" : "#38bdf8" } });
+    nodes.push({ id: pkg, type: "step", position: { x, y: yPkg }, data: { label: warn ? `⚠ Package: ${name} — ${warns.join(" · ")}` : `Package: ${name}`, owner: "Online / Mastering", detail: warn ? `⚠ ${warns.join(" · ")} · ${pkgDetail}` : pkgDetail, color: warn ? "#fb923c" : "#38bdf8" } });
     nodes.push({ id: qc, type: "step", position: { x, y: yQc }, data: { label: `QC: ${name}`, owner: "QC", detail: r.qc || "Platform QC pass", color: "#a78bfa" } });
     nodes.push({ id: del, type: "step", position: { x, y: yDel }, data: { label: `Deliver: ${name}`, owner: "Post Producer", detail: [r.subtitles, r.naming].filter(Boolean).join(" · "), color: "#2dd4bf" } });
-    link(master, pkg, fpsClash ? `⚠ ${heroFps}→${r.fps} fps` : "master");
+    link(master, pkg, warn ? `⚠ ${warns.join(" · ")}` : "master");
     link(pkg, qc);
     link(qc, del);
   });

@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.7.12";
+export const VERSION = "v2.7.13";
 const CHANGELOG = [
+  "v2.7.13 — Smarter frame-rate warning. Streaming platforms ingest at the native source frame rate, so they no longer trigger a standards-conversion warning even when their fps differs from the hero — only fps-LOCKED broadcasters (25 PAL / 29.97 NTSC) get flagged. Each recipient now has a ‘native fps’ toggle (templates + the AI set it: streamers on, broadcasters off). The Workflow also flags a reframe (aspect change) now — a clean down-scale at the same aspect is left alone.",
   "v2.7.12 — The Workflow now flags a frame-rate clash: any recipient whose fps differs from the hero (the ⭐ main recipient, or the most common cadence if none is starred) gets an amber Package node — ‘⚠ convert 23.976→25 fps’ — and the master edge is labelled with the conversion. Standards conversion is a quality step (interpolate / pulldown / speed change), not a free re-stamp.",
   "v2.7.11 — Stopped calling a TV master a ‘feature’ (that means a film). The template + AI now use ‘Picture master’ for the generic picture deliverables; ‘feature’ is reserved for the actual theatrical DCP template.",
   "v2.7.10 — New ‘Feature film — DCP (theatrical)’ template at the top of Build from template. It sets the theatrical spec (DCI-P3, DCP, 24fps, 2K + 4K) and seeds the full theatrical punch-list: DCDM, DCP package (CPL/PKL/ASSETMAP), VF/version DCPs, trailer DCP, KDM keys (per-server, time-windowed), 5.1/7.1/Atmos printmasters, M&E, HI/VI-N accessibility tracks, subtitle/caption reels, and DCP QC.",
