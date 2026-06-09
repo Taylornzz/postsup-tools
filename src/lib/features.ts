@@ -1,8 +1,8 @@
 // Feature flags — flip a value to re-enable a temporarily hidden feature.
 //
-// vendors: the Vendor Directory. Hidden for now from the menu, the Home launcher
-//   and the "Continue" shortcut. The component, data and route still exist, so
-//   re-enabling is just `vendors: true` (no code to restore).
+// vendors: the Vendor Directory — re-enabled June 2026 after the full
+//   verification + expansion pass (NZ, AU, SE Asia, US, UK, France, Germany,
+//   Western Europe; defunct companies removed; scenario playbooks added).
 export const FEATURES = {
-  vendors: false,
+  vendors: true,
 } as const;

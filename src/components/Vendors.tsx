@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { Building2, Search, X, ExternalLink, AlertTriangle } from "lucide-react";
+import { Building2, Search, X, ExternalLink, AlertTriangle, HelpCircle, ChevronRight, BadgeCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   VENDORS, VENDOR_TYPES, VENDOR_REGIONS, VENDOR_TYPE_COLOR, VENDOR_REGION_LABEL,
+  VENDOR_SCENARIOS, VENDORS_VERIFIED,
   type Vendor, type VendorType, type VendorRegion,
 } from "@/lib/vendors";
 
@@ -109,6 +110,10 @@ export function Vendors() {
             <Building2 className="size-4 text-guide-target" strokeWidth={1.6} />
             <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Vendor Directory</span>
             <span className="font-mono text-[10px] text-suite-text-dim tabular">{filtered.length}/{VENDORS.length}</span>
+            <span title="Every listing web-verified as currently operating; recently-failed companies (Technicolor/MPC, Milk VFX, Jellyfish, Pixomondo, Éclair…) removed."
+              className="inline-flex items-center gap-1 font-mono text-[8.5px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-full border border-emerald-400/40 text-emerald-400">
+              <BadgeCheck className="size-3" strokeWidth={1.8} /> Verified {VENDORS_VERIFIED}
+            </span>
           </div>
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-suite-text-dim" strokeWidth={1.6} />
@@ -146,9 +151,26 @@ export function Vendors() {
       {/* Body */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         <div className="max-w-3xl mx-auto">
+          {/* Scenario playbooks — the questions a post super actually asks of this list */}
+          <details className="rounded-md border border-guide-target/30 bg-guide-target/5 mb-3 group">
+            <summary className="cursor-pointer list-none flex items-center gap-2 px-3.5 py-2.5 font-mono text-[11px] tracking-[0.14em] uppercase text-suite-text font-semibold hover:text-guide-target select-none">
+              <HelpCircle className="size-3.5 text-guide-target" strokeWidth={1.7} />
+              Who do I use for… <span className="font-normal tracking-normal normal-case text-[10px] text-suite-text-dim">· {VENDOR_SCENARIOS.length} curated answers</span>
+              <ChevronRight className="ml-auto size-3.5 transition-transform group-open:rotate-90 text-suite-text-dim" strokeWidth={2} />
+            </summary>
+            <div className="px-3.5 pb-3 flex flex-col gap-3">
+              {VENDOR_SCENARIOS.map((s) => (
+                <div key={s.q} className="rounded-sm border border-suite-border bg-suite-bg/40 px-3 py-2">
+                  <div className="font-mono text-[11px] text-guide-target font-semibold leading-relaxed">{s.q}</div>
+                  <p className="font-mono text-[10.5px] text-suite-text-muted leading-relaxed mt-1">{s.a}</p>
+                </div>
+              ))}
+            </div>
+          </details>
+
           <div className="flex gap-2 rounded-sm border border-suite-border bg-suite-bg/60 px-3 py-2 mb-4">
             <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
-            <p className="font-mono text-[10px] leading-relaxed text-suite-text-dim">A starting point, not gospel — vendors were verified as operating at research time, but the industry shifts fast. Confirm current services, locations and contacts before you rely on any listing.</p>
+            <p className="font-mono text-[10px] leading-relaxed text-suite-text-dim">Every listing was web-verified as operating in {VENDORS_VERIFIED}, and recently-failed companies were removed — but the industry shifts fast. Confirm current services, locations and contacts before you rely on any listing.</p>
           </div>
 
           {filtered.length === 0 ? (
