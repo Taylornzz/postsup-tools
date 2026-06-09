@@ -187,7 +187,8 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
   { id: "abc-au", name: "ABC Australia", spec: { region: "AU", dr: "sdr", resolution: "1080i 1920×1080", fps: 25, container: "AS-11 DPP", audio: "5.1", loudness: "-24 LKFS (Free TV OP-59)", truePeak: "-2 dBTP", subtitles: "Sidecar (IMSC/TTML)", textless: true, qc: "Baton / platform", notes: "ABC Australia — Free TV OP-59 -24 LKFS; air-ready AS-11 (AU) or XDCAM HD422 50, 1080i/25 SDR. No ABC-specific public spec found — confirm. Starter spec (2026-06)." } },
 ];
 export function recipientFromTemplate(t: DeliveryTemplate): Recipient {
-  return { ...newRecipient(t.name), ...t.spec, name: t.name, deliverables: templateDeliverables() };
+  const r = { ...newRecipient(t.name), ...t.spec, name: t.name };
+  return { ...r, deliverables: templateDeliverables({ audio: r.audio, dr: r.dr, subtitles: r.subtitles }) };
 }
 
 // ---- the plan ----

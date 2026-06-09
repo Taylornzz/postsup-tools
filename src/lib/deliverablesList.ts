@@ -42,24 +42,60 @@ export function newItem(category: DelivCategory = "picture"): DeliverableItem {
   return { id: uid(), label: "", category, inScope: true, owner: "", notes: "" };
 }
 
-/** A sensible generic starter punch-list for a Build-from-template recipient — the common
- *  artifacts most deliveries need. Edit, or Grow with AI, to tailor it to the platform. */
-export function templateDeliverables(): DeliverableItem[] {
-  const std: [string, DelivCategory][] = [
-    ["Feature master — textless / clean", "picture"],
-    ["Feature master — texted", "picture"],
-    ["Textless elements (titles / graphics)", "picture"],
-    ["Audio mix — 5.1", "audio"],
-    ["Audio mix — Stereo", "audio"],
-    ["M&E — 5.1", "audio"],
-    ["M&E — Stereo", "audio"],
-    ["Stems (D/M/E) — 5.1", "audio"],
-    ["Subtitles / captions (per language)", "subtitles"],
-    ["QC report", "metadata"],
-    ["Delivery paperwork (as-run / spec sheet)", "metadata"],
-    ["Proxy / viewing copy", "picture"],
-  ];
-  return std.map(([label, category]) => ({ ...newItem(category), label }));
+/** Audio configurations a delivery implies, richest first. Atmos deliveries carry a 5.1 +
+ *  stereo fold-down; 5.1 carries a stereo; etc. */
+function audioConfigs(audio: string): string[] {
+  const a = (audio || "").toLowerCase();
+  if (a.includes("atmos")) return ["Atmos", "5.1", "Stereo"];
+  if (a.includes("7.1")) return ["7.1", "5.1", "Stereo"];
+  if (a.includes("5.1")) return ["5.1", "Stereo"];
+  return ["Stereo"];
+}
+
+function subtitleItem(subs: string): string {
+  const s = (subs || "").toLowerCase();
+  if (!s || s.includes("none")) return "";
+  if (s.includes("sidecar") || s.includes("imsc") || s.includes("ttml")) return "Subtitle files (IMSC/TTML, per language)";
+  if (s.includes("caption") || s.includes("608") || s.includes("708")) return "Closed captions (CEA-608/708)";
+  if (s.includes("burn")) return "Burned-in subtitles (open)";
+  if (s.includes("sdh")) return "SDH subtitles (per language)";
+  return "Subtitles / captions (per language)";
+}
+
+/** A spec-aware starter punch-list for a Build-from-template recipient — tailored to the
+ *  platform's audio config (Atmos vs 5.1 vs stereo), HDR/SDR, and subtitle type. A sensible
+ *  starting point; edit or Grow with AI to finish. */
+export function templateDeliverables(spec?: { audio?: string; dr?: string; subtitles?: string }): DeliverableItem[] {
+  const hdr = spec?.dr === "dolby-vision" || spec?.dr === "hdr10" || spec?.dr === "hlg";
+  const configs = audioConfigs(spec?.audio || "5.1");
+  const out: [string, DelivCategory][] = [];
+
+  // Picture
+  if (hdr) {
+    out.push(["Feature master — HDR (clean / textless)", "picture"]);
+    out.push(["Feature master — SDR (clean / textless)", "picture"]);
+    if (spec?.dr === "dolby-vision") out.push(["Dolby Vision metadata (XML)", "picture"]);
+  } else {
+    out.push(["Feature master — clean / textless", "picture"]);
+  }
+  out.push(["Feature master — texted", "picture"]);
+  out.push(["Textless elements (titles / graphics)", "picture"]);
+  out.push(["Proxy / viewing copy", "picture"]);
+
+  // Audio — one mix + M&E per configuration the spec implies; stems in the richest config
+  for (const c of configs) out.push([`Audio mix — ${c}`, "audio"]);
+  for (const c of configs) out.push([`M&E — ${c}`, "audio"]);
+  out.push([`Stems (D/M/E) — ${configs[0]}`, "audio"]);
+
+  // Subtitles
+  const sub = subtitleItem(spec?.subtitles ?? "");
+  if (sub) out.push([sub, "subtitles"]);
+
+  // Paperwork
+  out.push(["QC report", "metadata"]);
+  out.push(["Delivery paperwork (as-run / spec sheet)", "metadata"]);
+
+  return out.map(([label, category]) => ({ ...newItem(category), label }));
 }
 
 function coerceItem(x: Record<string, unknown>): DeliverableItem {
