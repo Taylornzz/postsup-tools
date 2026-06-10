@@ -8,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
  *
  * Required env: ANTHROPIC_API_KEY.  Optional: ANTHROPIC_MODEL (defaults below). */
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
 const SYSTEM =
   "You are a senior post-production delivery manager. You read delivery specifications, platform " +

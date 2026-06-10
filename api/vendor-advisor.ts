@@ -6,7 +6,7 @@ import { VENDORS, VENDOR_REGION_LABEL, VENDOR_SCENARIOS, VENDORS_VERIFIED } from
  * app's verified vendor directory (so it can never recommend a company that's gone bust).
  * The Anthropic key lives only here (server env). Required env: ANTHROPIC_API_KEY. */
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
 // Compact one-line-per-vendor directory for the prompt (~30KB, cached via prompt caching).
 const DIRECTORY = VENDORS.map((v) =>

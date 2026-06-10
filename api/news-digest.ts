@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
  * the in-app feed renders. Every item carries a REAL url found via search — no invented links.
  * The Anthropic key lives only here (server env). Required env: ANTHROPIC_API_KEY. */
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
 const SYSTEM =
   "You are a news researcher for a film & television post-production professional. You run one 'watch' — a topic the " +
@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       system: SYSTEM,
       tools: [
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { type: "web_search_20250305", name: "web_search", max_uses: 6 } as any,
+        { type: "web_search_20250305", name: "web_search", max_uses: 3 } as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { name: "news_digest", description: "Return the digest: a short tldr plus real, recent items.", input_schema: DIGEST_SCHEMA as any },
       ],

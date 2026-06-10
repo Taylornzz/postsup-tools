@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
  * user confirms by hand — never auto-applied. The Anthropic key lives only here (server env).
  * Required env: ANTHROPIC_API_KEY.  Optional: ANTHROPIC_MODEL. */
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
 const SYSTEM =
   "You verify a video delivery spec for a post-production tool. Given a platform/recipient name and the user's CURRENT " +
@@ -70,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       system: SYSTEM,
       tools: [
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { type: "web_search_20250305", name: "web_search", max_uses: 5 } as any,
+        { type: "web_search_20250305", name: "web_search", max_uses: 3 } as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { name: "verified_spec", description: "Return the verified current spec + sources + confidence.", input_schema: schema(specOptions) as any },
       ],
