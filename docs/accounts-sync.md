@@ -24,23 +24,32 @@ account/local-mode control.)
   policy is last-write-wins by `syncedAt` — right for a solo operator; a multi-editor project would
   want finer merging.
 
-## ⚠️ Important: Supabase project mismatch (action needed before relying on cloud sync)
+## Supabase wiring — verified correct (2026-06-11)
 
-The app's `.env.local` points at Supabase project **`lijtvekgvpwuuofdocgf`**. The Supabase MCP tool in
-this workspace is bound to a **different** project (`vwoiqjnbqhmvtntgvefl`). Because of the standing
-rule not to touch the wrong (memorial) project, **no database changes were made via the MCP**, and the
-cloud-sync path was **not** verified end-to-end here. Before relying on it:
+There are two *different* Supabase projects in play, so this was checked carefully:
 
-1. Confirm `lijtvekgvpwuuofdocgf` is the correct Kaos project and that its `projects` table has a
-   `data jsonb` column (the app already reads/writes `data.url`, so it should).
-2. Set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` in the **Vercel** project env (production), then
-   redeploy — that's what flips the deployed site from local mode to real accounts.
-3. Sign in on two devices and confirm: open project on A → edit → leave; open on B → the edits pulled
-   down. The **file Back up / Restore** path works regardless and is the fallback.
+- The **app** uses project **`lijtvekgvpwuuofdocgf`** (the Kaos project).
+- The **Supabase MCP tool** in this workspace is bound to a **different** project
+  (`vwoiqjnbqhmvtntgvefl`, the memorial project). **Never** make DB changes via the MCP — it would hit
+  the wrong database. No DB changes were ever made through it.
 
-The file-backup engine is unit-tested (`src/test/projectSync.test.ts`). The cloud push/pull reuses the
-already-working `projects.ts` API (anon key + RLS), so it targets whatever project the **app** is
-configured with — never the MCP's project.
+Verified end-to-end via read-only checks (no DB writes, no MCP):
+
+1. **Live bundle → right project.** The deployed `kaostheory.vercel.app` JS bundle contains
+   `lijtvekgvpwuuofdocgf.supabase.co` and *not* the memorial ref. ✔
+2. **Vercel env present.** `ANTHROPIC_API_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` are all set
+   in Production (the Supabase pair since ~5 days before this date). ✔
+3. **Schema correct.** Hitting the Kaos project's public REST API
+   (`/rest/v1/projects?select=id,name,data,user_id`) with the anon key returns `200 []`; a fake column
+   returns `400 column … does not exist`. So the `projects` table exists with the `data jsonb` column
+   the snapshot sync writes to. ✔
+4. **RLS active.** The unauthenticated read returns `[]` (not other users' rows); the signed-in app
+   loading the user's own projects proves authenticated reads work. ✔
+
+So accounts + cloud sync are live and pointed at the correct project. The only step that can't be done
+from here is a **two-device functional test** (sign in on device A, edit, leave; sign in on B, confirm
+the pull) — that needs the user's own account/password and is theirs to run. The **file Back up /
+Restore** path works regardless and is unit-tested (`src/test/projectSync.test.ts`).
 
 ## Not done (future)
 
