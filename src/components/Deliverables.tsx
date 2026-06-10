@@ -21,7 +21,7 @@ import { ProductionList } from "./ProductionList";
 import { exportDeliverables } from "@/lib/deliverablesExport";
 import { rollupDeliverables, shareCounts, linkSuggestions, linkBySpecKey, unlinkArtifact } from "@/lib/deliverablesRollup";
 import { verifySpec } from "@/lib/verifySpec";
-import { loadDrift, saveDrift, driftCandidates, runDriftScan, clearDriftFor, type DriftState } from "@/lib/driftCheck";
+import { loadDrift, saveDrift, driftCandidates, runDriftScan, clearDriftFor, autoDriftDue, markAutoDriftAt, type DriftState } from "@/lib/driftCheck";
 import { specOptions } from "@/lib/deliverables";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
@@ -51,28 +51,38 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   };
   const unlinkArt = (artifactId: string) => setRecipients((rs) => unlinkArtifact(rs, artifactId));
 
-  // ---- spec-drift alerts: batch web-check recipients, remember which have changed ----
+  // ---- spec-drift: a silent background check, ~monthly, no button to click ----
   const [drift, setDrift] = useState<DriftState | null>(() => loadDrift(projectId));
   const [driftRunning, setDriftRunning] = useState(false);
-  const [driftProgress, setDriftProgress] = useState<{ done: number; total: number } | null>(null);
   useEffect(() => { setDrift(loadDrift(projectId)); }, [projectId]);
-
-  const runDriftCheck = async () => {
-    const candidates = driftCandidates(recipients);
-    if (!candidates.length) { toast("Add a named recipient first."); return; }
-    if (!window.confirm(`Check ${candidates.length} recipient${candidates.length === 1 ? "" : "s"} for spec drift?\n\nRuns ${candidates.length} live web search${candidates.length === 1 ? "" : "es"} in parallel (about a minute). It only tells you what changed and when — a show already in production keeps its agreed spec; you decide whether to change anything.`)) return;
-    setDriftRunning(true);
-    setDriftProgress({ done: 0, total: candidates.length });
-    const opts = specOptions();
-    const verify = (r: Recipient) => verifySpec(r.name, { region: r.region, dr: r.dr, peakNits: r.peakNits, resolution: r.resolution, fps: r.fps, container: r.container, audio: r.audio, loudness: r.loudness, truePeak: r.truePeak, subtitles: r.subtitles }, opts);
-    const { state, checked, failed } = await runDriftScan(candidates, verify, { onProgress: (done, total) => setDriftProgress({ done, total }) });
-    setDrift(state); saveDrift(projectId, state); setDriftRunning(false); setDriftProgress(null);
-    if (failed && !checked) toast.error("Drift check couldn’t run", { description: "The verify service only runs on the deployed site, and may be slow — try again." });
-    else if (state.drifted.length) toast.warning(`${state.drifted.length} spec${state.drifted.length === 1 ? "" : "s"} changed since you set up`, { description: `${state.drifted.map((d) => d.name).join(", ")} — see the note under each. Your plan stays as-is until you change it.` });
-    else toast.success("No drift found", { description: `Checked ${checked} — all still match current reporting.` });
-  };
   const dismissDrift = () => { setDrift(null); saveDrift(projectId, null); };
   const dismissDriftFor = (id: string) => { const next = clearDriftFor(drift, id); setDrift(next); saveDrift(projectId, next); };
+
+  // Runs automatically when a project is open, at most once a month, only the recipients
+  // worth checking, silent + non-blocking. Stamped only when it actually reached the service
+  // (so local dev / offline just retries next open). Never triggered by a click — no cost surprise.
+  const autoFired = useRef(false);
+  useEffect(() => {
+    if (autoFired.current) return;
+    const now = Date.now();
+    if (!autoDriftDue(projectId, now)) return;
+    const candidates = driftCandidates(recipients);
+    if (!candidates.length) return;
+    autoFired.current = true;
+    let cancelled = false;
+    setDriftRunning(true);
+    const opts = specOptions();
+    const verify = (r: Recipient) => verifySpec(r.name, { region: r.region, dr: r.dr, peakNits: r.peakNits, resolution: r.resolution, fps: r.fps, container: r.container, audio: r.audio, loudness: r.loudness, truePeak: r.truePeak, subtitles: r.subtitles }, opts);
+    runDriftScan(candidates, verify, {})
+      .then(({ state, checked }) => {
+        if (cancelled || checked === 0) return;          // 0 reached → offline/local; don't burn the month
+        markAutoDriftAt(projectId, now);
+        setDrift(state); saveDrift(projectId, state);
+      })
+      .catch(() => { /* offline — retry next open */ })
+      .finally(() => { if (!cancelled) setDriftRunning(false); });
+    return () => { cancelled = true; };
+  }, [projectId, recipients]);
   const [flowKey, setFlowKey] = useState(0);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
@@ -193,11 +203,11 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
           <button onClick={pushToPlanner} title="Add each recipient's delivery due date to the Planner as a milestone" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <CalendarClock className="size-3" strokeWidth={1.6} /> To planner
           </button>
-          <button onClick={runDriftCheck} disabled={driftRunning} title="Web-check recipients for spec changes since you set up — informational; your plan only changes if you choose" className={cn("flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm transition-colors disabled:opacity-80", driftRunning ? "text-guide-target border-guide-target/50 bg-guide-target/10" : "text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg")}>
-            {driftRunning
-              ? <><Loader2 className="size-3 animate-spin" strokeWidth={2} /> {driftProgress ? `Checking ${driftProgress.done}/${driftProgress.total}…` : "Checking…"}</>
-              : <><Radar className="size-3" strokeWidth={1.6} /> Check drift</>}
-          </button>
+          {driftRunning && (
+            <span title="Checking platform specs for changes since you set up — runs automatically about once a month" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono text-suite-text-dim">
+              <Loader2 className="size-3 animate-spin" strokeWidth={2} /> Checking specs…
+            </span>
+          )}
           <button onClick={reset} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Reset
           </button>
@@ -223,7 +233,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
             <div className="rounded-md border border-status-warn/30 bg-status-warn/5 px-3 py-2 flex items-center gap-2">
               <Radar className="size-3.5 shrink-0 text-status-warn" strokeWidth={1.8} />
               <p className="font-mono text-[10px] text-suite-text-muted leading-relaxed min-w-0">
-                <span className="text-status-warn font-semibold">{drift.drifted.length} spec{drift.drifted.length === 1 ? "" : "s"} changed</span> since you set up (checked {new Date(drift.checkedAt).toLocaleDateString()}) — see the note under {drift.drifted.length === 1 ? "that recipient" : "each flagged recipient"}. Heads-up only; your plan stays as-is until you change it.
+                <span className="text-status-warn font-semibold">{drift.drifted.length} spec{drift.drifted.length === 1 ? "" : "s"} changed</span> since you set up (auto-checked {new Date(drift.checkedAt).toLocaleDateString()}) — see the note under {drift.drifted.length === 1 ? "that recipient" : "each flagged recipient"}. Heads-up only; your plan stays as-is until you change it.
               </p>
               <button onClick={dismissDrift} className="ml-auto shrink-0 text-suite-text-dim hover:text-suite-text" title="Dismiss all drift notes"><X className="size-3.5" strokeWidth={2} /></button>
             </div>

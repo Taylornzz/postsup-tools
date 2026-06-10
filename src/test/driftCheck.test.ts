@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { newRecipient, type Recipient } from "@/lib/deliverables";
 import { recipientSpecDiffs } from "@/lib/verifySpec";
-import { driftCandidates, loadDrift, saveDrift, runDriftScan, clearDriftFor, type DriftState } from "@/lib/driftCheck";
+import { driftCandidates, loadDrift, saveDrift, runDriftScan, clearDriftFor, autoDriftDue, markAutoDriftAt, AUTO_DRIFT_INTERVAL_MS, type DriftState } from "@/lib/driftCheck";
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
 
@@ -54,6 +54,16 @@ describe("spec-drift (#8)", () => {
     expect(state.drifted.map((d) => d.id)).toEqual(["a"]);
     expect(state.drifted[0].diffs[0]).toMatchObject({ label: "Loudness", to: "-24 LKFS (streaming)" });
     expect(progress[progress.length - 1]).toBe(3);        // progress reached total
+  });
+
+  it("auto-check is due when never run or older than a month, throttled otherwise", () => {
+    const now = 1_000 * AUTO_DRIFT_INTERVAL_MS; // arbitrary large 'now'
+    expect(autoDriftDue("p", now)).toBe(true);                 // never run → due
+    markAutoDriftAt("p", now);
+    expect(autoDriftDue("p", now)).toBe(false);                // just ran → not due
+    expect(autoDriftDue("p", now + AUTO_DRIFT_INTERVAL_MS - 1)).toBe(false); // <1mo → still throttled
+    expect(autoDriftDue("p", now + AUTO_DRIFT_INTERVAL_MS)).toBe(true);      // ≥1mo → due again
+    expect(autoDriftDue("other", now)).toBe(true);             // per-project, independent
   });
 
   it("clearDriftFor removes one recipient, nulling the state when empty", () => {

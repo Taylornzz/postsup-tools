@@ -20,15 +20,18 @@ staleness badge ages it (per spec class — streamers drift fastest, see `recipi
 per-recipient **Verify spec** button web-checks one platform's current spec and shows a field-level
 diff the user applies *by hand* (never auto-merged).
 
-**v2 — batch drift check (on-demand).** The **Check drift** button (`src/lib/driftCheck.ts` →
-`runDriftScan`) web-checks the recipients worth checking (`driftCandidates` — named, past their
-"fresh" window, to keep the web-search count down). It runs the checks **in parallel with a
-per-check timeout** (default 4-wide, 60 s) so the batch finishes in roughly one slow call's time and
-a single hung request can never stall it; the button animates with live `3/6` progress. Each drifted
-recipient gets an **inline, informational note right under its spec** — the field-level changes
-(`was → now`), the date checked, and a reminder that a show in production keeps its agreed spec. A
-slim summary line sits above the list; both are dismissible (per-recipient or all). Persisted per
-project (`kaos.deliverables.drift-{pid}`).
+**v2 — automatic monthly background check (no button).** Drift now runs on its own. When a project
+is open, `Deliverables` fires a silent, throttled check (`autoDriftDue` → at most once every ~30 days
+per project, only the recipients worth checking via `driftCandidates`). It uses `runDriftScan`
+(parallel, per-check timeout) so it can't hang, and stamps the run (`markAutoDriftAt`) only when it
+actually reached the service — local dev / offline simply retries next open, and it's **never
+triggered by a click**, so there's no way to set off a costly run by accident. Each drifted recipient
+gets an **inline, informational note under its spec** (`was → now`, the date, and the reminder that a
+show in production keeps its agreed spec); a slim summary line sits above the list. Both dismissible.
+Persisted per project (`kaos.deliverables.drift-{pid}`, last-run at `kaos.deliverables.driftAutoAt-{pid}`).
+
+This satisfies "automated, monthly, hands-off" with zero infrastructure. Its one limit: it runs the
+next time you *open* the project each month, not while the app is fully closed — for that, see v3.
 
 ## Next — v3: automatic weekly drift (lands with accounts, #10)
 

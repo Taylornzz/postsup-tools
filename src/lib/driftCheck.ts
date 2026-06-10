@@ -46,6 +46,24 @@ export function saveDrift(pid: string | undefined, state: DriftState | null) {
   } catch { /* ignore */ }
 }
 
+// ---- monthly auto-check throttle ----
+// Drift runs automatically in the background (no button). We stamp the last *successful*
+// run per project and skip until a month has passed, so opening the app re-checks at most
+// ~once a month — cheap, hands-off, and impossible to trigger a costly run by accident.
+export const AUTO_DRIFT_INTERVAL_MS = 30 * 86400000; // ~1 month
+const autoKey = (pid?: string) => `kaos.deliverables.driftAutoAt${pid ? `-${pid}` : ""}`;
+
+export function lastAutoDriftAt(pid?: string): number {
+  try { return Number(localStorage.getItem(autoKey(pid))) || 0; } catch { return 0; }
+}
+export function markAutoDriftAt(pid: string | undefined, at: number) {
+  try { localStorage.setItem(autoKey(pid), String(at)); } catch { /* ignore */ }
+}
+/** True if a project is due for its monthly background drift check. */
+export function autoDriftDue(pid: string | undefined, now: number): boolean {
+  return now - lastAutoDriftAt(pid) >= AUTO_DRIFT_INTERVAL_MS;
+}
+
 /** Which recipients are worth a drift check — named, and either never verified or past their
  *  class's "fresh" window (a fresh, just-verified spec doesn't need re-checking). Keeps the
  *  web-search count (and cost) down. Falls back to all named recipients if none look stale. */
