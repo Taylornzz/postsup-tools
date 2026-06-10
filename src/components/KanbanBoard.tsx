@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   SquareKanban, Plus, Trash2, X, Check, Square, CheckSquare, Download, ListChecks,
-  CalendarClock, ChevronDown, CalendarRange, Film, Workflow as WorkflowIcon,
+  CalendarClock, ChevronDown, CalendarRange, Film, Workflow as WorkflowIcon, GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -96,6 +96,10 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   const [overCol, setOverCol] = useState<string | null>(null);
   const [overCard, setOverCard] = useState<{ cardId: string; after: boolean } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Column reordering (separate from card drags — tracked on its own ref so the two never mix).
+  const colDrag = useRef<string | null>(null);
+  const [draggingColId, setDraggingColId] = useState<string | null>(null);
+  const [overColReorder, setOverColReorder] = useState<{ colId: string; after: boolean } | null>(null);
 
   useEffect(() => { try { localStorage.setItem(key, JSON.stringify(cols)); } catch { /* ignore */ } }, [cols, key]);
   // Esc clears a multi-selection.
@@ -246,12 +250,14 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
   /** Insert before or after the hovered card depending on pointer position —
    *  this is what makes precise same-column reordering possible. */
   const dragOverCard = (e: React.DragEvent, cardId: string) => {
+    if (colDrag.current) return; // dragging a column — let it bubble to the column's reorder handler
     e.preventDefault(); e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const after = e.clientY > rect.top + rect.height / 2;
     setOverCard((prev) => (prev?.cardId === cardId && prev.after === after ? prev : { cardId, after }));
   };
   const dropOnCard = (e: React.DragEvent, colId: string, hoveredCardId: string) => {
+    if (colDrag.current) return; // column drop — handled by the column's onDrop via bubbling
     e.preventDefault(); e.stopPropagation();
     const d = drag.current;
     if (d) {
@@ -272,6 +278,42 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
     e.preventDefault();
     const d = drag.current; if (d) { moveSelection(d.ids, colId, null); setSelectedIds([]); }
     onDragEnd();
+  };
+
+  // ---- column reorder handlers (drag a column by its header grip) ----
+  const onColDragStart = (e: React.DragEvent, colId: string) => {
+    e.stopPropagation();
+    colDrag.current = colId;
+    setDraggingColId(colId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `col:${colId}`);
+  };
+  const onColDragEnd = () => { colDrag.current = null; setDraggingColId(null); setOverColReorder(null); };
+  const colDragOver = (e: React.DragEvent, colId: string) => {
+    e.preventDefault(); e.stopPropagation();
+    if (colDrag.current === colId) { setOverColReorder(null); return; } // hovering itself
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const after = e.clientX > rect.left + rect.width / 2;
+    setOverColReorder((p) => (p?.colId === colId && p.after === after ? p : { colId, after }));
+  };
+  const dropOnColReorder = (e: React.DragEvent, targetColId: string) => {
+    e.preventDefault(); e.stopPropagation();
+    const draggedId = colDrag.current;
+    if (draggedId && draggedId !== targetColId) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const after = e.clientX > rect.left + rect.width / 2;
+      setCols((cs) => {
+        const moving = cs.find((c) => c.id === draggedId);
+        if (!moving) return cs;
+        const rest = cs.filter((c) => c.id !== draggedId);
+        let idx = rest.findIndex((c) => c.id === targetColId);
+        if (idx < 0) return cs;
+        if (after) idx += 1;
+        rest.splice(idx, 0, moving);
+        return rest;
+      });
+    }
+    onColDragEnd();
   };
 
   const editCard = editing ? cols.find((c) => c.id === editing.colId)?.cards.find((k) => k.id === editing.cardId) ?? null : null;
@@ -341,13 +383,29 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
           {cols.map((col) => (
             <div
               key={col.id}
-              onDragOver={(e) => { allowDrop(e); setOverCol(col.id); }}
-              onDragLeave={() => setOverCol((o) => (o === col.id ? null : o))}
-              onDrop={(e) => dropOnCol(e, col.id)}
-              className={cn("shrink-0 w-64 h-full flex flex-col rounded-md border bg-suite-panel/40", overCol === col.id ? "border-guide-target/50" : "border-suite-border")}
+              onDragOver={(e) => { if (colDrag.current) colDragOver(e, col.id); else { allowDrop(e); setOverCol(col.id); } }}
+              onDragLeave={() => { setOverCol((o) => (o === col.id ? null : o)); setOverColReorder((p) => (p?.colId === col.id ? null : p)); }}
+              onDrop={(e) => { if (colDrag.current) dropOnColReorder(e, col.id); else dropOnCol(e, col.id); }}
+              className={cn(
+                "shrink-0 w-64 h-full flex flex-col rounded-md border bg-suite-panel/40 transition-opacity",
+                overCol === col.id ? "border-guide-target/50" : "border-suite-border",
+                draggingColId === col.id && "opacity-50",
+                // amber insertion bar on the side the column will drop to
+                overColReorder?.colId === col.id && !overColReorder.after && "shadow-[-3px_0_0_0_#f59e0b]",
+                overColReorder?.colId === col.id && overColReorder.after && "shadow-[3px_0_0_0_#f59e0b]",
+              )}
             >
               {/* Column header */}
-              <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 border-b border-suite-border">
+              <div className="shrink-0 flex items-center gap-1 px-2 py-2 border-b border-suite-border">
+                <button
+                  draggable
+                  onDragStart={(e) => onColDragStart(e, col.id)}
+                  onDragEnd={onColDragEnd}
+                  title="Drag to reorder this column"
+                  className="shrink-0 cursor-grab active:cursor-grabbing text-suite-text-dim hover:text-suite-text"
+                >
+                  <GripVertical className="size-3.5" strokeWidth={1.8} />
+                </button>
                 <input
                   value={col.name}
                   onChange={(e) => renameCol(col.id, e.target.value)}
