@@ -493,6 +493,13 @@ export function saveRecipients(projectId: string | undefined, recipients: Recipi
   try { localStorage.setItem(key, JSON.stringify(recipients)); } catch { /* ignore */ }
 }
 
+/** True once the user has saved recipients for this project (i.e. it's no longer showing the
+ *  untouched seed examples). Gates the background drift check so a brand-new project's example
+ *  recipients never trigger an unsolicited web-search run. */
+export function recipientsPersisted(projectId?: string): boolean {
+  try { return localStorage.getItem(KEY + (projectId ? `-${projectId}` : "")) !== null; } catch { return false; }
+}
+
 // ---- Commit → workflow graph (feeds the Custom Workflow builder) ----
 // Fans the make-plan out into a node-graph the existing WorkflowBuilder loads:
 // Conform → grade passes → per-recipient Package → QC → Deliver.
@@ -579,14 +586,20 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
 // by name so re-running keeps dates in sync without wiping a user's duration edits.
 type GanttBar = { id: string; name: string; color: string; start: number; dur: number };
 
-function mondayISO(d: Date): string {
-  const x = new Date(d);
+// A yyyy-mm-dd date is parsed as LOCAL midnight and formatted back from local
+// components — never via toISOString(), which would shift the day (and the Monday
+// anchor) by ±1 in any timezone offset from UTC.
+const parseLocalDate = (iso: string) => new Date(`${iso}T00:00:00`);
+const fmtLocalDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function mondayISO(iso: string): string {
+  const x = parseLocalDate(iso);
   const day = (x.getDay() + 6) % 7; // 0 = Monday
   x.setDate(x.getDate() - day);
-  return x.toISOString().slice(0, 10);
+  return fmtLocalDate(x);
 }
 const weeksBetween = (fromISO: string, toISO: string) =>
-  Math.round((Date.parse(toISO) - Date.parse(fromISO)) / (7 * 86400000));
+  Math.round((parseLocalDate(toISO).getTime() - parseLocalDate(fromISO).getTime()) / (7 * 86400000));
 
 /** Recipients with a due date, earliest first — the delivery schedule. */
 export function deliverySchedule(recipients: Recipient[]): { id: string; name: string; due: string }[] {
@@ -609,7 +622,7 @@ export function sendDeliveriesToSchedule(projectId: string | undefined, recipien
   let startDate = "";
   try { startDate = localStorage.getItem(startKey) || ""; } catch { /* ignore */ }
   if (!startDate) {
-    startDate = mondayISO(new Date(sched[0].due));
+    startDate = mondayISO(sched[0].due);
     try { localStorage.setItem(startKey, startDate); } catch { /* ignore */ }
   }
 

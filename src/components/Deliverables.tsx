@@ -21,8 +21,8 @@ import { ProductionList } from "./ProductionList";
 import { exportDeliverables } from "@/lib/deliverablesExport";
 import { rollupDeliverables, shareCounts, linkSuggestions, linkBySpecKey, unlinkArtifact } from "@/lib/deliverablesRollup";
 import { verifySpec } from "@/lib/verifySpec";
-import { loadDrift, saveDrift, driftCandidates, runDriftScan, clearDriftFor, autoDriftDue, markAutoDriftAt, type DriftState } from "@/lib/driftCheck";
-import { specOptions } from "@/lib/deliverables";
+import { loadDrift, saveDrift, driftCandidates, runDriftScan, clearDriftFor, autoDriftDue, markAutoDriftAt, markAutoDriftAttempt, type DriftState } from "@/lib/driftCheck";
+import { specOptions, recipientsPersisted } from "@/lib/deliverables";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
@@ -65,10 +65,12 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   useEffect(() => {
     if (autoFired.current) return;
     const now = Date.now();
-    if (!autoDriftDue(projectId, now)) return;
+    // Skip untouched seed/example projects, and respect the monthly + retry throttle.
+    if (!recipientsPersisted(projectId) || !autoDriftDue(projectId, now)) return;
     const candidates = driftCandidates(recipients);
     if (!candidates.length) return;
     autoFired.current = true;
+    markAutoDriftAttempt(projectId, now); // stamp the attempt so a failed run won't re-fire on every tab revisit
     let cancelled = false;
     setDriftRunning(true);
     const opts = specOptions();

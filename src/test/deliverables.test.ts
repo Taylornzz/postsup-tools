@@ -258,6 +258,34 @@ describe("artifact links — Phase 2 (#5)", () => {
   });
 });
 
+describe("review-sweep fixes", () => {
+  const me = (): DeliverableItem => ({ ...newItem("audio"), label: "M&E — 5.1" });
+  const spec5 = { audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP" };
+
+  it("partial links reconcile — an unlinked identical item joins the linked make (no split row)", () => {
+    let rs: Recipient[] = [
+      { ...newRecipient("A"), ...spec5, deliverables: [me()] },
+      { ...newRecipient("B"), ...spec5, deliverables: [me()] },
+    ];
+    rs = linkBySpecKey(rs, linkSuggestions(rs)[0].specKey); // link A + B
+    rs = [...rs, { ...newRecipient("C"), ...spec5, deliverables: [me()] }]; // add an identical UNLINKED item
+    const groups = rollupDeliverables(rs).filter((g) => g.label.startsWith("M&E"));
+    expect(groups.length).toBe(1);            // one make-once group, not two
+    expect(groups[0].linked).toBe(true);
+    expect(groups[0].consumers.length).toBe(3); // A, B, C all consume the same master
+  });
+
+  it("Planner anchors to the local Monday regardless of timezone", () => {
+    const pid = "tz-anchor";
+    localStorage.removeItem(`postsup-gantt-v1-${pid}`);
+    localStorage.removeItem(`postsup-gantt-start-${pid}`);
+    // Wednesday 2026-07-08 due → anchor must be Monday 2026-07-06, delivery at week 0
+    sendDeliveriesToSchedule(pid, [{ ...newRecipient("X"), due: "2026-07-08" }]);
+    expect(localStorage.getItem(`postsup-gantt-start-${pid}`)).toBe("2026-07-06");
+    expect(JSON.parse(localStorage.getItem(`postsup-gantt-v1-${pid}`)!)[0].start).toBe(0);
+  });
+});
+
 describe("IMF OV + supplementals (#7)", () => {
   const langs: DeliveryLanguage[] = [
     { ...newLanguage("EN"), kind: "OV" },

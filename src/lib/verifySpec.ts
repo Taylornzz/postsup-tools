@@ -1,4 +1,4 @@
-import type { Recipient } from "./deliverables";
+import { isHdr, type Recipient } from "./deliverables";
 
 /** Client for /api/verify-spec — web-search-verify a platform's current delivery spec and
  *  return the best-known values + sources. The result is a SUGGESTION the user confirms by
@@ -24,6 +24,8 @@ export interface SpecDiff { key: keyof Recipient; label: string; from: string; t
  *  fields the verifier actually returned (omitted/blank fields are not "changes"). */
 export function recipientSpecDiffs(r: Recipient, spec: Partial<Recipient>): SpecDiff[] {
   return SPEC_FIELDS
+    // Peak nits only applies to HDR — never report a nits "change" on an SDR/theatrical spec.
+    .filter((f) => !(f.key === "peakNits" && !isHdr(r.dr)))
     .filter((f) => spec[f.key] !== undefined && spec[f.key] !== "" && String(spec[f.key]) !== String(r[f.key] ?? ""))
     .map((f) => ({ key: f.key, label: f.label, from: String(r[f.key] ?? "—"), to: String(spec[f.key]) }));
 }

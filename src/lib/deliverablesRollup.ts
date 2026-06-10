@@ -39,18 +39,32 @@ function specFor(cat: DelivCategory, r: Recipient): string {
 const specKeyOf = (cat: DelivCategory, label: string, spec: string) => `${cat}|${norm(label)}|${spec}`;
 
 export function rollupDeliverables(recipients: Recipient[]): ArtifactGroup[] {
+  // Pass 1: map each content identity (specKey) to a confirmed artifactId, if any item in
+  // that cluster carries one. This lets a later identical-but-unlinked item join the same
+  // make-once group instead of splitting off into a second row (partial-link reconciliation).
+  const specKeyToArtifact = new Map<string, string>();
+  for (const r of recipients) {
+    for (const item of r.deliverables || []) {
+      if (!item.label.trim() || !item.artifactId) continue;
+      const sk = specKeyOf(item.category, item.label, specFor(item.category, r));
+      if (!specKeyToArtifact.has(sk)) specKeyToArtifact.set(sk, item.artifactId);
+    }
+  }
+
   const map = new Map<string, ArtifactGroup>();
   for (const r of recipients) {
     for (const item of r.deliverables || []) {
       if (!item.label.trim()) continue;
       const spec = specFor(item.category, r);
       const specKey = specKeyOf(item.category, item.label, spec);
-      // A user-confirmed link groups durably (survives a label edit on one recipient);
-      // otherwise the content identity (specKey) groups identical items as an inference.
-      const linked = !!item.artifactId;
-      const key = linked ? `art:${item.artifactId}` : `spec:${specKey}`;
+      // A user-confirmed link groups durably (survives a label edit on one recipient); an
+      // unlinked item adopts a sibling's artifactId when the content matches; otherwise the
+      // inferred content identity (specKey) groups identical items.
+      const artifactId = item.artifactId || specKeyToArtifact.get(specKey);
+      const linked = !!artifactId;
+      const key = linked ? `art:${artifactId}` : `spec:${specKey}`;
       let g = map.get(key);
-      if (!g) { g = { key, label: item.label.trim(), category: item.category, spec, specKey, linked, artifactId: item.artifactId, consumers: [], inScope: false }; map.set(key, g); }
+      if (!g) { g = { key, label: item.label.trim(), category: item.category, spec, specKey, linked, artifactId, consumers: [], inScope: false }; map.set(key, g); }
       g.consumers.push({ recipientId: r.id, recipientName: r.name?.trim() || "Recipient", itemId: item.id, inScope: item.inScope, status: item.status, version: item.version || 1 });
       if (item.inScope) g.inScope = true;
     }

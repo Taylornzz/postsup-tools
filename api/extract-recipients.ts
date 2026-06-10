@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const body = (typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body) || {};
-    const documents: { name: string; mediaType: string; dataBase64: string }[] = Array.isArray(body.documents) ? body.documents : [];
+    const documents: { name: string; mediaType: string; dataBase64: string }[] = Array.isArray(body.documents) ? body.documents.slice(0, 10) : [];
     const text: string | undefined = typeof body.text === "string" ? body.text : undefined;
     const options: Opts = body.options && typeof body.options === "object" ? body.options : {};
     if (documents.length === 0 && !text) { res.status(400).json({ error: "no_input", message: "Attach a delivery spec (PDF, image, or text)." }); return; }

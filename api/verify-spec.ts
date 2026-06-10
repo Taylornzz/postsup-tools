@@ -14,7 +14,8 @@ const SYSTEM =
   "RULES: only set a field if you found a credible PUBLIC source for it — include the source URL + a short verbatim quote. " +
   "If a field is behind a partner portal or you cannot verify it, OMIT it (never guess). Choose ONLY from the allowed enum " +
   "values for each field. Confidence is at most 'medium' for anything web-derived — never 'high'. The platform's own partner " +
-  "portal and per-title specs are the authoritative source; make clear the user must confirm there.";
+  "portal and per-title specs are the authoritative source; make clear the user must confirm there.\n" +
+  "ALWAYS finish by calling the `verified_spec` tool with your findings — never reply with a plain-text answer.";
 
 type Opts = Record<string, (string | number)[]>;
 

@@ -15,6 +15,13 @@ describe("spec-drift (#8)", () => {
     expect(diffs[0]).toMatchObject({ from: "-27 LKFS (Netflix streaming)", to: "-24 LKFS (streaming)" });
   });
 
+  it("does not report a peakNits change for an SDR recipient (HDR-only field)", () => {
+    const sdr: Recipient = { ...newRecipient("SDR"), dr: "sdr", peakNits: 1000 };
+    expect(recipientSpecDiffs(sdr, { peakNits: 4000 }).some((d) => d.key === "peakNits")).toBe(false);
+    const hdr: Recipient = { ...newRecipient("HDR"), dr: "dolby-vision", peakNits: 1000 };
+    expect(recipientSpecDiffs(hdr, { peakNits: 4000 }).some((d) => d.key === "peakNits")).toBe(true);
+  });
+
   it("driftCandidates picks non-fresh named recipients (falls back to all named)", () => {
     const fresh: Recipient = { ...newRecipient("Fresh"), verified: { at: daysAgo(1) } };
     const stale: Recipient = { ...newRecipient("Stale"), verified: { at: daysAgo(300) } };

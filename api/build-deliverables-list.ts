@@ -122,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = (typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body) || {};
     const brief: string = typeof body.brief === "string" ? body.brief : "";
-    const documents: { name: string; mediaType: string; dataBase64: string }[] = Array.isArray(body.documents) ? body.documents : [];
+    const documents: { name: string; mediaType: string; dataBase64: string }[] = Array.isArray(body.documents) ? body.documents.slice(0, 10) : [];
     const existing: { label?: string; category?: string }[] = Array.isArray(body.existing) ? body.existing : [];
     const specOptions: Opts = body.specOptions && typeof body.specOptions === "object" ? body.specOptions : {};
     const wantSpec: boolean = typeof body.wantSpec === "boolean" ? body.wantSpec : existing.length === 0;

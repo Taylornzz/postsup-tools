@@ -88,11 +88,22 @@ export async function createProject(name: string, color: string): Promise<Projec
 
 export async function updateProject(id: string, patch: Partial<Pick<Project, "name" | "color" | "data">>): Promise<void> {
   if (supabase) {
-    const { error } = await supabase.from("projects").update(patch).eq("id", id);
+    // Postgres replaces the whole `data` jsonb on update — so MERGE it with the current row
+    // first. Two writers touch `data` (the debounced capture-state `url` writer and the
+    // sync `snapshot` writer); without this read-modify-merge, the second write wipes the
+    // first's field (e.g. a snapshot push clobbering a just-saved url, or vice versa).
+    let merged: typeof patch = patch;
+    if (patch.data) {
+      const cur = await getProject(id);
+      merged = { ...patch, data: { ...(cur?.data || {}), ...patch.data } };
+    }
+    const { error } = await supabase.from("projects").update(merged).eq("id", id);
     if (error) console.error("updateProject", error.message);
     return;
   }
-  localPersist(localList().map((p) => (p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p)));
+  localPersist(localList().map((p) => (p.id === id
+    ? { ...p, ...patch, data: patch.data ? { ...(p.data || {}), ...patch.data } : p.data, updatedAt: Date.now() }
+    : p)));
 }
 
 export async function deleteProject(id: string): Promise<void> {

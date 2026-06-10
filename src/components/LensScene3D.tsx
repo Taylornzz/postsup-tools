@@ -222,9 +222,12 @@ export function LensScene3D(p: LensSceneProps) {
     const down = (e: PointerEvent) => { v.drag = true; v.lx = e.clientX; v.ly = e.clientY; c.setPointerCapture(e.pointerId); };
     const move = (e: PointerEvent) => {
       if (!v.drag) return;
-      if (v.top) { v.top = false; setMode("3d"); } // dragging leaves the plan view
       v.yaw += (e.clientX - v.lx) * 0.008;
-      v.pitch = Math.max(0.05, Math.min(1.35, v.pitch + (e.clientY - v.ly) * 0.006));
+      // Clamp high enough (≈89°) that the top-down plan view is reachable and draggable, not
+      // snapped back to 1.35. Mode follows pitch: near-overhead reads as the plan view.
+      v.pitch = Math.max(0.05, Math.min(1.55, v.pitch + (e.clientY - v.ly) * 0.006));
+      const isTop = v.pitch > 1.45;
+      if (isTop !== v.top) { v.top = isTop; setMode(isTop ? "top" : "3d"); }
       v.lx = e.clientX; v.ly = e.clientY;
       draw();
     };

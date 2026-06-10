@@ -50,8 +50,12 @@ export function saveDrift(pid: string | undefined, state: DriftState | null) {
 // Drift runs automatically in the background (no button). We stamp the last *successful*
 // run per project and skip until a month has passed, so opening the app re-checks at most
 // ~once a month — cheap, hands-off, and impossible to trigger a costly run by accident.
-export const AUTO_DRIFT_INTERVAL_MS = 30 * 86400000; // ~1 month
+// A separate *attempt* stamp gives a short retry floor so a failed/offline run (which never
+// stamps success) can't re-fire on every tab revisit within the same day.
+export const AUTO_DRIFT_INTERVAL_MS = 30 * 86400000; // ~1 month between successful runs
+export const AUTO_DRIFT_RETRY_MS = 6 * 3600 * 1000;  // don't re-attempt within 6h of any attempt
 const autoKey = (pid?: string) => `kaos.deliverables.driftAutoAt${pid ? `-${pid}` : ""}`;
+const attemptKey = (pid?: string) => `kaos.deliverables.driftAttemptAt${pid ? `-${pid}` : ""}`;
 
 export function lastAutoDriftAt(pid?: string): number {
   try { return Number(localStorage.getItem(autoKey(pid))) || 0; } catch { return 0; }
@@ -59,9 +63,17 @@ export function lastAutoDriftAt(pid?: string): number {
 export function markAutoDriftAt(pid: string | undefined, at: number) {
   try { localStorage.setItem(autoKey(pid), String(at)); } catch { /* ignore */ }
 }
-/** True if a project is due for its monthly background drift check. */
+export function lastAutoDriftAttemptAt(pid?: string): number {
+  try { return Number(localStorage.getItem(attemptKey(pid))) || 0; } catch { return 0; }
+}
+export function markAutoDriftAttempt(pid: string | undefined, at: number) {
+  try { localStorage.setItem(attemptKey(pid), String(at)); } catch { /* ignore */ }
+}
+/** True if a project is due for its background drift check: a month since the last successful
+ *  run AND not attempted within the short retry window (so failures don't re-fire repeatedly). */
 export function autoDriftDue(pid: string | undefined, now: number): boolean {
-  return now - lastAutoDriftAt(pid) >= AUTO_DRIFT_INTERVAL_MS;
+  return now - lastAutoDriftAt(pid) >= AUTO_DRIFT_INTERVAL_MS
+    && now - lastAutoDriftAttemptAt(pid) >= AUTO_DRIFT_RETRY_MS;
 }
 
 /** Which recipients are worth a drift check — named, and either never verified or past their

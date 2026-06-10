@@ -25,7 +25,8 @@ const SYSTEM =
   "- The `tldr` is 2–3 plain-English sentences a busy post supervisor can read in five seconds: what's new and why it " +
   "matters. No preamble, no 'here is'.\n" +
   "- Return 3–8 items when the material exists. If almost nothing real turned up, return an honest one-line tldr saying so " +
-  "and as many real items as you found (possibly zero).";
+  "and as many real items as you found (possibly zero).\n" +
+  "ALWAYS finish by calling the `news_digest` tool with your result — never reply with a plain-text answer.";
 
 const DIGEST_SCHEMA = {
   type: "object",

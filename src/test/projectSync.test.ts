@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { collectProjectState, applyProjectState, makeSnapshot, buildBackup, parseBackup, rekeyEntries } from "@/lib/projectSync";
+import { collectProjectState, applyProjectState, makeSnapshot, buildBackup, parseBackup, rekeyEntries, isSensitiveLocalKey } from "@/lib/projectSync";
 
 describe("project sync (#10)", () => {
   beforeEach(() => localStorage.clear());
@@ -17,6 +17,16 @@ describe("project sync (#10)", () => {
     const n = applyProjectState({ "kaos.board.v1-projA": "[2]", "x-projA": "y" });
     expect(n).toBe(2);
     expect(localStorage.getItem("kaos.board.v1-projA")).toBe("[2]");
+  });
+
+  it("never captures credential keys in a snapshot (Trello/OAuth/token)", () => {
+    expect(isSensitiveLocalKey("kaos.trello.auth")).toBe(true);
+    expect(isSensitiveLocalKey("kaos.deliverables.v1-p")).toBe(false);
+    localStorage.setItem("kaos.deliverables.v1-p", "[1]");
+    localStorage.setItem("kaos.trello.token-p", "secret");        // a (hypothetical) project-scoped secret
+    const snap = collectProjectState("p");
+    expect(snap["kaos.deliverables.v1-p"]).toBe("[1]");
+    expect(snap["kaos.trello.token-p"]).toBeUndefined();          // excluded
   });
 
   it("rekeyEntries moves a snapshot onto a new project id", () => {

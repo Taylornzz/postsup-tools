@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { loadRecipients, type Recipient } from "./deliverables";
 import { rollupDeliverables } from "./deliverablesRollup";
+import { isSensitiveLocalKey } from "./projectSync";
 import { CATEGORIES, STATUSES } from "./deliverablesList";
 
 /** Whole-project export — a designed PDF dossier (deliverables, production list,
@@ -38,7 +39,7 @@ export function exportProjectJSON(projectId: string | undefined, projectName: st
     const key = localStorage.key(i);
     if (!key) continue;
     const isAppKey = key.startsWith("kaos.") || key.startsWith("postsup-");
-    if (!isAppKey) continue;
+    if (!isAppKey || isSensitiveLocalKey(key)) continue; // never export Trello/OAuth credentials
     if (suffix ? key.endsWith(suffix) : true) {
       try { data[key] = JSON.parse(localStorage.getItem(key) || "null"); }
       catch { data[key] = localStorage.getItem(key); }

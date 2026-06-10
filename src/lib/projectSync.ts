@@ -19,13 +19,20 @@ export interface ProjectSnapshot {
   entries: Record<string, string>; // raw localStorage key → value, all scoped to this project
 }
 
-/** Every localStorage key scoped to this project (suffix `-{pid}`). */
+/** Keys that hold credentials/secrets (e.g. the Trello key+token at `kaos.trello.auth`) — never
+ *  put these in a synced snapshot or a downloadable backup, even if they ever became project-scoped.
+ *  Defence-in-depth so neither the cloud sync nor the JSON backup can exfiltrate a token. */
+export function isSensitiveLocalKey(key: string): boolean {
+  return /trello|oauth|token|secret|credential|\.auth$/i.test(key);
+}
+
+/** Every localStorage key scoped to this project (suffix `-{pid}`), minus any credential keys. */
 export function collectProjectState(pid: string): Record<string, string> {
   const out: Record<string, string> = {};
   const suffix = `-${pid}`;
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k || !k.endsWith(suffix)) continue;
+    if (!k || !k.endsWith(suffix) || isSensitiveLocalKey(k)) continue;
     const v = localStorage.getItem(k);
     if (v != null) out[k] = v;
   }

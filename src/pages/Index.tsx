@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.12.3";
+export const VERSION = "v2.13.0";
 const CHANGELOG = [
+  "v2.13.0 — Review-sweep fixes (security, logic, reliability). Cross-device sync no longer risks losing data when you close a project right after editing (the capture state and the synced snapshot used to be able to overwrite each other). Planner delivery dates now anchor to the correct Monday in every timezone (they could land a week off outside NZ). The make-once ‘Production list’ now groups a shared master correctly even when only some recipients are linked. The background drift check is gentler: it never runs on a brand-new project's example recipients, and a failed/offline run can't re-fire every time you revisit the tab; it also stops reporting a phantom ‘peak nits’ change on SDR. Security: project backups and account sync can never include your Trello key/token. The optics top-down view is now draggable (it used to snap back to 3D on the first touch). News & Verify are a bit more reliable on the cheaper model.",
   "v2.12.3 — Spec drift is now hands-off. The ‘Check drift’ button is gone — instead, when you open a project the app quietly checks your platform specs for changes in the background, at most once a month, only for recipients worth re-checking. It can never be set off by an accidental click, so no cost surprises. If something changed since you planned, you'll see the same heads-up note under that recipient; nothing changes unless you apply it via Verify. (A version that runs even while the app is closed — and can email you — is the next step.)",
   "v2.12.2 — Cost + speed: the AI features now run on Claude Haiku (about 3× cheaper per token and faster) instead of Sonnet, and the web-searched features (News, vendor advisor, Verify, Check drift) now cap each request at 3 searches instead of 5–6. Same behaviour, much lower running cost. (Set ANTHROPIC_MODEL in the Vercel env if you ever want to put a specific feature back on a bigger model.)",
   "v2.12.1 — Check drift, reworked from your feedback. It's now clearly a heads-up, not a to-do: a show already in production keeps the spec it was set up with, so drift just tells you what a platform changed and when — each flagged recipient gets a note right under its spec (‘Container: IMF App 2E → ProRes’, checked date), and you decide whether it matters. Nothing changes unless you apply it by hand via Verify. Also fixed the slowness: the checks now run in parallel with a timeout (so one slow platform can't hang the whole thing), and the button animates with live ‘3/6’ progress so you can see it working.",
@@ -676,6 +677,9 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Persist core state to the URL, and (debounced) into the active project's record.
   const projectRef = useRef(project); projectRef.current = project;
   const projectSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  // On unmount (project close/switch), cancel any pending debounced data.url write — otherwise it
+  // can land AFTER the close-time snapshot push and clobber the snapshot in the project's data column.
+  useEffect(() => () => { if (projectSaveTimer.current) clearTimeout(projectSaveTimer.current); }, []);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams();
