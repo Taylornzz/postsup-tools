@@ -130,3 +130,30 @@ export async function duplicateProject(id: string): Promise<Project | null> {
   localPersist([copy, ...localList()]);
   return copy;
 }
+
+// ---- display prefs (per-device): pinned project ids + sort method ----
+export type ProjectSort = "edited" | "name" | "created";
+const PINNED_KEY = "kaos.projects.pinned";
+const SORT_KEY = "kaos.projects.sort";
+
+export function loadPinned(): string[] {
+  try { const a = JSON.parse(localStorage.getItem(PINNED_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => typeof x === "string") : []; }
+  catch { return []; }
+}
+export function savePinned(ids: string[]) { try { localStorage.setItem(PINNED_KEY, JSON.stringify(ids)); } catch { /* ignore */ } }
+export function loadSort(): ProjectSort {
+  try { const s = localStorage.getItem(SORT_KEY); return s === "name" || s === "created" ? s : "edited"; } catch { return "edited"; }
+}
+export function saveSort(s: ProjectSort) { try { localStorage.setItem(SORT_KEY, s); } catch { /* ignore */ } }
+
+/** Pinned projects first (top-left), then the rest — both groups in the chosen sort order. */
+export function orderProjects(projects: Project[], pinned: string[], sort: ProjectSort): Project[] {
+  const cmp =
+    sort === "name" ? (a: Project, b: Project) => a.name.localeCompare(b.name)
+    : sort === "created" ? (a: Project, b: Project) => b.createdAt - a.createdAt
+    : (a: Project, b: Project) => b.updatedAt - a.updatedAt;
+  const pinSet = new Set(pinned);
+  const pins = projects.filter((p) => pinSet.has(p.id)).sort(cmp);
+  const rest = projects.filter((p) => !pinSet.has(p.id)).sort(cmp);
+  return [...pins, ...rest];
+}

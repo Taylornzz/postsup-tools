@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreVertical, Pencil, Copy, Trash2, X, LogIn, LogOut, Loader2, FolderOpen, Cloud, Download, Upload, CloudUpload } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Copy, Trash2, X, LogIn, LogOut, Loader2, FolderOpen, Cloud, Download, Upload, CloudUpload, Pin, ArrowDownWideNarrow } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabaseEnabled } from "@/lib/supabase";
 import {
   Project, PROJECT_COLORS, listProjects, createProject, updateProject, deleteProject, duplicateProject,
+  loadPinned, savePinned, loadSort, saveSort, orderProjects, type ProjectSort,
 } from "@/lib/projects";
 import { buildBackup, parseBackup, rekeyEntries, applyProjectState, syncProjectUp } from "@/lib/projectSync";
 
@@ -22,9 +23,16 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string[]>(() => loadPinned());
+  const [sortBy, setSortBy] = useState<ProjectSort>(() => loadSort());
 
   const refresh = async () => setProjects(await listProjects());
   useEffect(() => { listProjects().then((p) => { setProjects(p); setLoading(false); }); }, []);
+
+  const togglePin = (id: string) => setPinned((p) => { const next = p.includes(id) ? p.filter((x) => x !== id) : [id, ...p]; savePinned(next); return next; });
+  const unpin = (id: string) => setPinned((p) => { const next = p.filter((x) => x !== id); savePinned(next); return next; });
+  const changeSort = (s: ProjectSort) => { setSortBy(s); saveSort(s); };
+  const ordered = orderProjects(projects, pinned, sortBy);
 
   const restoreRef = useRef<HTMLInputElement>(null);
 
@@ -119,6 +127,15 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
           <div className="flex items-center justify-between mb-1 gap-3">
             <h2 className="font-mono text-lg tracking-[0.12em] uppercase text-suite-text font-bold">Projects</h2>
             <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-suite-text-dim" title="Sort projects (pinned stay on top)">
+                <ArrowDownWideNarrow className="size-3" strokeWidth={1.6} />
+                <select value={sortBy} onChange={(e) => changeSort(e.target.value as ProjectSort)}
+                  className="bg-suite-bg border border-suite-border rounded-sm px-2 py-1.5 text-[10px] tracking-[0.1em] uppercase font-mono text-suite-text-muted focus:outline-none focus:border-guide-target hover:text-suite-text [color-scheme:dark]">
+                  <option value="edited">Last edited</option>
+                  <option value="name">Name A–Z</option>
+                  <option value="created">Newest</option>
+                </select>
+              </label>
               <button onClick={() => restoreRef.current?.click()} title="Restore a project from a .json backup file" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
                 <Upload className="size-3" strokeWidth={1.6} /> Restore
               </button>
@@ -139,11 +156,14 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
               <span className="font-mono text-[11px] text-suite-text-muted group-hover:text-suite-text">New project</span>
             </button>
 
-            {projects.map((p) => (
+            {ordered.map((p) => {
+              const isPinned = pinned.includes(p.id);
+              return (
               <div
                 key={p.id}
                 onClick={() => onOpen(p.id)}
-                className="group relative h-[124px] rounded-lg border border-suite-border hover:border-suite-border-strong bg-suite-panel overflow-hidden cursor-pointer transition-colors"
+                className={cn("group relative h-[124px] rounded-lg border bg-suite-panel overflow-hidden cursor-pointer transition-colors",
+                  isPinned ? "border-guide-target/50 ring-1 ring-guide-target/30" : "border-suite-border hover:border-suite-border-strong")}
               >
                 <div className="h-16 relative" style={{ background: `linear-gradient(135deg, ${p.color}cc, ${p.color}55)` }}>
                   <FolderOpen className="absolute bottom-1.5 left-2 size-4 text-black/40" strokeWidth={1.8} />
@@ -152,6 +172,16 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
                   <div className="font-mono text-[12px] text-suite-text font-semibold truncate">{p.name}</div>
                   <div className="font-mono text-[9px] text-suite-text-dim mt-0.5">Edited {fmtDate(p.updatedAt)}</div>
                 </div>
+
+                {/* pin toggle (top-left) — pinned projects stay top-left */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); togglePin(p.id); }}
+                  title={isPinned ? "Unpin" : "Pin to top"}
+                  className={cn("absolute top-1.5 left-1.5 grid place-items-center size-6 rounded bg-black/30 hover:bg-black/50 transition-opacity",
+                    isPinned ? "text-guide-target opacity-100" : "text-white/80 opacity-0 group-hover:opacity-100")}
+                >
+                  <Pin className="size-3.5" strokeWidth={2} fill={isPinned ? "currentColor" : "none"} />
+                </button>
 
                 {/* actions */}
                 <button
@@ -164,16 +194,18 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
                   <>
                     <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setMenuFor(null); }} />
                     <div className="absolute top-8 right-1.5 z-50 w-32 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col" onClick={(e) => e.stopPropagation()}>
+                      <MenuItem icon={Pin} label={isPinned ? "Unpin" : "Pin to top"} onClick={() => { setMenuFor(null); togglePin(p.id); }} />
                       <MenuItem icon={Pencil} label="Rename" onClick={() => { setMenuFor(null); setModal({ mode: "rename", id: p.id, name: p.name, color: p.color }); }} />
                       <MenuItem icon={Copy} label="Duplicate" onClick={async () => { setMenuFor(null); await duplicateProject(p.id); refresh(); }} />
                       <MenuItem icon={Download} label="Back up" onClick={() => { setMenuFor(null); backUp(p); }} />
                       {supabaseEnabled && user && <MenuItem icon={CloudUpload} label="Sync to cloud" onClick={() => { setMenuFor(null); syncUp(p); }} />}
-                      <MenuItem icon={Trash2} label="Delete" danger onClick={async () => { setMenuFor(null); if (window.confirm(`Delete “${p.name}”? This can't be undone.`)) { await deleteProject(p.id); refresh(); } }} />
+                      <MenuItem icon={Trash2} label="Delete" danger onClick={async () => { setMenuFor(null); if (window.confirm(`Delete “${p.name}”? This can't be undone.`)) { await deleteProject(p.id); unpin(p.id); refresh(); } }} />
                     </div>
                   </>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {loading && (
