@@ -46,10 +46,10 @@ Verified end-to-end via read-only checks (no DB writes, no MCP):
 4. **RLS active.** The unauthenticated read returns `[]` (not other users' rows); the signed-in app
    loading the user's own projects proves authenticated reads work. ✔
 
-So accounts + cloud sync are live and pointed at the correct project. The only step that can't be done
-from here is a **two-device functional test** (sign in on device A, edit, leave; sign in on B, confirm
-the pull) — that needs the user's own account/password and is theirs to run. The **file Back up /
-Restore** path works regardless and is unit-tested (`src/test/projectSync.test.ts`).
+So accounts + cloud sync are live and pointed at the correct project. **Confirmed working: the owner
+ran the two-device sign-in test on 2026-06-11 — edits made on one device pulled down on the other.**
+Cloud sync is fully operational. The **file Back up / Restore** path also works regardless and is
+unit-tested (`src/test/projectSync.test.ts`).
 
 ## Not done (future)
 
