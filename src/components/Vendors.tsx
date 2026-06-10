@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from "react";
-import { Building2, Search, X, ExternalLink, AlertTriangle, HelpCircle, ChevronRight, BadgeCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Search, X, ExternalLink, AlertTriangle, BadgeCheck, Sparkles, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   VENDORS, VENDOR_TYPES, VENDOR_REGIONS, VENDOR_TYPE_COLOR, VENDOR_REGION_LABEL,
   VENDOR_SCENARIOS, VENDORS_VERIFIED,
   type Vendor, type VendorType, type VendorRegion,
 } from "@/lib/vendors";
+import { askVendorAdvisor, type AdvisorMessage } from "@/lib/vendorAdvisor";
 
 const domainOf = (url: string) => url.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
 
@@ -151,22 +152,8 @@ export function Vendors() {
       {/* Body */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         <div className="max-w-3xl mx-auto">
-          {/* Scenario playbooks — the questions a post super actually asks of this list */}
-          <details className="rounded-md border border-guide-target/30 bg-guide-target/5 mb-3 group">
-            <summary className="cursor-pointer list-none flex items-center gap-2 px-3.5 py-2.5 font-mono text-[11px] tracking-[0.14em] uppercase text-suite-text font-semibold hover:text-guide-target select-none">
-              <HelpCircle className="size-3.5 text-guide-target" strokeWidth={1.7} />
-              Who do I use for… <span className="font-normal tracking-normal normal-case text-[10px] text-suite-text-dim">· {VENDOR_SCENARIOS.length} curated answers</span>
-              <ChevronRight className="ml-auto size-3.5 transition-transform group-open:rotate-90 text-suite-text-dim" strokeWidth={2} />
-            </summary>
-            <div className="px-3.5 pb-3 flex flex-col gap-3">
-              {VENDOR_SCENARIOS.map((s) => (
-                <div key={s.q} className="rounded-sm border border-suite-border bg-suite-bg/40 px-3 py-2">
-                  <div className="font-mono text-[11px] text-guide-target font-semibold leading-relaxed">{s.q}</div>
-                  <p className="font-mono text-[10.5px] text-suite-text-muted leading-relaxed mt-1">{s.a}</p>
-                </div>
-              ))}
-            </div>
-          </details>
+          {/* "Who do I use for…" — an AI advisor grounded in this verified directory */}
+          <AdvisorChat />
 
           <div className="flex gap-2 rounded-sm border border-suite-border bg-suite-bg/60 px-3 py-2 mb-4">
             <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
@@ -192,6 +179,112 @@ export function Vendors() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Chat with the directory: "I'm in Auckland and need to master a DCP — who do I use?"
+ *  Answers come from the AI grounded ONLY in the verified vendor list; the curated
+ *  scenario answers double as starter chips and as offline fallbacks. */
+function AdvisorChat() {
+  const [msgs, setMsgs] = useState<AdvisorMessage[]>([]);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [msgs, busy]);
+
+  const CHIP_LABELS = ["35mm dev + scan", "Auckland DCP, international release", "KDMs / distribution", "Film restoration"];
+
+  const ask = async (question: string) => {
+    const text = question.trim();
+    if (!text || busy) return;
+    setQ("");
+    const history = msgs;
+    setMsgs((m) => [...m, { role: "user", text }]);
+    setBusy(true);
+    try {
+      const answer = await askVendorAdvisor(text, history);
+      setMsgs((m) => [...m, { role: "assistant", text: answer }]);
+    } catch (e) {
+      // Offline / unconfigured fallback: if it's one of the curated questions, answer from
+      // the verified playbook; otherwise surface the error in-channel.
+      const curated = VENDOR_SCENARIOS.find((s) => s.q === text);
+      if (curated) {
+        setMsgs((m) => [...m, { role: "assistant", text: `${curated.a}\n\n(Curated offline answer — the live AI advisor runs on the deployed site.)` }]);
+      } else {
+        setMsgs((m) => [...m, { role: "assistant", text: `Couldn’t reach the advisor: ${e instanceof Error ? e.message : "request failed"}` }]);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-guide-target/30 bg-guide-target/5 mb-3">
+      <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-1.5">
+        <Sparkles className="size-3.5 text-guide-target" strokeWidth={1.7} />
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-suite-text font-semibold">Who do I use for…</span>
+        <span className="font-mono text-[10px] text-suite-text-dim">· ask the verified directory anything</span>
+        {msgs.length > 0 && (
+          <button onClick={() => setMsgs([])} className="ml-auto font-mono text-[9px] uppercase tracking-[0.12em] text-suite-text-dim hover:text-suite-text">Clear</button>
+        )}
+      </div>
+
+      {/* conversation */}
+      {msgs.length > 0 && (
+        <div ref={scrollRef} className="max-h-72 overflow-y-auto px-3.5 py-1 flex flex-col gap-2">
+          {msgs.map((m, i) => (
+            <div key={i} className={cn(
+              "rounded-sm border px-3 py-2 max-w-[92%] whitespace-pre-wrap font-mono text-[11px] leading-relaxed",
+              m.role === "user"
+                ? "self-end border-guide-target/40 bg-guide-target/10 text-suite-text"
+                : "self-start border-suite-border bg-suite-bg/60 text-suite-text-muted",
+            )}>
+              {m.text}
+            </div>
+          ))}
+          {busy && (
+            <div className="self-start rounded-sm border border-suite-border bg-suite-bg/60 px-3 py-2 font-mono text-[11px] text-suite-text-dim">
+              <span className="inline-flex items-center gap-1.5"><Sparkles className="size-3 animate-pulse text-guide-target" strokeWidth={2} /> checking the directory…</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* starter chips */}
+      {msgs.length === 0 && (
+        <div className="px-3.5 pb-1.5 flex flex-wrap gap-1.5">
+          {VENDOR_SCENARIOS.map((s, i) => (
+            <button key={s.q} onClick={() => ask(s.q)} title={s.q}
+              className="px-2 py-1 rounded-full border border-suite-border bg-suite-bg font-mono text-[9.5px] text-suite-text-muted hover:text-guide-target hover:border-guide-target/50 transition-colors">
+              {CHIP_LABELS[i] || s.q}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* input */}
+      <div className="px-3.5 pb-3 pt-1 flex items-center gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") ask(q); }}
+          placeholder="e.g. I'm in Bangkok and need a Dolby Atmos mix stage — who do I use?"
+          disabled={busy}
+          className="flex-1 bg-suite-bg border border-suite-border rounded-sm px-2.5 py-1.5 text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target disabled:opacity-60"
+        />
+        <button onClick={() => ask(q)} disabled={busy || !q.trim()}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border border-guide-source/50 bg-guide-source/10 text-guide-source font-mono text-[10px] uppercase tracking-[0.12em] hover:bg-guide-source/20 disabled:opacity-50 transition-colors">
+          <Send className="size-3" strokeWidth={2} /> Ask
+        </button>
+      </div>
+      <p className="px-3.5 pb-2.5 -mt-1 font-mono text-[8.5px] text-suite-text-dim">
+        Answers only recommend vendors from this verified list ({VENDORS_VERIFIED}) — still confirm current services with the vendor.
+      </p>
     </div>
   );
 }

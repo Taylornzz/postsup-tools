@@ -63,10 +63,24 @@ function buildPDF(recipients: Recipient[], rollup: ArtifactGroup[], title: strin
   pdf.text("Every spec is a plan — confirm against each recipient's own delivery document.", M, y);
   y += 18;
 
+  // jsPDF's built-in fonts are WinAnsi-only — draw the "main" star, never print "★".
+  const drawStar = (cx: number, cy: number, rad: number) => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i < 10; i++) {
+      const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+      const rr = i % 2 === 0 ? rad : rad * 0.45;
+      pts.push([cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr]);
+    }
+    pdf.setFillColor(217, 119, 6);
+    const segs = pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]]) as [number, number][];
+    pdf.lines(segs, pts[0][0], pts[0][1], [1, 1], "F", true);
+  };
+
   for (const r of recipients) {
     ensure(44);
     pdf.setFont("helvetica", "bold"); pdf.setFontSize(12); pdf.setTextColor(25);
-    pdf.text(`${r.isMain ? "★ " : ""}${r.name || "Recipient"}`, M, y);
+    if (r.isMain) drawStar(M + 5, y - 4, 5);
+    pdf.text(r.name || "Recipient", M + (r.isMain ? 14 : 0), y);
     if (r.due) {
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(120);
       pdf.text(`due ${r.due}`, PW - M, y, { align: "right" });
@@ -129,9 +143,9 @@ function buildPDF(recipients: Recipient[], rollup: ArtifactGroup[], title: strin
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(120);
     pdf.text("Identical artifacts collapsed (same content + spec); each shows who receives it.", M, y); y += 12;
     for (const g of inScope) {
-      const line = `• ${g.label}${g.spec ? `   (${g.spec})` : ""}${g.consumers.length > 1 ? `   — shared ×${g.consumers.length}` : ""}`;
+      const line = `• ${g.label}${g.spec ? `   (${g.spec})` : ""}${g.consumers.length > 1 ? `   — shared x${g.consumers.length}` : ""}`;
       const ll = pdf.splitTextToSize(line, CW - 10) as string[];
-      const consumers = `→ ${g.consumers.map((c) => c.recipientName).join(" · ")}`;
+      const consumers = `for:  ${g.consumers.map((c) => c.recipientName).join(" · ")}`;
       const cl = pdf.splitTextToSize(consumers, CW - 26) as string[];
       ensure(ll.length * 10 + cl.length * 8 + 3);
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(40);
