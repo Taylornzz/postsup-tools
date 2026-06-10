@@ -1,19 +1,25 @@
 /** Spec-drift alerts (v2). The per-recipient "Verify spec" already web-checks one platform;
  *  this batches that across recipients and remembers the result so the Deliverables tab can
- *  warn "these platforms may have changed their spec since you planned." Detection only —
- *  applying a change still goes through the per-recipient Verify diff (never auto-merged).
+ *  show, per recipient, "the platform's published spec changed since you set this up."
+ *
+ *  IMPORTANT — drift is INFORMATIONAL, not a push to change. A show already in production
+ *  delivers to the spec it was set up with; you don't re-cut mid-shoot because a platform
+ *  revised its doc. So this only ever surfaces what changed + when; applying anything still
+ *  goes through the per-recipient Verify diff, by hand (never auto-merged).
  *
  *  The fully-automatic weekly version (a Supabase reference-spec table + cron that refreshes
- *  it server-side, so the client compares against it for free) is the next step and lands with
- *  accounts — see docs/spec-drift.md. This on-demand check needs no backend beyond verify-spec. */
+ *  it server-side, and which only nudges projects not yet locked / in production) is the next
+ *  step and lands with accounts — see docs/spec-drift.md. */
 
 import type { Recipient } from "./deliverables";
 import { specStaleness, recipientSpecClass } from "./deliverables";
+import { recipientSpecDiffs } from "./verifySpec";
 
+export interface DriftDiff { label: string; from: string; to: string; }
 export interface DriftRecord {
   id: string;
   name: string;
-  fields: string[];        // which spec fields differ from current reporting
+  diffs: DriftDiff[];      // field-level: what current reporting says vs your spec
   summary?: string;        // the verifier's one-line note
   checkedAt: string;
 }
@@ -50,4 +56,55 @@ export function driftCandidates(recipients: Recipient[]): Recipient[] {
     return s.level !== "fresh"; // none / aging / stale
   });
   return worth.length ? worth : named;
+}
+
+// ---- the scan: parallel, with a per-check timeout so one slow call can't hang it ----
+export interface VerifyResult { spec: Partial<Recipient>; summary?: string }
+export type VerifyFn = (r: Recipient) => Promise<VerifyResult>;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timed out")), ms)),
+  ]);
+}
+
+/** Run the drift check over `candidates` with bounded concurrency and a per-check timeout, so a
+ *  batch finishes in roughly one slow call's time instead of the sum of all of them — and a single
+ *  hung request can never stall the whole run. `verify` is injected (the component passes the real
+ *  /api/verify-spec call); `onProgress` fires as each settles so the UI can show "3/6". Returns the
+ *  drift state plus how many were checked / failed. `now` keeps it deterministic for tests. */
+export async function runDriftScan(
+  candidates: Recipient[],
+  verify: VerifyFn,
+  opts: { concurrency?: number; timeoutMs?: number; now?: string; onProgress?: (done: number, total: number) => void } = {},
+): Promise<{ state: DriftState; checked: number; failed: number }> {
+  const concurrency = Math.max(1, opts.concurrency ?? 4);
+  const timeoutMs = opts.timeoutMs ?? 60000;
+  const at = opts.now ?? new Date().toISOString();
+  const total = candidates.length;
+  const drifted: DriftRecord[] = [];
+  let checked = 0, failed = 0, done = 0, idx = 0;
+
+  const worker = async () => {
+    while (idx < candidates.length) {
+      const r = candidates[idx++];
+      try {
+        const res = await withTimeout(verify(r), timeoutMs);
+        checked++;
+        const diffs = recipientSpecDiffs(r, res.spec || {});
+        if (diffs.length) drifted.push({ id: r.id, name: r.name, summary: res.summary, checkedAt: at, diffs: diffs.map((d) => ({ label: d.label, from: d.from, to: d.to })) });
+      } catch { failed++; }
+      finally { done++; opts.onProgress?.(done, total); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, total || 1) }, worker));
+  return { state: { checkedAt: at, drifted, checked }, checked, failed };
+}
+
+/** Drop a single recipient's drift record (when the user has reviewed / dismissed it). */
+export function clearDriftFor(state: DriftState | null, recipientId: string): DriftState | null {
+  if (!state) return null;
+  const drifted = state.drifted.filter((d) => d.id !== recipientId);
+  return drifted.length ? { ...state, drifted } : null;
 }
