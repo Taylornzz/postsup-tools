@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   PackageCheck, Plus, Trash2, Sparkles, Send, Copy,
-  GitBranch, X, ChevronRight, Star, Download, ChevronDown,
+  GitBranch, X, ChevronRight, Star, Download, ChevronDown, CalendarClock, Radar, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { putFile, getFile, delFile } from "@/lib/fileStore";
 import {
   loadRecipients, saveRecipients, newRecipient, blankRecipient, duplicateRecipient, buildPlan, recipientChecklist, sendToBoard,
   buildWorkflowGraph, recipientsToMasteringConfig, HERO_LABEL, DELIVERY_TEMPLATES, recipientFromTemplate,
+  sendDeliveriesToSchedule,
   REGIONS, DR_OPTIONS, NITS_OPTIONS, RESOLUTION_OPTIONS, FPS_OPTIONS, CONTAINER_OPTIONS,
   AUDIO_OPTIONS, SUBTITLE_OPTIONS, LOUDNESS_OPTIONS, LOUDNESS_BY_REGION, TRUEPEAK_OPTIONS, TRUEPEAK_BY_REGION, isHdr,
   type Recipient, type Region, type DRId, type DocMeta,
@@ -18,7 +19,10 @@ import { RecipientDeliverables } from "./RecipientDeliverables";
 import { RecipientVerify } from "./RecipientVerify";
 import { ProductionList } from "./ProductionList";
 import { exportDeliverables } from "@/lib/deliverablesExport";
-import { rollupDeliverables, shareCounts } from "@/lib/deliverablesRollup";
+import { rollupDeliverables, shareCounts, linkSuggestions, linkBySpecKey, unlinkArtifact } from "@/lib/deliverablesRollup";
+import { verifySpec, recipientSpecDiffs } from "@/lib/verifySpec";
+import { loadDrift, saveDrift, driftCandidates, type DriftState } from "@/lib/driftCheck";
+import { specOptions } from "@/lib/deliverables";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
@@ -40,6 +44,41 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const mastering = useMemo(() => recipientsToMasteringConfig(recipients), [recipients]);
   const rollup = useMemo(() => rollupDeliverables(recipients), [recipients]);
   const shared = useMemo(() => shareCounts(rollup), [rollup]);
+  const linkSugg = useMemo(() => linkSuggestions(recipients), [recipients]);
+  const linkArtifact = (specKey: string) => {
+    setRecipients((rs) => linkBySpecKey(rs, specKey));
+    toast.success("Linked as one make-once artifact", { description: "Shared across recipients — naming & timing stay per-recipient. Unlink any time." });
+  };
+  const unlinkArt = (artifactId: string) => setRecipients((rs) => unlinkArtifact(rs, artifactId));
+
+  // ---- spec-drift alerts: batch web-check recipients, remember which have changed ----
+  const [drift, setDrift] = useState<DriftState | null>(() => loadDrift(projectId));
+  const [driftRunning, setDriftRunning] = useState(false);
+  useEffect(() => { setDrift(loadDrift(projectId)); }, [projectId]);
+
+  const runDriftCheck = async () => {
+    const candidates = driftCandidates(recipients);
+    if (!candidates.length) { toast("Add a named recipient first."); return; }
+    if (!window.confirm(`Check ${candidates.length} recipient${candidates.length === 1 ? "" : "s"} for spec drift?\n\nThis runs ${candidates.length} live web search${candidates.length === 1 ? "" : "es"} against current platform specs. Detection only — you still apply any change by hand via each recipient's Verify.`)) return;
+    setDriftRunning(true);
+    const opts = specOptions();
+    const drifted: DriftState["drifted"] = [];
+    let checked = 0, failed = 0;
+    for (const r of candidates) {
+      try {
+        const res = await verifySpec(r.name, { region: r.region, dr: r.dr, peakNits: r.peakNits, resolution: r.resolution, fps: r.fps, container: r.container, audio: r.audio, loudness: r.loudness, truePeak: r.truePeak, subtitles: r.subtitles }, opts);
+        checked++;
+        const diffs = recipientSpecDiffs(r, res.spec);
+        if (diffs.length) drifted.push({ id: r.id, name: r.name, fields: diffs.map((d) => d.label), summary: res.summary, checkedAt: new Date().toISOString() });
+      } catch { failed++; }
+    }
+    const state: DriftState = { checkedAt: new Date().toISOString(), drifted, checked };
+    setDrift(state); saveDrift(projectId, state); setDriftRunning(false);
+    if (failed && !checked) toast.error("Drift check couldn’t run", { description: "The verify service only runs on the deployed site." });
+    else if (drifted.length) toast.warning(`${drifted.length} spec${drifted.length === 1 ? "" : "s"} may have drifted`, { description: `${drifted.map((d) => d.name).join(", ")} — open each and hit Verify to review.` });
+    else toast.success("No drift found", { description: `Checked ${checked} — all still match current reporting.` });
+  };
+  const dismissDrift = () => { setDrift(null); saveDrift(projectId, null); };
   const [flowKey, setFlowKey] = useState(0);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
@@ -70,6 +109,14 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
     const { added } = sendToBoard(projectId, recipients, plan);
     if (added === 0) toast("Already on the board", { description: "Nothing new to add — open Task Board to see it." });
     else toast.success(`Sent ${added} card${added === 1 ? "" : "s"} to the Task Board`, { description: "Grade passes + a checklist per recipient." });
+  };
+
+  const pushToPlanner = () => {
+    const dated = recipients.filter((r) => r.due).length;
+    if (!dated) { toast("Set a due date first", { description: "Add a delivery due date to a recipient (the date field by its name), then send to the Planner." }); return; }
+    const { added, updated, skipped } = sendDeliveriesToSchedule(projectId, recipients);
+    const bits = [added ? `${added} added` : "", updated ? `${updated} updated` : ""].filter(Boolean).join(" · ") || "already in sync";
+    toast.success("Delivery dates → Planner", { description: `${bits}${skipped ? ` · ${skipped} without a date skipped` : ""}. Open the Planner to see the milestones.` });
   };
 
   const openInMastering = () => {
@@ -149,6 +196,12 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
           <button onClick={push} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             <Send className="size-3" strokeWidth={1.6} /> To board
           </button>
+          <button onClick={pushToPlanner} title="Add each recipient's delivery due date to the Planner as a milestone" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+            <CalendarClock className="size-3" strokeWidth={1.6} /> To planner
+          </button>
+          <button onClick={runDriftCheck} disabled={driftRunning} title="Web-check recipients for spec drift against current platform specs" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors disabled:opacity-60">
+            <Radar className="size-3" strokeWidth={1.6} /> {driftRunning ? "Checking…" : "Check drift"}
+          </button>
           <button onClick={reset} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Reset
           </button>
@@ -170,7 +223,30 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
             </select>
           </div>
 
-          <ProductionList groups={rollup} />
+          {drift && drift.drifted.length > 0 && (
+            <div className="rounded-md border border-status-warn/40 bg-status-warn/10 px-3 py-2.5 flex gap-2.5">
+              <AlertTriangle className="size-4 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[11px] text-status-warn font-semibold uppercase tracking-[0.1em]">Possible spec drift</span>
+                  <span className="font-mono text-[9px] text-suite-text-dim">checked {new Date(drift.checkedAt).toLocaleDateString()}</span>
+                  <button onClick={dismissDrift} className="ml-auto text-suite-text-dim hover:text-suite-text" title="Dismiss"><X className="size-3.5" strokeWidth={2} /></button>
+                </div>
+                <p className="font-mono text-[10px] text-suite-text-muted mt-1 leading-relaxed">
+                  {drift.drifted.length} recipient{drift.drifted.length === 1 ? "" : "s"} may have changed since you planned. Open each and hit <span className="text-suite-text">Verify</span> to review &amp; apply — nothing is changed automatically.
+                </p>
+                <ul className="mt-1.5 flex flex-col gap-1">
+                  {drift.drifted.map((d) => (
+                    <li key={d.id} className="font-mono text-[10px] text-suite-text-dim">
+                      <span className="text-suite-text">{d.name}</span> — {d.fields.join(", ")}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <ProductionList groups={rollup} suggestions={linkSugg} onLink={linkArtifact} onUnlink={unlinkArt} />
 
           {plan.watchOuts.length > 0 && (
             <div className="rounded-sm border border-status-warn/30 bg-status-warn/5 px-3 py-2">
@@ -290,6 +366,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                       autoFocus={focusBriefId === r.id}
                       sharedCount={shared}
                       onRecipientSpec={(p) => patch(r.id, p)}
+                      container={r.container}
                       languages={r.languages || []}
                       onLanguagesChange={(languages) => patch(r.id, { languages })}
                       aiLog={r.aiLog || []}

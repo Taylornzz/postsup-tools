@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { SourceFormat, computeFovDof } from "@/lib/formats";
 import { Metric } from "@/components/Metric";
 import { LensScene3D } from "@/components/LensScene3D";
-import { Aperture, Ruler, Crop, Maximize2 } from "lucide-react";
+import { LENS_KITS, nearestFocal } from "@/lib/lensKits";
+import { Aperture, Ruler, Crop, Maximize2, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Reference diagonals for focal-length equivalence.
@@ -90,6 +91,7 @@ export function FovCalculator({ source }: { source: SourceFormat }) {
                 <SliderField icon={Ruler} label="Subject Distance" unit="m" value={distM}
                   min={0.3} max={50} step={0.1} onChange={setDistM} />
               </div>
+              <LensKitPicker focal={focal} onFocal={setFocal} onFstop={setFstop} />
               <p className="text-[9.5px] text-suite-text-dim font-mono leading-relaxed">
                 <span className="text-guide-target">Amber</span> = framing at the subject plane ·{" "}
                 <span className="text-emerald-400">green slab</span> = in-focus zone (near→far) ·{" "}
@@ -147,6 +149,53 @@ export function FovCalculator({ source }: { source: SourceFormat }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function LensKitPicker({ focal, onFocal, onFstop }: {
+  focal: number; onFocal: (n: number) => void; onFstop: (n: number) => void;
+}) {
+  const [kitId, setKitId] = useState("");
+  const kit = LENS_KITS.find((k) => k.id === kitId) || null;
+  const selectKit = (id: string) => {
+    setKitId(id);
+    const k = LENS_KITS.find((x) => x.id === id);
+    if (k) { onFstop(k.tStop); onFocal(nearestFocal(k, focal)); }
+  };
+  return (
+    <div className="border border-suite-border rounded-sm bg-suite-panel p-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted flex items-center gap-1.5">
+          <Layers className="size-3" strokeWidth={1.5} /> Lens kit
+        </span>
+        <select value={kitId} onChange={(e) => selectKit(e.target.value)}
+          className="bg-suite-panel-elevated border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target max-w-[60%]">
+          <option value="">Custom / none</option>
+          {LENS_KITS.map((k) => (
+            <option key={k.id} value={k.id}>{k.maker} {k.name}</option>
+          ))}
+        </select>
+      </div>
+      {kit && (
+        <>
+          <div className="flex flex-wrap gap-1">
+            {kit.focals.map((f) => {
+              const active = focal === f;
+              return (
+                <button key={f} onClick={() => onFocal(f)} title={`${f} mm prime`}
+                  className={cn("px-1.5 py-0.5 rounded-sm border font-mono text-[10px] tabular transition-colors",
+                    active ? "bg-guide-target text-suite-bg border-transparent" : "border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong")}>
+                  {f}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[9.5px] text-suite-text-dim font-mono leading-relaxed">
+            {kit.coverage} · T{kit.tStop.toFixed(1)} wide open{kit.anamorphic ? " · 2× anamorphic" : ""} — {kit.note}
+          </p>
+        </>
+      )}
     </div>
   );
 }

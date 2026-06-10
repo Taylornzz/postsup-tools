@@ -454,3 +454,58 @@ export function makeOrder(cfg: CustomConfig, version: AcesVersion = "2.0", maste
   const rank: Record<MakeStepKind, number> = { hero: 0, derive: 1, regrade: 2 };
   return steps.sort((a, b) => rank[a.kind] - rank[b.kind]);
 }
+
+// --- Text export ------------------------------------------------------------
+/** A plain-text mastering recipe for the chosen guide — node inventory plus a
+ *  "how each is produced" make-order with up-volume re-grades flagged. This is
+ *  the Mastering tab's export: copy-paste into a brief to a post house. */
+export function masteringRecipeText(
+  strategy: MasteringStrategy,
+  version: AcesVersion = "2.0",
+  masterNits: MasterNits = 1000,
+): string {
+  const strat = STRATEGIES.find((s) => s.id === strategy);
+  const g = buildMasterGraph(strategy, version, masterNits);
+  const L: string[] = [];
+  const peak = masterNits >= 1000 ? `${masterNits / 1000}k` : `${masterNits}`;
+
+  L.push(`MASTERING RECIPE — ${strat?.name ?? strategy}`);
+  L.push(`Hero: ${strat?.hero ?? "—"}`);
+  L.push(`ACES ${version}  ·  HDR mastering peak ${peak} nit`);
+  if (strat?.when) L.push("", strat.when);
+
+  // Node inventory, grouped by lane in pipeline order.
+  L.push("", "NODES");
+  for (const lane of LANES) {
+    const ns = g.nodes.filter((n) => n.lane === lane.id);
+    if (!ns.length) continue;
+    L.push(`  ${lane.label.toUpperCase()}`);
+    for (const n of ns) {
+      const spec = [n.colourspace, n.eotf, n.peakNits ? `${n.peakNits} nit` : "", n.container]
+        .filter(Boolean).join(" · ");
+      L.push(`    ${n.isHero ? "★ " : "- "}${n.label}${spec ? `  (${spec})` : ""}`);
+    }
+  }
+
+  // How each non-root node is produced (its inbound edges), with warnings.
+  L.push("", "HOW EACH IS PRODUCED");
+  const labelOf = (id: string) => g.nodes.find((n) => n.id === id)?.label ?? id;
+  for (const n of g.nodes) {
+    const inbound = g.edges.filter((e) => e.to === n.id);
+    if (!inbound.length) continue;
+    L.push(`  ${n.label}`);
+    for (const e of inbound) {
+      const up = e.direction === "up-volume";
+      L.push(`    ${up ? "!! " : ""}${EDGE_OP_META[e.op].label} from ${labelOf(e.from)}${e.label ? `: ${e.label}` : ""}`);
+      if (e.warning) L.push(`       WARNING: ${e.warning}`);
+    }
+  }
+
+  L.push(
+    "",
+    "Reference planning view — not an automated pipeline. ★ = hero. !! = up-volume re-grade",
+    "(a fresh grade off the archive, never a clean transform). Verify trim ladders, IMF/DCDM",
+    "specs and CMVersion with your post house.",
+  );
+  return L.join("\n");
+}

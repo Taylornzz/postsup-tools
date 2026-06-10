@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { ProjectManager } from "./ProjectManager";
 import Index, { VERSION } from "@/pages/Index";
 import { getActiveProjectId, setActiveProjectId as persistActive, getProject, type Project } from "@/lib/projects";
+import { syncProjectDown, syncProjectUp } from "@/lib/projectSync";
 
 /** Owns "which project is open". Restores that project's saved capture state into
  *  the URL, then mounts the app keyed by project id so it re-hydrates per project. */
@@ -15,7 +16,11 @@ export function ProjectGate() {
     let cancelled = false;
     if (!activeId) { setProject(null); setLoading(false); return; }
     setLoading(true);
-    getProject(activeId).then((p) => {
+    (async () => {
+      // Pull a newer cloud snapshot into local storage BEFORE the keyed Index mounts, so the
+      // tools hydrate from it (no-op when not signed in / nothing newer). Best-effort.
+      try { await syncProjectDown(activeId); } catch { /* offline — fall back to local */ }
+      const p = await getProject(activeId);
       if (cancelled) return;
       if (p) {
         const q = (p.data && typeof p.data.url === "string" ? p.data.url : "").replace(/^\?/, "");
@@ -26,12 +31,17 @@ export function ProjectGate() {
       }
       setProject(p);
       setLoading(false);
-    });
+    })();
     return () => { cancelled = true; };
   }, [activeId]);
 
   const open = (id: string) => { persistActive(id); setActiveId(id); };
-  const close = () => { persistActive(null); setActiveId(null); };
+  const close = () => {
+    const leaving = activeId;
+    persistActive(null); setActiveId(null);
+    // Push the latest local state up on the way out (best-effort; no-op when not signed in).
+    if (leaving) syncProjectUp(leaving, Date.now()).catch(() => {});
+  };
 
   if (loading) {
     return <div className="h-dvh w-full bg-suite-bg grid place-items-center"><Loader2 className="size-5 text-suite-text-dim animate-spin" strokeWidth={1.8} /></div>;

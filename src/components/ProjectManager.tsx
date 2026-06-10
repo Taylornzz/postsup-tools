@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, MoreVertical, Pencil, Copy, Trash2, X, LogIn, LogOut, Loader2, FolderOpen, Cloud } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Copy, Trash2, X, LogIn, LogOut, Loader2, FolderOpen, Cloud, Download, Upload, CloudUpload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabaseEnabled } from "@/lib/supabase";
 import {
   Project, PROJECT_COLORS, listProjects, createProject, updateProject, deleteProject, duplicateProject,
 } from "@/lib/projects";
+import { buildBackup, parseBackup, rekeyEntries, applyProjectState, syncProjectUp } from "@/lib/projectSync";
+
+const slug = (s: string) => (s || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "project";
 
 type ModalState = { mode: "new" | "rename"; id?: string; name: string; color: string } | null;
 
@@ -22,6 +25,48 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
 
   const refresh = async () => setProjects(await listProjects());
   useEffect(() => { listProjects().then((p) => { setProjects(p); setLoading(false); }); }, []);
+
+  const restoreRef = useRef<HTMLInputElement>(null);
+
+  // Download a project's full local state as a portable .json backup (works signed-in or local).
+  const backUp = (p: Project) => {
+    const backup = buildBackup(p.id, p.name, Date.now());
+    const count = Object.keys(backup.snapshot.entries).length;
+    if (!count) { toast("Nothing to back up yet", { description: "Open the project and add some planning data first." }); return; }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${slug(p.name)}-kaos-backup.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast.success("Project backed up", { description: `${count} item${count === 1 ? "" : "s"} saved — restore it on any device.` });
+  };
+
+  // Restore a .json backup into a fresh project (re-keyed onto the new id), then open it.
+  const restore = async (file: File) => {
+    try {
+      const backup = parseBackup(JSON.parse(await file.text()));
+      const p = await createProject(backup.name || "Restored project", PROJECT_COLORS[Math.floor((projects.length || 0)) % PROJECT_COLORS.length]);
+      const entries = rekeyEntries(backup.snapshot.entries, backup.snapshot.pid, p.id);
+      const n = applyProjectState(entries);
+      if (supabaseEnabled && user) { try { await syncProjectUp(p.id, Date.now()); } catch { /* offline */ } }
+      toast.success("Project restored", { description: `${n} item${n === 1 ? "" : "s"} loaded into “${p.name}”.` });
+      onOpen(p.id);
+    } catch (e) {
+      toast.error("Couldn’t restore", { description: e instanceof Error ? e.message : "Invalid backup file." });
+    }
+  };
+
+  // Push a project's local state to the cloud on demand (signed-in only).
+  const syncUp = async (p: Project) => {
+    setBusy(true);
+    try {
+      const ok = await syncProjectUp(p.id, Date.now());
+      toast[ok ? "success" : "message"](ok ? "Synced to your account" : "Sign in to sync", ok ? { description: "Open this project on another device to pull it down." } : undefined);
+      if (ok) await refresh();
+    } catch (e) {
+      toast.error("Couldn’t sync — " + (e instanceof Error ? e.message : "try again"));
+    } finally { setBusy(false); }
+  };
 
   const save = async () => {
     if (!modal) return;
@@ -71,11 +116,18 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-1 gap-3">
             <h2 className="font-mono text-lg tracking-[0.12em] uppercase text-suite-text font-bold">Projects</h2>
-            <span className="font-mono text-[10px] text-suite-text-dim flex items-center gap-1.5"><Cloud className="size-3" strokeWidth={1.6} /> {supabaseEnabled ? "Synced to your account" : "Local · cloud sync soon"}</span>
+            <div className="flex items-center gap-3">
+              <button onClick={() => restoreRef.current?.click()} title="Restore a project from a .json backup file" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+                <Upload className="size-3" strokeWidth={1.6} /> Restore
+              </button>
+              <input ref={restoreRef} type="file" accept="application/json,.json" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) restore(f); e.target.value = ""; }} />
+              <span className="font-mono text-[10px] text-suite-text-dim flex items-center gap-1.5"><Cloud className="size-3" strokeWidth={1.6} /> {supabaseEnabled && user ? "Synced to your account" : "Saved in this browser · back up to move devices"}</span>
+            </div>
           </div>
-          <p className="font-mono text-[11px] text-suite-text-dim mb-6">Each project holds one production's setup. Open one to work on it.</p>
+          <p className="font-mono text-[11px] text-suite-text-dim mb-6">Each project holds one production's setup. Open one to work on it{supabaseEnabled && user ? " — it syncs to your account across devices." : ". Back up a project to move it to another device."}</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {/* New project tile */}
@@ -114,6 +166,8 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
                     <div className="absolute top-8 right-1.5 z-50 w-32 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col" onClick={(e) => e.stopPropagation()}>
                       <MenuItem icon={Pencil} label="Rename" onClick={() => { setMenuFor(null); setModal({ mode: "rename", id: p.id, name: p.name, color: p.color }); }} />
                       <MenuItem icon={Copy} label="Duplicate" onClick={async () => { setMenuFor(null); await duplicateProject(p.id); refresh(); }} />
+                      <MenuItem icon={Download} label="Back up" onClick={() => { setMenuFor(null); backUp(p); }} />
+                      {supabaseEnabled && user && <MenuItem icon={CloudUpload} label="Sync to cloud" onClick={() => { setMenuFor(null); syncUp(p); }} />}
                       <MenuItem icon={Trash2} label="Delete" danger onClick={async () => { setMenuFor(null); if (window.confirm(`Delete “${p.name}”? This can't be undone.`)) { await deleteProject(p.id); refresh(); } }} />
                     </div>
                   </>

@@ -11,6 +11,23 @@ export interface SpecVerifyResult {
   summary?: string;
 }
 
+/** The spec fields we verify + diff (shared by the per-recipient Verify and the batch drift check). */
+export const SPEC_FIELDS: { key: keyof Recipient; label: string }[] = [
+  { key: "region", label: "Region" }, { key: "dr", label: "Colour / range" }, { key: "peakNits", label: "Peak nits" },
+  { key: "resolution", label: "Resolution" }, { key: "fps", label: "FPS" }, { key: "container", label: "Container" },
+  { key: "audio", label: "Audio" }, { key: "loudness", label: "Loudness" }, { key: "truePeak", label: "True-peak" }, { key: "subtitles", label: "Subtitles" },
+];
+
+export interface SpecDiff { key: keyof Recipient; label: string; from: string; to: string; }
+
+/** Field-level differences between a recipient's current spec and a verified spec — only
+ *  fields the verifier actually returned (omitted/blank fields are not "changes"). */
+export function recipientSpecDiffs(r: Recipient, spec: Partial<Recipient>): SpecDiff[] {
+  return SPEC_FIELDS
+    .filter((f) => spec[f.key] !== undefined && spec[f.key] !== "" && String(spec[f.key]) !== String(r[f.key] ?? ""))
+    .map((f) => ({ key: f.key, label: f.label, from: String(r[f.key] ?? "—"), to: String(spec[f.key]) }));
+}
+
 export async function verifySpec(
   platform: string, current: Partial<Recipient>, specOptions: Record<string, (string | number)[]>,
 ): Promise<SpecVerifyResult> {

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, AlertTriangle, ChevronRight, FolderOpen, Newspaper, HelpCircle,
+  Menu, X, Info, Building2, MessageSquare, Shield, FileText, LogIn, LogOut, AlertTriangle, ChevronRight, FolderOpen, Newspaper, HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
 import { exportProjectPDF, exportProjectJSON } from "@/lib/projectExport";
+import { useAuth } from "@/lib/auth";
+import { supabaseEnabled } from "@/lib/supabase";
 
 type Panel = "about" | "help" | "vendors" | "feedback" | "privacy" | "terms";
 
@@ -22,6 +24,7 @@ const MENU: { id: Panel | "news"; label: string; icon: typeof Info; group: 1 | 2
 export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects, projectId, projectName }: { version: string; onOpenVendors: () => void; onOpenNews?: () => void; onProjects?: () => void; projectId?: string; projectName?: string }) {
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(null);
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setPanel(null); setOpen(false); } };
@@ -31,14 +34,25 @@ export function AppMenu({ version, onOpenVendors, onOpenNews, onProjects, projec
 
   return (
     <div className="flex items-center gap-2">
-      {/* Login — present but not wired up yet */}
-      <button
-        type="button"
-        onClick={() => toast("Accounts & sign-in are coming soon.", { description: "For now everything saves locally in your browser." })}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors"
-      >
-        <LogIn className="size-3" strokeWidth={1.6} /> Login
-      </button>
+      {/* Account — real auth when Supabase is configured (signed-in past the gate); else local mode. */}
+      {supabaseEnabled && user ? (
+        <button
+          type="button"
+          onClick={() => { if (window.confirm("Sign out? Your projects stay safe in your account.")) signOut(); }}
+          title={user.email ? `Signed in as ${user.email}` : "Signed in"}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors"
+        >
+          <LogOut className="size-3" strokeWidth={1.6} /> Sign out
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => toast("Running in local mode", { description: "Projects save in this browser. Use Projects → Back up to move a project to another device." })}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors"
+        >
+          <LogIn className="size-3" strokeWidth={1.6} /> Local
+        </button>
+      )}
 
       {/* Menu */}
       <div className="relative">

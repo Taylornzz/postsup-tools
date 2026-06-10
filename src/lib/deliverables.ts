@@ -57,15 +57,35 @@ export interface Recipient {
 
 const TEMPLATE_VERIFIED_AT = "2026-06-01"; // when the starter platform specs were last web-checked
 
-/** How fresh a recipient's spec is — drives the staleness badge. Specs drift; a verified
- *  date older than ~6 months should be re-checked against the platform's own delivery doc. */
-export function specStaleness(at?: string): { level: "fresh" | "aging" | "stale" | "none"; days: number; label: string } {
+/** How fast a recipient's spec class drifts. Streamers revise per-title specs constantly
+ *  (new container/HDR/loudness rules land often); broadcasters move on standards-body time;
+ *  theatrical DCI specs are the most stable of all. The staleness thresholds scale to match. */
+export type SpecClass = "streamer" | "broadcaster" | "theatrical";
+const STALENESS_THRESHOLDS: Record<SpecClass, { fresh: number; aging: number }> = {
+  streamer: { fresh: 60, aging: 120 },     // ~2mo fresh, re-check by ~4mo
+  broadcaster: { fresh: 120, aging: 240 }, // standards move slower
+  theatrical: { fresh: 180, aging: 365 },  // DCI is very stable
+};
+
+/** Classify a recipient so its staleness badge uses the right drift rate. Native-fps
+ *  ingest = a streaming mezzanine (streamer); a theatrical colour tier = theatrical;
+ *  everything else is treated as a broadcaster. */
+export function recipientSpecClass(r: Recipient): SpecClass {
+  if (DR_TIER[r.dr] === "theatrical") return "theatrical";
+  if (r.fpsNative) return "streamer";
+  return "broadcaster";
+}
+
+/** How fresh a recipient's spec is — drives the staleness badge. Specs drift; the re-check
+ *  window scales by spec class (streamers drift fastest — see STALENESS_THRESHOLDS). */
+export function specStaleness(at?: string, cls: SpecClass = "broadcaster"): { level: "fresh" | "aging" | "stale" | "none"; days: number; label: string } {
   if (!at) return { level: "none", days: -1, label: "Spec not verified" };
   const t = Date.parse(at);
   if (isNaN(t)) return { level: "none", days: -1, label: "Spec not verified" };
   const days = Math.floor((Date.now() - t) / 86400000);
-  if (days < 90) return { level: "fresh", days, label: days <= 1 ? "Verified today" : `Verified ${days}d ago` };
-  if (days < 180) return { level: "aging", days, label: `Verified ${Math.round(days / 30)}mo ago` };
+  const { fresh, aging } = STALENESS_THRESHOLDS[cls];
+  if (days < fresh) return { level: "fresh", days, label: days <= 1 ? "Verified today" : `Verified ${days}d ago` };
+  if (days < aging) return { level: "aging", days, label: `Verified ${Math.round(days / 30)}mo ago` };
   return { level: "stale", days, label: `Unverified ${Math.round(days / 30)}mo` };
 }
 
@@ -551,6 +571,65 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
   });
 
   return { nodes, edges };
+}
+
+// ---- Phase 3: per-delivery dates → the Planner (Gantt) --------------------
+// Each recipient with a due date is one dated delivery. This upserts a delivery
+// milestone bar per recipient into the Planner's store (postsup-gantt-v1), keyed
+// by name so re-running keeps dates in sync without wiping a user's duration edits.
+type GanttBar = { id: string; name: string; color: string; start: number; dur: number };
+
+function mondayISO(d: Date): string {
+  const x = new Date(d);
+  const day = (x.getDay() + 6) % 7; // 0 = Monday
+  x.setDate(x.getDate() - day);
+  return x.toISOString().slice(0, 10);
+}
+const weeksBetween = (fromISO: string, toISO: string) =>
+  Math.round((Date.parse(toISO) - Date.parse(fromISO)) / (7 * 86400000));
+
+/** Recipients with a due date, earliest first — the delivery schedule. */
+export function deliverySchedule(recipients: Recipient[]): { id: string; name: string; due: string }[] {
+  return recipients
+    .filter((r) => r.due)
+    .map((r) => ({ id: r.id, name: r.name || "Untitled", due: r.due! }))
+    .sort((a, b) => a.due.localeCompare(b.due));
+}
+
+export function sendDeliveriesToSchedule(projectId: string | undefined, recipients: Recipient[]): { added: number; updated: number; skipped: number } {
+  const sched = deliverySchedule(recipients);
+  const datedCount = sched.length;
+  const skipped = recipients.length - datedCount;
+  if (!datedCount) return { added: 0, updated: 0, skipped };
+
+  const barsKey = "postsup-gantt-v1" + (projectId ? `-${projectId}` : "");
+  const startKey = "postsup-gantt-start" + (projectId ? `-${projectId}` : "");
+
+  // Anchor the chart: keep an existing start, else the Monday before the earliest delivery.
+  let startDate = "";
+  try { startDate = localStorage.getItem(startKey) || ""; } catch { /* ignore */ }
+  if (!startDate) {
+    startDate = mondayISO(new Date(sched[0].due));
+    try { localStorage.setItem(startKey, startDate); } catch { /* ignore */ }
+  }
+
+  let bars: GanttBar[] = [];
+  try { bars = JSON.parse(localStorage.getItem(barsKey) || "[]"); if (!Array.isArray(bars)) bars = []; } catch { bars = []; }
+
+  let added = 0, updated = 0;
+  for (const d of sched) {
+    const name = `Deliver: ${d.name}`;
+    const week = Math.max(0, weeksBetween(startDate, d.due));
+    const existing = bars.find((b) => (b.name || "").toLowerCase().trim() === name.toLowerCase().trim());
+    if (existing) {
+      if (existing.start !== week) { existing.start = week; updated++; }
+    } else {
+      bars.push({ id: uid("bar"), name, color: "#2dd4bf", start: week, dur: 1 });
+      added++;
+    }
+  }
+  try { localStorage.setItem(barsKey, JSON.stringify(bars)); } catch { /* ignore */ }
+  return { added, updated, skipped };
 }
 
 const BUILDER_KEY = (projectId?: string) => `postsup-builder-${projectId ?? "default"}`;

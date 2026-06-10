@@ -2,29 +2,23 @@ import { useState } from "react";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { specOptions, specStaleness, type Recipient } from "@/lib/deliverables";
-import { verifySpec, type SpecVerifyResult } from "@/lib/verifySpec";
+import { specOptions, specStaleness, recipientSpecClass, type Recipient } from "@/lib/deliverables";
+import { verifySpec, SPEC_FIELDS, recipientSpecDiffs, type SpecVerifyResult } from "@/lib/verifySpec";
 
 /** Spec freshness badge + on-demand "Verify spec" (web search). The result is a field-level
  *  diff the user applies BY HAND — never auto-merged — with sources and a portal-confirm note. */
 
-const SPEC_FIELDS: { key: keyof Recipient; label: string }[] = [
-  { key: "region", label: "Region" }, { key: "dr", label: "Colour / range" }, { key: "peakNits", label: "Peak nits" },
-  { key: "resolution", label: "Resolution" }, { key: "fps", label: "FPS" }, { key: "container", label: "Container" },
-  { key: "audio", label: "Audio" }, { key: "loudness", label: "Loudness" }, { key: "truePeak", label: "True-peak" }, { key: "subtitles", label: "Subtitles" },
-];
-
 export function RecipientVerify({ recipient, onPatch }: { recipient: Recipient; onPatch: (p: Partial<Recipient>) => void }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SpecVerifyResult | null>(null);
-  const stale = specStaleness(recipient.verified?.at);
+  const stale = specStaleness(recipient.verified?.at, recipientSpecClass(recipient));
   const badge = stale.level === "fresh" ? "text-emerald-400 border-emerald-400/40 bg-emerald-400/10"
     : stale.level === "aging" ? "text-status-warn border-status-warn/40 bg-status-warn/10"
     : stale.level === "stale" ? "text-destructive border-destructive/40 bg-destructive/10"
     : "text-suite-text-dim border-suite-border";
 
   const diffsFrom = (res: SpecVerifyResult) =>
-    SPEC_FIELDS.filter((f) => res.spec[f.key] !== undefined && res.spec[f.key] !== "" && String(res.spec[f.key]) !== String(recipient[f.key] ?? ""));
+    SPEC_FIELDS.filter((f) => recipientSpecDiffs(recipient, res.spec).some((d) => d.key === f.key));
 
   const run = async () => {
     if (!recipient.name.trim()) { toast("Name the recipient first so I know which platform to verify"); return; }

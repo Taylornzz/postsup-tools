@@ -129,6 +129,15 @@ export function toggleWatch(id: string, enabled: boolean) {
   }
 }
 
+export function markWatchRun(id: string, at = new Date().toISOString()) {
+  const all = listWatches();
+  const idx = all.findIndex((w) => w.id === id);
+  if (idx >= 0) {
+    all[idx] = { ...all[idx], lastRunAt: at };
+    write(WATCHES_KEY, all);
+  }
+}
+
 // ---- Digests (the in-app feed) ----
 export const listDigests = (): Digest[] => read<Digest[]>(DIGESTS_KEY, []);
 
@@ -148,9 +157,31 @@ export function clearDigests() {
   write(DIGESTS_KEY, []);
 }
 
-// ---- Phase-1 sample digest ----
+// ---- Real digest (from /api/news-digest) ----
+export function digestFromResult(
+  w: Watch,
+  result: { tldr: string; items: DigestItem[]; noResults?: boolean },
+): Digest {
+  const where = w.regions.length === 0 ? "worldwide" : w.regions.map(regionLabel).join(" & ");
+  const tldr =
+    result.tldr ||
+    (result.noResults
+      ? `No fresh reporting on “${w.topic}” (${where}) turned up this time. Try widening the topic or check again later.`
+      : `Latest on “${w.topic}” (${where}).`);
+  return {
+    id: uid(),
+    watchId: w.id,
+    watchTopic: w.topic,
+    createdAt: new Date().toISOString(),
+    tldr,
+    items: result.items || [],
+    sample: false,
+  };
+}
+
+// ---- Phase-1 sample digest (offline fallback) ----
 // Honest placeholder: clearly flagged, obviously-fake links, so nobody mistakes it
-// for real reporting. Phase 2 replaces this with a real news search + LLM summary.
+// for real reporting. Used only when the live news service is unreachable (e.g. local dev).
 export function buildSampleDigest(w: Watch): Digest {
   const where =
     w.regions.length === 0

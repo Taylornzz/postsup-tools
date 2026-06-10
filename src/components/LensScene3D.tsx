@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 
 /** Interactive 3D wireframe of what the lens numbers mean spatially.
  *  Camera at origin looking down +Z; ground plane; live view frustum; framing
@@ -26,9 +26,10 @@ const CAM_H = 1.4; // camera lens height above ground (m)
 
 export function LensScene3D(p: LensSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const view = useRef({ yaw: -0.62, pitch: 0.34, radius: 0, drag: false, lx: 0, ly: 0, userRadius: 0 });
+  const view = useRef({ yaw: -0.62, pitch: 0.34, radius: 0, drag: false, lx: 0, ly: 0, userRadius: 0, top: false });
   const propsRef = useRef(p);
   propsRef.current = p;
+  const [mode, setMode] = useState<"3d" | "top">("3d");
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -198,7 +199,7 @@ export function LensScene3D(p: LensSceneProps) {
     ctx.font = "10px ui-monospace, Menlo, monospace";
     ctx.fillText(`${focal}mm · f/${fstop} · ${fmt(distM)}m  —  AOV ${hAOV.toFixed(1)}°×${vAOV.toFixed(1)}°`, 10, 16);
     ctx.fillStyle = "rgba(100,110,130,0.7)";
-    ctx.fillText("drag to orbit · wheel to zoom", 10, H - 8);
+    ctx.fillText(v.top ? "top view (plan) · drag to orbit back · wheel to zoom" : "drag to orbit · wheel to zoom", 10, H - 8);
   }, []);
 
   // redraw on prop change
@@ -221,6 +222,7 @@ export function LensScene3D(p: LensSceneProps) {
     const down = (e: PointerEvent) => { v.drag = true; v.lx = e.clientX; v.ly = e.clientY; c.setPointerCapture(e.pointerId); };
     const move = (e: PointerEvent) => {
       if (!v.drag) return;
+      if (v.top) { v.top = false; setMode("3d"); } // dragging leaves the plan view
       v.yaw += (e.clientX - v.lx) * 0.008;
       v.pitch = Math.max(0.05, Math.min(1.35, v.pitch + (e.clientY - v.ly) * 0.006));
       v.lx = e.clientX; v.ly = e.clientY;
@@ -247,15 +249,27 @@ export function LensScene3D(p: LensSceneProps) {
     };
   }, [draw]);
 
+  const go3D = () => { const v = view.current; v.yaw = -0.62; v.pitch = 0.34; v.userRadius = 0; v.top = false; setMode("3d"); draw(); };
+  const goTop = () => {
+    const v = view.current;
+    v.yaw = 0; v.pitch = 1.54; v.top = true;          // look straight down → classic blocking plan
+    v.userRadius = Math.max(propsRef.current.distM * 1.7, 9);
+    setMode("top"); draw();
+  };
+
   return (
     <div className="relative rounded-sm border border-suite-border bg-[#0b0c10] overflow-hidden">
       <canvas ref={canvasRef} className="w-full h-[400px] touch-none cursor-grab active:cursor-grabbing" />
-      <button
-        onClick={() => { view.current.yaw = -0.62; view.current.pitch = 0.34; view.current.userRadius = 0; draw(); }}
-        className="absolute top-2 right-2 px-2 py-0.5 rounded-sm border border-suite-border bg-suite-bg/80 font-mono text-[9px] uppercase tracking-[0.1em] text-suite-text-dim hover:text-suite-text"
-      >
-        Reset view
-      </button>
+      <div className="absolute top-2 right-2 flex items-center rounded-sm border border-suite-border bg-suite-bg/80 overflow-hidden font-mono text-[9px] uppercase tracking-[0.1em]">
+        <button onClick={go3D} title="Perspective 3D view"
+          className={mode === "3d" ? "px-2 py-0.5 bg-guide-target/20 text-guide-target" : "px-2 py-0.5 text-suite-text-dim hover:text-suite-text"}>
+          3D
+        </button>
+        <button onClick={goTop} title="Top-down plan (blocking diagram)"
+          className={mode === "top" ? "px-2 py-0.5 bg-guide-target/20 text-guide-target border-l border-suite-border" : "px-2 py-0.5 text-suite-text-dim hover:text-suite-text border-l border-suite-border"}>
+          Top
+        </button>
+      </div>
     </div>
   );
 }

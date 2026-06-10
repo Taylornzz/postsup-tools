@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   buildPlan, recipientsToMasteringConfig, newRecipient, recipientChecklist,
-  DELIVERY_TEMPLATES, recipientFromTemplate,
+  DELIVERY_TEMPLATES, recipientFromTemplate, specStaleness, recipientSpecClass,
+  deliverySchedule, sendDeliveriesToSchedule,
   type Recipient, type DRId,
 } from "@/lib/deliverables";
 import { makeOrder } from "@/lib/mastering";
+import { rollupDeliverables, groupStatus, linkSuggestions, linkBySpecKey, unlinkArtifact } from "@/lib/deliverablesRollup";
+import { templateDeliverables, languageItems, newItem, newLanguage, type DeliverableItem, type DeliveryLanguage } from "@/lib/deliverablesList";
 
 const rcp = (name: string, dr: DRId, extra: Partial<Recipient> = {}): Recipient => ({
   ...newRecipient(name), dr, ...extra,
@@ -161,5 +164,158 @@ describe("delivery templates (#11)", () => {
 
   it("each instantiation gets a unique id", () => {
     expect(recipientFromTemplate(DELIVERY_TEMPLATES[0]).id).not.toBe(recipientFromTemplate(DELIVERY_TEMPLATES[0]).id);
+  });
+});
+
+describe("audit leftovers (#4)", () => {
+  it("splits chain-of-title and E&O into two distinct legal items", () => {
+    const items = templateDeliverables({ audio: "5.1", dr: "sdr", subtitles: "None" });
+    const legal = items.filter((i) => i.category === "legal").map((i) => i.label.toLowerCase());
+    expect(legal.some((l) => l.includes("chain-of-title"))).toBe(true);
+    expect(legal.some((l) => l.includes("e&o"))).toBe(true);
+    // they are separate items, not one combined line
+    expect(legal.some((l) => l.includes("chain-of-title") && l.includes("e&o"))).toBe(false);
+  });
+
+  it("DCP template carries the full KDM lifecycle (DKDM + initial + re-issues)", () => {
+    const dcp = templateDeliverables({ container: "DCP", dr: "theatrical" });
+    const labels = dcp.map((i) => i.label.toLowerCase());
+    expect(labels.some((l) => l.includes("dkdm"))).toBe(true);
+    expect(labels.some((l) => l.includes("kdm") && l.includes("initial"))).toBe(true);
+    expect(labels.some((l) => l.includes("re-issue"))).toBe(true);
+  });
+
+  it("staleness thresholds scale by spec class — streamers go stale fastest", () => {
+    const at = new Date(Date.now() - 100 * 86400000).toISOString(); // 100 days ago
+    expect(specStaleness(at, "streamer").level).toBe("aging");      // past 60d fresh window
+    expect(specStaleness(at, "broadcaster").level).toBe("fresh");   // still inside 120d
+    expect(specStaleness(at, "theatrical").level).toBe("fresh");    // 180d window
+  });
+
+  it("classifies recipients into the right drift class", () => {
+    expect(recipientSpecClass(newRecipient("x"))).toBe("broadcaster");
+    expect(recipientSpecClass({ ...newRecipient("n"), fpsNative: true })).toBe("streamer");
+    expect(recipientSpecClass({ ...newRecipient("d"), dr: "theatrical" })).toBe("theatrical");
+  });
+
+  it("groupStatus aggregates per-(item×recipient) status on a shared artifact", () => {
+    const mk = (status: DeliverableItem["status"]): DeliverableItem => ({ ...newItem("audio"), label: "M&E — 5.1", status });
+    const a: Recipient = { ...newRecipient("A"), audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", deliverables: [mk("accepted")] };
+    const b: Recipient = { ...newRecipient("B"), audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", deliverables: [mk("todo")] };
+    const groups = rollupDeliverables([a, b]);
+    const me = groups.find((g) => g.label.startsWith("M&E"))!;
+    expect(me.consumers.length).toBe(2);             // same content+spec → one artifact, two consumers
+    expect(groupStatus(me)).toMatchObject({ tone: "partial", done: 1, total: 2 });
+
+    const c: Recipient = { ...b, deliverables: [mk("qc-fail")] };
+    expect(groupStatus(rollupDeliverables([a, c]).find((g) => g.label.startsWith("M&E"))!).tone).toBe("fail");
+  });
+});
+
+describe("artifact links — Phase 2 (#5)", () => {
+  const me = (): DeliverableItem => ({ ...newItem("audio"), label: "M&E — 5.1" });
+  const a = (): Recipient => ({ ...newRecipient("A"), audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", deliverables: [me()] });
+  const b = (): Recipient => ({ ...newRecipient("B"), audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", deliverables: [me()] });
+
+  it("suggests linking identical items across recipients, then stops once linked", () => {
+    let rs = [a(), b()];
+    const sugg = linkSuggestions(rs);
+    expect(sugg.length).toBe(1);
+    expect(sugg[0].recipientNames.sort()).toEqual(["A", "B"]);
+
+    rs = linkBySpecKey(rs, sugg[0].specKey);
+    // both items now carry the same artifactId
+    const ids = rs.flatMap((r) => r.deliverables!.map((d) => d.artifactId));
+    expect(ids[0]).toBeTruthy();
+    expect(new Set(ids).size).toBe(1);
+    // no more suggestions — already unified
+    expect(linkSuggestions(rs).length).toBe(0);
+    // rollup marks the group linked
+    expect(rollupDeliverables(rs).find((g) => g.label.startsWith("M&E"))!.linked).toBe(true);
+  });
+
+  it("a link survives a label edit on one recipient (durable, not inferred)", () => {
+    let rs = linkBySpecKey([a(), b()], linkSuggestions([a(), b()])[0].specKey);
+    // rename one recipient's item — spec key would now differ, but the link holds
+    rs = rs.map((r, i) => (i === 0 ? { ...r, deliverables: r.deliverables!.map((d) => ({ ...d, label: "M&E full-fill 5.1" })) } : r));
+    const g = rollupDeliverables(rs).filter((x) => x.linked);
+    expect(g.length).toBe(1);
+    expect(g[0].consumers.length).toBe(2); // still one make, two consumers
+  });
+
+  it("unlink returns to inferred grouping", () => {
+    let rs = linkBySpecKey([a(), b()], linkSuggestions([a(), b()])[0].specKey);
+    const artifactId = rs[0].deliverables![0].artifactId!;
+    rs = unlinkArtifact(rs, artifactId);
+    expect(rs.flatMap((r) => r.deliverables!.map((d) => d.artifactId)).every((x) => x === undefined)).toBe(true);
+    expect(linkSuggestions(rs).length).toBe(1); // suggestion is back
+  });
+
+  it("does not suggest linking genuinely different specs", () => {
+    const x: Recipient = { ...newRecipient("X"), audio: "5.1", loudness: "-24 LKFS (streaming)", truePeak: "-2 dBTP", deliverables: [me()] };
+    const y: Recipient = { ...newRecipient("Y"), audio: "5.1", loudness: "-27 LKFS (Netflix streaming)", truePeak: "-2 dBTP", deliverables: [me()] };
+    expect(linkSuggestions([x, y]).length).toBe(0); // different loudness = different render
+  });
+});
+
+describe("IMF OV + supplementals (#7)", () => {
+  const langs: DeliveryLanguage[] = [
+    { ...newLanguage("EN"), kind: "OV" },
+    { ...newLanguage("FR"), kind: "VF", dub: true, forced: true },
+  ];
+
+  it("non-IMF keeps the flat dub-printmaster framing", () => {
+    const items = languageItems(langs);
+    const labels = items.map((i) => i.label.toLowerCase());
+    expect(labels.some((l) => l.includes("dub printmaster"))).toBe(true);
+    expect(labels.some((l) => l.includes("supplemental"))).toBe(false);
+    expect(labels.some((l) => l.includes("imf ov"))).toBe(false);
+  });
+
+  it("IMF framing produces an explicit OV + per-language supplemental packages", () => {
+    const items = languageItems(langs, { imf: true });
+    const labels = items.map((i) => i.label.toLowerCase());
+    expect(labels.some((l) => l.includes("imf ov"))).toBe(true);                      // OV base, once
+    expect(labels.some((l) => l.includes("imf supplemental — fr") || l.includes("imf supplemental — fr (cpl referencing ov"))).toBe(true);
+    expect(labels.some((l) => l.includes("references ov m&e"))).toBe(true);            // dub audio references OV
+    expect(labels.some((l) => l.includes("dub printmaster"))).toBe(false);            // not the flat framing
+    // OV is the source language — no EN supplemental
+    expect(labels.some((l) => l.includes("supplemental — en"))).toBe(false);
+  });
+});
+
+describe("per-delivery dates → Planner (#6)", () => {
+  it("deliverySchedule lists only dated recipients, earliest first", () => {
+    const rs: Recipient[] = [
+      { ...newRecipient("Late"), due: "2026-09-01" },
+      { ...newRecipient("NoDate") },
+      { ...newRecipient("Early"), due: "2026-07-01" },
+    ];
+    const s = deliverySchedule(rs);
+    expect(s.map((x) => x.name)).toEqual(["Early", "Late"]);
+  });
+
+  it("sendDeliveriesToSchedule upserts delivery bars into the Planner store", () => {
+    const pid = "test-sched";
+    localStorage.removeItem(`postsup-gantt-v1-${pid}`);
+    localStorage.removeItem(`postsup-gantt-start-${pid}`);
+    const rs: Recipient[] = [
+      { ...newRecipient("Netflix"), due: "2026-07-06" },   // anchor (Monday)
+      { ...newRecipient("ABC"), due: "2026-07-20" },       // +2 weeks
+      { ...newRecipient("NoDate") },
+    ];
+    const res = sendDeliveriesToSchedule(pid, rs);
+    expect(res.added).toBe(2);
+    expect(res.skipped).toBe(1);
+    const bars = JSON.parse(localStorage.getItem(`postsup-gantt-v1-${pid}`)!);
+    const abc = bars.find((b: { name: string }) => b.name === "Deliver: ABC");
+    expect(abc.start).toBe(2); // two weeks after the anchor
+    // re-running is idempotent (no duplicates), and moving a date updates in place
+    const res2 = sendDeliveriesToSchedule(pid, rs.map((r) => (r.name === "ABC" ? { ...r, due: "2026-07-27" } : r)));
+    expect(res2.added).toBe(0);
+    expect(res2.updated).toBe(1);
+    const bars2 = JSON.parse(localStorage.getItem(`postsup-gantt-v1-${pid}`)!);
+    expect(bars2.filter((b: { name: string }) => b.name === "Deliver: ABC").length).toBe(1);
+    expect(bars2.find((b: { name: string }) => b.name === "Deliver: ABC").start).toBe(3);
   });
 });

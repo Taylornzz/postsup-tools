@@ -28,8 +28,13 @@ const SYSTEM =
   "• Versions / languages: if the brief implies localisation, list the OV plus each versioned (VF) language's " +
   "supplementals — dub printmaster (dubbed D + M&E), M&E, localized titles/credits, dub card, and audio description " +
   "(AD + AD script) where required — alongside that language's subtitle items.\n" +
+  "• IMF delivery specifically: model it as an Original Version (OV) package PLUS a per-language SUPPLEMENTAL package — " +
+  "the supplemental is a CPL that REFERENCES the OV's video (never re-ships picture essence) and carries only the new " +
+  "audio (references OV M&E), subtitles (IMSC) and any localized inserts/titles. Name them 'IMF OV — …' and 'IMF " +
+  "Supplemental — <LANG> (CPL referencing OV)', not flat dub printmasters, when the container is IMF.\n" +
   "• Categories: use 'archive' (LTO/MHL, archival master), 'editorial' (conform AAF/EDL, as-broadcast script), 'legal' " +
-  "(music cue sheet, chain-of-title / E&O) for the non-rendition obligations; 'metadata' for QC reports + paperwork.\n\n" +
+  "for the non-rendition legal obligations — keep 'Chain-of-title (rights/clearances)' and 'E&O insurance certificate' " +
+  "as TWO separate items (different gates), plus the music cue sheet; 'metadata' for QC reports + paperwork.\n\n" +
   "NOT deliverables — NEVER list these as items; they are requirements baked into a master, so fold them into the " +
   "relevant master's note or omit: sync pop / 2-pop, 1kHz line-up tone, bars, slates, leaders, head/tail build, " +
   "timecode start, channel mapping/layout, audio sync, aspect/active-picture.\n\n" +

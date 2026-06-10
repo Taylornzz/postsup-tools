@@ -5,10 +5,11 @@ import {
 import {
   MasteringStrategy, STRATEGIES, LANES, EDGE_OP_META, ROLE_ACCENT,
   buildMasterGraph, MNode, Lane, EdgeOp,
-  MASTER_NITS, MasterNits,
+  MASTER_NITS, MasterNits, masteringRecipeText,
 } from "@/lib/mastering";
 import { cn } from "@/lib/utils";
-import { Crown, AlertTriangle, X, Plus, Minus, Maximize } from "lucide-react";
+import { toast } from "sonner";
+import { Crown, AlertTriangle, X, Plus, Minus, Maximize, Copy } from "lucide-react";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.2;
@@ -147,6 +148,14 @@ export function MasteringWorkflow({
   };
   const onPanUp = () => { pan.current = null; };
 
+  const exportRecipe = () => {
+    const text = masteringRecipeText(strategy, version, masterNits);
+    navigator.clipboard.writeText(text).then(
+      () => toast.success("Mastering recipe copied", { description: `${strat.name} · ACES ${version} · paste into your post-house brief.` }),
+      () => toast.error("Couldn't copy — clipboard blocked by the browser."),
+    );
+  };
+
   const zoomBy = (f: number) => setZoom((z) => clampZoom(z * f));
   const fit = useCallback(() => {
     const el = scrollRef.current; if (!el) return;
@@ -181,6 +190,10 @@ export function MasteringWorkflow({
                   <Maximize className="size-3" strokeWidth={1.8} />
                 </button>
               </div>
+              <button onClick={exportRecipe} title="Copy this mastering recipe (nodes + make-order) as text"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-[0.12em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+                <Copy className="size-3" strokeWidth={1.8} /> Export
+              </button>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] tracking-[0.18em] uppercase text-suite-text-muted" title="Mastering-display peak luminance the HDR hero is graded to">Peak</span>
                 <div className="flex gap-1">

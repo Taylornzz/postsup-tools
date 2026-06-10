@@ -23,7 +23,7 @@ const fmtSize = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : b >= 1
  *  brief + items (persisted by the parent). The AI brief box + document uploader build
  *  or grow the list; everything is also editable by hand. Used inside each recipient. */
 
-export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, languages, onLanguagesChange, aiLog, onLogChange, documents, onAttach, onOpenDoc, onRemoveDoc }: {
+export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChange, autoFocus, sharedCount, onRecipientSpec, container, languages, onLanguagesChange, aiLog, onLogChange, documents, onAttach, onOpenDoc, onRemoveDoc }: {
   brief: string;
   items: DeliverableItem[];
   onBriefChange: (s: string) => void;
@@ -31,6 +31,7 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   autoFocus?: boolean;
   sharedCount?: Map<string, number>;
   onRecipientSpec?: (patch: Partial<Recipient>) => void;
+  container?: string;
   languages?: DeliveryLanguage[];
   onLanguagesChange?: (langs: DeliveryLanguage[]) => void;
   aiLog?: { prompt: string; added: number; at: number }[];
@@ -93,14 +94,15 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
 
   const langs = languages || [];
   const dedupKey = (i: { label: string; category: string }) => `${i.category}|${i.label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+  const isImf = /imf/i.test(container || "");
   const addLangDeliverables = () => {
     const named = langs.filter((l) => (l.code || "").trim());
     if (!named.length) { toast("Name each language (code) first"); return; }
     const seen = new Set(items.map(dedupKey));
-    const fresh = languageItems(named).filter((it) => { const k = dedupKey(it); if (seen.has(k)) return false; seen.add(k); return true; });
+    const fresh = languageItems(named, { imf: isImf }).filter((it) => { const k = dedupKey(it); if (seen.has(k)) return false; seen.add(k); return true; });
     if (!fresh.length) { toast("Those language deliverables are already on the list"); return; }
     onItemsChange([...items, ...fresh]);
-    toast.success(`Added ${fresh.length} language deliverable${fresh.length === 1 ? "" : "s"} — edit owners / notes as needed`);
+    toast.success(`Added ${fresh.length} ${isImf ? "IMF OV + supplemental" : "language"} deliverable${fresh.length === 1 ? "" : "s"} — edit owners / notes as needed`);
   };
 
   const inScope = items.filter((i) => i.inScope).length;

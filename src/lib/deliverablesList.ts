@@ -16,6 +16,7 @@ export interface DeliverableItem {
   notes: string;
   status: DelivStatus; // QC / delivery lifecycle
   version: number;     // redelivery version (v1, v2 after a QC fix)
+  artifactId?: string; // Phase 2: set when the user links this item to a shared make-once artifact
 }
 
 export const STATUSES: { id: DelivStatus; label: string }[] = [
@@ -87,10 +88,43 @@ export function newLanguage(code = ""): DeliveryLanguage { return { code, kind: 
  *  needs a dub PRINTMASTER (dubbed dialogue + M&E), localized titles/credits and a dub card; the
  *  source-language M&E and textless fill are shared (added once when any dub exists). The OV owes
  *  forced narratives + SDH (not full same-language subs); VF languages owe full subs. Audio
- *  description (AD) + AD script fan out per language flagged. Each is a distinct, typed artifact. */
-export function languageItems(langs: DeliveryLanguage[]): DeliverableItem[] {
+ *  description (AD) + AD script fan out per language flagged. Each is a distinct, typed artifact.
+ *
+ *  In IMF delivery (`opts.imf`) the same obligations are framed as an Original Version (OV)
+ *  package plus per-language SUPPLEMENTAL packages: each VF is a supplemental CPL that REFERENCES
+ *  the OV's video (you never re-ship the picture essence) and carries only the new audio / subs /
+ *  localized inserts. This is what IMF is for — model it explicitly, not as flat dub printmasters. */
+export function languageItems(langs: DeliveryLanguage[], opts: { imf?: boolean } = {}): DeliverableItem[] {
   const rows: { label: string; category: DelivCategory; owner: DelivOwner }[] = [];
   const anyDub = langs.some((l) => l.kind === "VF" && l.dub);
+  const anyVF = langs.some((l) => l.kind === "VF");
+
+  if (opts.imf) {
+    // The OV is the base package every supplemental references — model it once, explicitly.
+    if (anyVF) rows.push({ label: "IMF OV — Original Version (CPL/PKL/ASSETMAP, primary video + audio + subs)", category: "picture", owner: "post" });
+    if (anyDub) {
+      rows.push({ label: "M&E — fully-filled (carried in OV, for supplemental dubs)", category: "audio", owner: "sound" });
+      rows.push({ label: "Textless / clean fill (OV — for localized graphics)", category: "picture", owner: "vfx" });
+    }
+    for (const l of langs) {
+      const tag = (l.code || "").trim().toUpperCase() || "??";
+      if (l.kind !== "VF") continue; // OV is the source language; supplementals are the VFs
+      rows.push({ label: `IMF Supplemental — ${tag} (CPL referencing OV)`, category: "picture", owner: "post" });
+      if (l.dub) {
+        rows.push({ label: `Supplemental audio — ${tag} dub (MXF, references OV M&E)`, category: "audio", owner: "sound" });
+        rows.push({ label: `Localized inserts / titles — ${tag} (supplemental video)`, category: "picture", owner: "vfx" });
+      }
+      rows.push({ label: `Supplemental subtitles — ${tag} (IMSC sidecar)`, category: "subtitles", owner: "post" });
+      if (l.forced) rows.push({ label: `Forced narratives — ${tag} (IMSC, supplemental)`, category: "subtitles", owner: "post" });
+      if (l.sdh) rows.push({ label: `SDH — ${tag} (IMSC, supplemental)`, category: "subtitles", owner: "post" });
+      if (l.ad) {
+        rows.push({ label: `Audio description (AD) — ${tag} (supplemental audio)`, category: "audio", owner: "sound" });
+        rows.push({ label: `AD script — ${tag}`, category: "metadata", owner: "editorial" });
+      }
+    }
+    return rows.map((r) => ({ ...newItem(r.category), label: r.label, owner: r.owner }));
+  }
+
   if (anyDub) {
     rows.push({ label: "M&E — fully-filled (for foreign dubs)", category: "audio", owner: "sound" });
     rows.push({ label: "Textless / clean fill (for localized graphics)", category: "picture", owner: "vfx" });
@@ -126,7 +160,10 @@ function editorialArchiveItems(): DeliverableItem[] {
     { ...newItem("editorial"), label: "As-broadcast script / CCSL (dialogue + spotting list)", owner: "editorial" },
     { ...newItem("archive"), label: "Project archive → LTO + MHL / checksum manifest", owner: "post" },
     { ...newItem("archive"), label: "Archival master (graded ACES / OCN handover)", owner: "post" },
-    { ...newItem("legal"), label: "Chain-of-title / E&O paperwork", owner: "production", inScope: false },
+    // Chain-of-title and E&O are two distinct legal obligations — different owners, different
+    // gates. Splitting them stops one being ticked off while the other holds up delivery/payment.
+    { ...newItem("legal"), label: "Chain-of-title (rights / clearances documentation)", owner: "production", inScope: false },
+    { ...newItem("legal"), label: "E&O insurance certificate", owner: "production", inScope: false },
   ];
 }
 
@@ -144,7 +181,12 @@ export function templateDeliverables(spec?: { audio?: string; dr?: string; subti
       ["VF / version DCPs (per language / edit)", "picture"],
       ["Textless / clean master (for foreign VF)", "picture"],
       ["Trailer / teaser DCP", "picture"],
-      ["KDM keys — per-server, time-windowed", "metadata"],
+      // KDM lifecycle — not a one-off. The DKDM is the master from which all exhibition
+      // KDMs are cut; KDMs are per-server + time-windowed, and re-issues for extensions /
+      // new screens / replaced servers run for the life of the release.
+      ["DKDM — Distribution KDM (master for cutting exhibition keys)", "metadata"],
+      ["KDM keys — per-server, time-windowed (initial run)", "metadata"],
+      ["KDM re-issues — holdovers / new screens / replaced servers", "metadata"],
       ["Printmaster — 5.1", "audio"],
       ["Printmaster — 7.1", "audio"],
       ["Printmaster — Dolby Atmos (if immersive)", "audio"],
@@ -200,6 +242,7 @@ export function coerceItem(x: Record<string, unknown>): DeliverableItem {
     notes: typeof x.notes === "string" ? x.notes : "",
     status: STATUSES.some((s) => s.id === x.status) ? (x.status as DelivStatus) : "todo",
     version: typeof x.version === "number" && x.version > 0 ? x.version : 1,
+    ...(typeof x.artifactId === "string" && x.artifactId ? { artifactId: x.artifactId } : {}),
   };
 }
 

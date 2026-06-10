@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildMasterGraph, buildCustomGraph, STRATEGIES, MasteringStrategy } from "@/lib/mastering";
+import { buildMasterGraph, buildCustomGraph, STRATEGIES, MasteringStrategy, masteringRecipeText } from "@/lib/mastering";
 
 const STRATS = STRATEGIES.map((s) => s.id) as MasteringStrategy[];
 
@@ -63,6 +63,29 @@ describe("buildMasterGraph", () => {
     const ot = g.edges.find((e) => e.op === "output-transform")!;
     expect(ot.acesManaged).toBe(true);
     expect(trim.acesManaged).toBe(false);
+  });
+});
+
+describe("masteringRecipeText", () => {
+  it("renders a recipe for every strategy with the key sections", () => {
+    for (const s of STRATS) {
+      const t = masteringRecipeText(s, "2.0", 1000);
+      expect(t).toMatch(/MASTERING RECIPE —/);
+      expect(t).toContain("NODES");
+      expect(t).toContain("HOW EACH IS PRODUCED");
+      expect(t).toMatch(/Hero:/);
+    }
+  });
+
+  it("flags up-volume re-grades with !! in theatrical-first", () => {
+    const t = masteringRecipeText("theatrical-first", "2.0", 1000);
+    expect(t).toContain("!!");
+    expect(t).toMatch(/WARNING:/);
+  });
+
+  it("reflects the chosen mastering peak", () => {
+    expect(masteringRecipeText("hdr-first", "2.0", 4000)).toMatch(/peak 4k nit/);
+    expect(masteringRecipeText("hdr-first", "2.0", 1000)).toMatch(/peak 1k nit/);
   });
 });
 

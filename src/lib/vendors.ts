@@ -58,6 +58,9 @@ export const VENDOR_TYPE_COLOR: Record<VendorType, string> = {
 /** When the directory was last verified end-to-end. */
 export const VENDORS_VERIFIED = "June 2026";
 
+/** Next scheduled re-verification (≈6-month cadence). See docs/vendor-directory-maintenance.md. */
+export const VENDORS_REVERIFY_BY = "December 2026";
+
 /** Curated answers to the questions post supervisors actually ask of a vendor list. */
 export interface VendorScenario { q: string; a: string; }
 export const VENDOR_SCENARIOS: VendorScenario[] = [

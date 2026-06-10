@@ -3,7 +3,7 @@ import { Building2, Search, X, ExternalLink, AlertTriangle, BadgeCheck, Sparkles
 import { cn } from "@/lib/utils";
 import {
   VENDORS, VENDOR_TYPES, VENDOR_REGIONS, VENDOR_TYPE_COLOR, VENDOR_REGION_LABEL,
-  VENDOR_SCENARIOS, VENDORS_VERIFIED,
+  VENDOR_SCENARIOS, VENDORS_VERIFIED, VENDORS_REVERIFY_BY,
   type Vendor, type VendorType, type VendorRegion,
 } from "@/lib/vendors";
 import { askVendorAdvisor, type AdvisorMessage } from "@/lib/vendorAdvisor";
@@ -111,7 +111,7 @@ export function Vendors() {
             <Building2 className="size-4 text-guide-target" strokeWidth={1.6} />
             <span className="font-mono text-xs tracking-[0.14em] uppercase text-suite-text font-semibold">Vendor Directory</span>
             <span className="font-mono text-[10px] text-suite-text-dim tabular">{filtered.length}/{VENDORS.length}</span>
-            <span title="Every listing web-verified as currently operating; recently-failed companies (Technicolor/MPC, Milk VFX, Jellyfish, Pixomondo, Éclair…) removed."
+            <span title={`Every listing web-verified as currently operating; recently-failed companies (Technicolor/MPC, Milk VFX, Jellyfish, Pixomondo, Éclair…) removed. Next re-verification due ${VENDORS_REVERIFY_BY}.`}
               className="inline-flex items-center gap-1 font-mono text-[8.5px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-full border border-emerald-400/40 text-emerald-400">
               <BadgeCheck className="size-3" strokeWidth={1.8} /> Verified {VENDORS_VERIFIED}
             </span>

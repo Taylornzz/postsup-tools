@@ -1,16 +1,17 @@
 import { useMemo, useState } from "react";
 import {
-  Newspaper, Plus, Bell, Rss, Trash2, Pencil, Play, X, ChevronRight,
-  Mail, Calendar, AlertTriangle, Check, ExternalLink, Sparkles,
+  Newspaper, Plus, Bell, Rss, Trash2, Pencil, RefreshCw, X, ChevronRight,
+  Mail, Calendar, Check, ExternalLink, Sparkles, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  listWatches, saveWatch, deleteWatch, toggleWatch,
-  listDigests, addDigest, clearDigests, buildSampleDigest,
+  listWatches, saveWatch, deleteWatch, toggleWatch, markWatchRun,
+  listDigests, addDigest, clearDigests, buildSampleDigest, digestFromResult,
   planFromPrompt, REGION_PRESETS, regionLabel,
   type Watch, type Cadence, type Delivery, type Digest,
 } from "@/lib/watches";
+import { fetchNewsDigest } from "@/lib/newsDigest";
 
 const CADENCES: { id: Cadence; label: string }[] = [
   { id: "daily", label: "Daily" },
@@ -30,6 +31,7 @@ export function NewsWatches() {
   const [digests, setDigests] = useState<Digest[]>(() => listDigests());
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<Watch | null>(null);
+  const [running, setRunning] = useState<Set<string>>(new Set());
 
   const refreshWatches = () => setWatches(listWatches());
   const refreshDigests = () => setDigests(listDigests());
@@ -39,11 +41,46 @@ export function NewsWatches() {
 
   const onSaved = () => { setComposing(false); setEditing(null); refreshWatches(); };
 
-  const preview = (w: Watch) => {
-    addDigest(buildSampleDigest(w));
-    refreshDigests();
+  const setBusy = (id: string, on: boolean) =>
+    setRunning((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n; });
+
+  // Run a watch for real: search the web via /api/news-digest. If the live service is
+  // unreachable (e.g. local dev), fall back to the clearly-flagged sample so the UI still works.
+  const runWatch = async (w: Watch, opts: { silent?: boolean } = {}) => {
+    if (running.has(w.id)) return;
+    setBusy(w.id, true);
+    try {
+      const result = await fetchNewsDigest(w);
+      addDigest(digestFromResult(w, result));
+      markWatchRun(w.id);
+      refreshWatches();
+      refreshDigests();
+      if (!opts.silent) {
+        setView("feed");
+        if (result.noResults) toast("Nothing fresh right now", { description: `No new reporting on “${w.topic}”. Try again later or widen the topic.` });
+        else toast.success("Digest ready", { description: `${result.items.length} item${result.items.length === 1 ? "" : "s"} for “${w.topic}”.` });
+      }
+    } catch (e) {
+      // Offline / not-deployed fallback — sample digest, clearly labelled.
+      addDigest(buildSampleDigest(w));
+      refreshDigests();
+      if (!opts.silent) {
+        setView("feed");
+        toast("Showing a sample digest", { description: (e as Error).message || "Live news runs on the deployed site." });
+      }
+    } finally {
+      setBusy(w.id, false);
+    }
+  };
+
+  const runAll = async () => {
+    const active = watches.filter((w) => w.enabled);
+    if (!active.length) { toast("No active watches to refresh."); return; }
+    toast(`Refreshing ${active.length} watch${active.length === 1 ? "" : "es"}…`);
+    for (const w of active) await runWatch(w, { silent: true });
     setView("feed");
-    toast("Sample preview generated", { description: "Placeholder output — real news arrives when watches go live." });
+    refreshDigests();
+    toast.success("All watches refreshed.");
   };
 
   const remove = (w: Watch) => { deleteWatch(w.id); refreshWatches(); toast("Watch deleted."); };
@@ -63,6 +100,16 @@ export function NewsWatches() {
           <div className="flex items-center gap-1.5 ml-auto">
             <Seg active={view === "watches"} onClick={() => setView("watches")} icon={Bell} label="My watches" count={watches.length} />
             <Seg active={view === "feed"} onClick={() => setView("feed")} icon={Rss} label="Feed" count={digests.length} />
+            {watches.some((w) => w.enabled) && (
+              <button
+                onClick={runAll}
+                disabled={running.size > 0}
+                title="Fetch a fresh digest for every active watch"
+                className="ml-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border font-mono text-[10px] tracking-[0.1em] uppercase text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={cn("size-3.5", running.size > 0 && "animate-spin")} strokeWidth={2} /> Refresh all
+              </button>
+            )}
             <button
               onClick={openNew}
               className="ml-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm border font-mono text-[10px] tracking-[0.1em] uppercase text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
@@ -76,13 +123,13 @@ export function NewsWatches() {
       {/* Body */}
       <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
         <div className="max-w-3xl mx-auto">
-          {/* Phase-1 note */}
+          {/* Status note */}
           <div className="flex gap-2 rounded-sm border border-suite-border bg-suite-bg/60 px-3 py-2 mb-4">
-            <AlertTriangle className="size-3.5 shrink-0 text-status-warn mt-0.5" strokeWidth={1.8} />
+            <Sparkles className="size-3.5 shrink-0 text-guide-target mt-0.5" strokeWidth={1.8} />
             <p className="font-mono text-[10px] leading-relaxed text-suite-text-dim">
-              Early preview. You can set up watches now and they save on this device. Automatic{" "}
-              <span className="text-suite-text-muted">emailed summaries and live news</span> switch on when the feature goes
-              live — until then, <span className="text-suite-text-muted">Preview</span> shows a sample of what a digest will look like.
+              Hit <span className="text-suite-text-muted">Refresh</span> on any watch for a live, web-searched digest in your feed.
+              Watches save on this device. <span className="text-suite-text-muted">Automatic scheduled runs and emailed summaries</span>{" "}
+              aren’t switched on yet — for now you pull a digest whenever you want one.
             </p>
           </div>
 
@@ -90,7 +137,7 @@ export function NewsWatches() {
             ? (watches.length === 0
                 ? <Empty onNew={openNew} />
                 : <div className="flex flex-col gap-2.5">{watches.map((w) => (
-                    <WatchCard key={w.id} w={w} onPreview={() => preview(w)} onEdit={() => openEdit(w)} onDelete={() => remove(w)} onToggle={() => onToggle(w)} />
+                    <WatchCard key={w.id} w={w} busy={running.has(w.id)} onRun={() => runWatch(w)} onEdit={() => openEdit(w)} onDelete={() => remove(w)} onToggle={() => onToggle(w)} />
                   ))}</div>)
             : <Feed digests={digests} onClear={() => { clearDigests(); refreshDigests(); }} onNew={openNew} />}
         </div>
@@ -108,8 +155,8 @@ export function NewsWatches() {
 }
 
 // ---- Watch card ----
-function WatchCard({ w, onPreview, onEdit, onDelete, onToggle }: {
-  w: Watch; onPreview: () => void; onEdit: () => void; onDelete: () => void; onToggle: () => void;
+function WatchCard({ w, busy, onRun, onEdit, onDelete, onToggle }: {
+  w: Watch; busy: boolean; onRun: () => void; onEdit: () => void; onDelete: () => void; onToggle: () => void;
 }) {
   const where = w.regions.length ? w.regions.map(regionLabel).join(" · ") : "Worldwide";
   const deliv = DELIVERIES.find((d) => d.id === w.delivery)!;
@@ -135,9 +182,21 @@ function WatchCard({ w, onPreview, onEdit, onDelete, onToggle }: {
           {w.keywords.length > 0 && (
             <div className="mt-1 font-mono text-[10px] text-suite-text-dim">also tracking: {w.keywords.join(", ")}</div>
           )}
+          {w.lastRunAt && (
+            <div className="mt-1 font-mono text-[9px] text-suite-text-dim">last refreshed {new Date(w.lastRunAt).toLocaleString()}</div>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <IconBtn title="Preview a sample digest" onClick={onPreview}><Play className="size-3.5" strokeWidth={1.8} /></IconBtn>
+          <button
+            title="Refresh now — fetch a live digest"
+            onClick={onRun}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 px-2 h-7 rounded-sm border font-mono text-[9.5px] tracking-[0.08em] uppercase text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors disabled:opacity-60"
+          >
+            {busy
+              ? <><Loader2 className="size-3.5 animate-spin" strokeWidth={1.8} /> Checking…</>
+              : <><RefreshCw className="size-3.5" strokeWidth={1.8} /> Refresh</>}
+          </button>
           <IconBtn title="Edit watch" onClick={onEdit}><Pencil className="size-3.5" strokeWidth={1.8} /></IconBtn>
           <IconBtn title="Delete watch" onClick={onDelete}><Trash2 className="size-3.5" strokeWidth={1.8} /></IconBtn>
         </div>

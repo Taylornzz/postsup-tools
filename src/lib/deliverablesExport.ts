@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { Recipient } from "./deliverables";
-import type { ArtifactGroup } from "./deliverablesRollup";
+import { groupStatus, type ArtifactGroup } from "./deliverablesRollup";
 import { CATEGORIES, STATUSES } from "./deliverablesList";
 
 /** Export the Deliverables matrix — every recipient's spec + itemised punch-list,
@@ -143,9 +143,10 @@ function buildPDF(recipients: Recipient[], rollup: ArtifactGroup[], title: strin
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(120);
     pdf.text("Identical artifacts collapsed (same content + spec); each shows who receives it.", M, y); y += 12;
     for (const g of inScope) {
-      const line = `• ${g.label}${g.spec ? `   (${g.spec})` : ""}${g.consumers.length > 1 ? `   — shared x${g.consumers.length}` : ""}`;
+      const st = groupStatus(g);
+      const line = `• ${g.label}${g.spec ? `   (${g.spec})` : ""}${g.consumers.length > 1 ? `   — shared x${g.consumers.length}` : ""}   [${st.label}]`;
       const ll = pdf.splitTextToSize(line, CW - 10) as string[];
-      const consumers = `for:  ${g.consumers.map((c) => c.recipientName).join(" · ")}`;
+      const consumers = `for:  ${g.consumers.map((c) => `${c.recipientName}${c.version > 1 ? ` v${c.version}` : ""}`).join(" · ")}`;
       const cl = pdf.splitTextToSize(consumers, CW - 26) as string[];
       ensure(ll.length * 10 + cl.length * 8 + 3);
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(8.5); pdf.setTextColor(40);
