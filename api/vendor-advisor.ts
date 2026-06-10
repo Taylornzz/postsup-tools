@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Anthropic from "@anthropic-ai/sdk";
-import { VENDORS, VENDOR_REGION_LABEL, VENDOR_SCENARIOS, VENDORS_VERIFIED } from "../src/lib/vendors";
+import { VENDORS, VENDOR_REGION_LABEL, VENDOR_SCENARIOS, VENDORS_VERIFIED } from "../src/lib/vendors.js";
 
 /* Vendor advisor — answers "who do I use for X?" questions, grounded EXCLUSIVELY in the
  * app's verified vendor directory (so it can never recommend a company that's gone bust).
