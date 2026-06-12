@@ -2573,8 +2573,7 @@
 "category": "Roles & Paperwork",
 "definition": "Day Out of Days — a scheduling document showing which cast and crew work on which days. Used in the rebate audit to align time records to invoice periods.",
 "seeAlso": [
-"NZSPR",
-"Audit Checklist"
+"NZSPR"
 ]
 },
 {
@@ -2646,8 +2645,7 @@
 "definition": "A 29.97 fps timecode counting method that skips two frame numbers every minute except minutes divisible by ten (dropping 18 numbers per 10 minutes), keeping timecode aligned to real clock time. No actual frames are dropped, only labels, so durations match broadcast wall-clock.",
 "seeAlso": [
 "Non-drop-frame timecode",
-"Timecode",
-"Drop-frame vs non-drop"
+"Timecode"
 ]
 },
 {
@@ -3548,8 +3546,7 @@
 "definition": "Reference spheres shot on set: the chrome (mirror) ball captures the lighting environment and reflections, while the grey (18% diffuse) ball shows light direction, colour and exposure. Together they let lighting artists match CG to the plate.",
 "seeAlso": [
 "HDRI",
-"Survey Data",
-"Macbeth / Colour Chart"
+"Survey Data"
 ]
 },
 {
@@ -4484,7 +4481,7 @@
 "seeAlso": [
 "REDCODE RAW",
 "REDWideGamut",
-"Log3G10 / RWG"
+"Log3G10 / REDWideGamutRGB (RWG)"
 ]
 },
 {
@@ -4766,8 +4763,7 @@
 "definition": "An edit command that locates and loads the exact source frame under the playhead back into the source viewer, letting an editor trace a cut back to its master clip or extend a shot. A core navigation tool when conforming or reworking a sequence.",
 "seeAlso": [
 "Conform",
-"Relink",
-"Subclip"
+"Relink"
 ]
 },
 {
@@ -5297,7 +5293,7 @@
 "definition": "New Zealand's national audiovisual archive and the deposit point for archival DCP/master copies. Archival deposits are kept unencrypted so keys outlive the mastering house, and a lodged copy sits on the DCP pre-delivery checklist.",
 "seeAlso": [
 "DCP",
-"Long-Term Archive"
+"LTO"
 ]
 },
 {
@@ -6201,7 +6197,6 @@
 "definition": "Pre-visualisation — rough 3D animatics built before the shoot to plan camera, staging, action and VFX-heavy sequences. Guides on-set decisions and informs what plates and data VFX will need to capture.",
 "seeAlso": [
 "Postvis",
-"Techvis",
 "Survey Data"
 ]
 },
@@ -6688,7 +6683,6 @@
 "definition": "The standard-definition colour space defined by ITU-R BT.601. A common NZ QC trap is SD Rec.601 archive or stock placed in a Rec.709 HD show without conversion, producing a visible colour and saturation mismatch.",
 "seeAlso": [
 "BT.709",
-"Archive Footage",
 "Conform"
 ]
 },
@@ -6898,7 +6892,7 @@
 "Bayer Sensor / Demosaic",
 "Open Gate",
 "Oversampling",
-"Mastering & Delivery"
+"Working Resolution"
 ]
 },
 {
@@ -8304,8 +8298,7 @@
 "category": "VFX",
 "definition": "A 360-degree rotating render of a CG asset under reference lighting used to review modelling, texturing and look-dev from all angles before a model is approved. Standard sign-off deliverable for assets.",
 "seeAlso": [
-"CG Render",
-"Wedge (render)"
+"CG Render"
 ]
 },
 {
