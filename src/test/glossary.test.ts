@@ -28,6 +28,17 @@ describe("glossary data integrity", () => {
     expect(GLOSSARY.length).toBeGreaterThan(500);
   });
 
+  it("no two entries share the same normalized term (duplicates must be merged)", () => {
+    const seen = new Map<string, string>();
+    const dupes: string[] = [];
+    for (const e of GLOSSARY) {
+      const n = norm(e.term);
+      if (seen.has(n)) dupes.push(`"${e.term}" duplicates "${seen.get(n)}"`);
+      else seen.set(n, e.term);
+    }
+    expect(dupes).toEqual([]);
+  });
+
   it("every 'See also' reference resolves to at least one entry", () => {
     const dead: string[] = [];
     for (const e of GLOSSARY) {
