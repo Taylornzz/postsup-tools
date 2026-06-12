@@ -232,10 +232,24 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
       `Grand total to store: ${f(totals.shootWithCopies + totals.proxyTotal)}`,
       `Daily offload: ${totals.transferHrs.toFixed(1)}h copy${g.verify ? ` + ${totals.verifyHrs.toFixed(1)}h verify = ${totals.offloadHrs.toFixed(1)}h` : ""} (${g.stations} station${g.stations === 1 ? "" : "s"})`,
     ];
-    navigator.clipboard.writeText(lines.join("\n")).then(
-      () => toast.success("Storage plan copied", { description: "Paste into an email, doc or message." }),
-      () => toast.error("Couldn't copy to clipboard"),
-    );
+    const text = lines.join("\n");
+    const slug = (projectName?.trim() || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const filename = `${slug ? slug + "-" : ""}storage-plan.txt`;
+    // Download a .txt — reliable and visible, unlike clipboard (which needs focus/permission and
+    // silently no-ops otherwise). Fall back to clipboard only if the download can't be created.
+    try {
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      toast.success("Storage plan downloaded", { description: filename });
+    } catch {
+      navigator.clipboard?.writeText(text).then(
+        () => toast.success("Storage plan copied to clipboard"),
+        () => toast.error("Couldn't export the storage plan"),
+      );
+    }
   };
 
   const sel = "bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text focus:outline-none focus:border-guide-target";
@@ -255,7 +269,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
           <button onClick={addCam} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors">
             <Plus className="size-3" strokeWidth={2} /> Camera
           </button>
-          <button onClick={exportPlan} title="Copy the full storage plan (per camera + rig totals) as text" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+          <button onClick={exportPlan} title="Download the full storage plan (per camera + rig totals) as a text file" className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
             Export
           </button>
           <button onClick={reset} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] tracking-[0.14em] uppercase font-mono border rounded-sm text-suite-text-muted border-suite-border hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">

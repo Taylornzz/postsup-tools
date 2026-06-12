@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.13.2";
+export const VERSION = "v2.13.3";
 const CHANGELOG = [
+  "v2.13.3 — Storage page Export now reliably downloads the plan as a .txt file. It used to copy to the clipboard, which silently did nothing if the browser blocked it (and was easy to miss even when it worked). Same content — per-camera breakdown + rig totals — now as a file you can open or attach.",
   "v2.13.2 — Projects page: pin + sort. Hover a project and click the pin (top-left) to keep it at the top-left of the grid — pin as many as you like. A sort control (top-right) orders the rest by Last edited, Name A–Z, or Newest. Pinned projects always stay first, whatever the sort. Both are remembered on this device.",
   "v2.13.1 — Board columns now reorder by dragging. Grab the grip handle (⠿) at the left of any column header and drag it left or right — an amber line shows where it'll land. Cards still drag exactly as before; the two don't interfere.",
   "v2.13.0 — Review-sweep fixes (security, logic, reliability). Cross-device sync no longer risks losing data when you close a project right after editing (the capture state and the synced snapshot used to be able to overwrite each other). Planner delivery dates now anchor to the correct Monday in every timezone (they could land a week off outside NZ). The make-once ‘Production list’ now groups a shared master correctly even when only some recipients are linked. The background drift check is gentler: it never runs on a brand-new project's example recipients, and a failed/offline run can't re-fire every time you revisit the tab; it also stops reporting a phantom ‘peak nits’ change on SDR. Security: project backups and account sync can never include your Trello key/token. The optics top-down view is now draggable (it used to snap back to 3D on the first touch). News & Verify are a bit more reliable on the cheaper model.",
