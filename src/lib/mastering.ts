@@ -374,6 +374,13 @@ export function buildCustomGraph(
   if (want.has("sdr") && !heroIsSdr) {
     add(N.sdr()); add(N.imfsdr());
     if (hasPq) {
+      // The TID1 derive runs off the DV analysis — make sure the node exists even when the
+      // "hdr" deliverable wasn't requested (add() dedups when the HDR family already ran),
+      // otherwise the dvxml→sdr edge dangles from a nonexistent node.
+      add(N.dvxml());
+      if (!want.has("hdr")) {
+        edges.push({ from: "hdrHero", to: "dvxml", op: "analyze", label: "Dolby Vision L1 analysis (min/avg/max)", direction: "lateral", acesManaged: false });
+      }
       edges.push(
         { from: "hdrHero", to: "sdr", op: "cm-derive", label: "DV TID1 map → SDR Rec.709 100 nit (+ manual per-shot trims)", direction: "down-volume", acesManaged: false },
         { from: "dvxml", to: "sdr", op: "trim", label: "L8/L2 TID1 trim drives the SDR derive", direction: "down-volume", acesManaged: false },
@@ -383,8 +390,14 @@ export function buildCustomGraph(
     }
     edges.push({ from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2E SDR (Rec.709) CPL", direction: "lateral", acesManaged: false });
     if (want.has("proxies")) { add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false }); }
-  } else if (heroIsSdr && want.has("proxies")) {
-    add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false });
+  } else if (heroIsSdr) {
+    if (want.has("sdr")) {
+      // An SDR-hero show still wraps its master for delivery — without this, all-SDR
+      // recipient lists (hero: broadcast) seeded a tree with no IMF package at all.
+      add(N.imfsdr());
+      edges.push({ from: "sdr", to: "imfsdr", op: "wrap", label: "Wrap → IMF App 2E SDR (Rec.709) CPL", direction: "lateral", acesManaged: false });
+    }
+    if (want.has("proxies")) { add(N.revsdr()); edges.push({ from: "sdr", to: "revsdr", op: "transcode", label: "H.264 SDR screener (no new OT)", direction: "lateral", acesManaged: false }); }
   }
 
   // --- Theatrical family ---------------------------------------------------

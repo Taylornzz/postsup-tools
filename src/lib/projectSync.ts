@@ -32,7 +32,8 @@ export function collectProjectState(pid: string): Record<string, string> {
   const suffix = `-${pid}`;
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k || !k.endsWith(suffix) || isSensitiveLocalKey(k)) continue;
+    // Skip credentials and the sync bookkeeping stamp — a snapshot shouldn't carry its own ledger.
+    if (!k || !k.endsWith(suffix) || isSensitiveLocalKey(k) || k.startsWith("kaos.sync.lastApplied-")) continue;
     const v = localStorage.getItem(k);
     if (v != null) out[k] = v;
   }
@@ -59,13 +60,27 @@ export function buildBackup(pid: string, name: string, now: number): ProjectBack
   return { kind: "kaos-project-backup", version: 1, name, snapshot: makeSnapshot(pid, now) };
 }
 
-/** Validate a parsed backup file. Returns the backup or throws a friendly error. */
+/** Validate a parsed backup file. Returns the backup or throws a friendly error.
+ *  Accepts both the canonical format and the legacy in-app "Export project — JSON backup"
+ *  shape ({product, project, projectId, data} with JSON-parsed values). */
 export function parseBackup(raw: unknown): ProjectBackup {
   const b = raw as Partial<ProjectBackup>;
-  if (!b || b.kind !== "kaos-project-backup" || !b.snapshot || typeof b.snapshot !== "object" || typeof b.snapshot.entries !== "object") {
-    throw new Error("That doesn’t look like a Kaos project backup file.");
+  // `entries: null` passes a bare typeof check and then explodes in rekeyEntries — reject it here.
+  if (b && b.kind === "kaos-project-backup" && b.snapshot && typeof b.snapshot === "object" && b.snapshot.entries && typeof b.snapshot.entries === "object") {
+    return b as ProjectBackup;
   }
-  return b as ProjectBackup;
+  const legacy = raw as { product?: unknown; project?: unknown; projectId?: unknown; data?: unknown };
+  if (typeof legacy?.product === "string" && /kaos/i.test(legacy.product) && legacy.data && typeof legacy.data === "object" && typeof legacy.projectId === "string" && legacy.projectId) {
+    const entries: Record<string, string> = {};
+    for (const [k, v] of Object.entries(legacy.data as Record<string, unknown>)) {
+      if (v == null || isSensitiveLocalKey(k)) continue;
+      // Values were JSON.parse'd at export (raw string kept on parse failure) — re-encode
+      // non-strings; strings were raw scalars in storage, keep them as-is.
+      entries[k] = typeof v === "string" ? v : JSON.stringify(v);
+    }
+    return { kind: "kaos-project-backup", version: 1, name: String(legacy.project || "Restored project"), snapshot: { pid: legacy.projectId, syncedAt: 0, entries } };
+  }
+  throw new Error("That doesn’t look like a Kaos project backup file.");
 }
 
 /** Re-key a snapshot's entries onto a new project id (when restoring INTO a fresh project). */
@@ -83,15 +98,26 @@ const lastPullKey = (pid: string) => `kaos.sync.lastApplied-${pid}`;
 const getLastApplied = (pid: string) => { try { return Number(localStorage.getItem(lastPullKey(pid))) || 0; } catch { return 0; } };
 const setLastApplied = (pid: string, t: number) => { try { localStorage.setItem(lastPullKey(pid), String(t)); } catch { /* ignore */ } };
 
-/** Push this project's local state up to its cloud record (merging, so `data.url` survives). */
-export async function syncProjectUp(pid: string, now: number): Promise<boolean> {
-  if (!supabase) return false;
+export type SyncUpResult = "ok" | "no-auth" | "no-project" | "empty" | "error";
+
+/** Push this project's local state up to its cloud record. The patch carries ONLY the
+ *  snapshot field — updateProject's read-modify-merge keeps `data.url` (and anything else)
+ *  intact, and sending the full mount-time `data` here would revert fields written by other
+ *  devices since this one last read the row. */
+export async function syncProjectUp(pid: string, now: number): Promise<SyncUpResult> {
+  if (!supabase) return "no-auth";
   const project = await getProject(pid);
-  if (!project) return false;
+  if (!project) return "no-project";
   const snapshot = makeSnapshot(pid, now);
-  await updateProject(pid, { data: { ...(project.data || {}), snapshot } });
+  // Never replace a non-empty cloud snapshot with an empty one — that's the signature of a
+  // device that failed to hydrate (open-time pull lost) closing the project: pushing {}
+  // would destroy the only cross-device copy.
+  const prev = project.data?.snapshot as ProjectSnapshot | undefined;
+  if (!Object.keys(snapshot.entries).length && prev && Object.keys(prev.entries || {}).length) return "empty";
+  const ok = await updateProject(pid, { data: { snapshot } });
+  if (!ok) return "error"; // write (or pre-merge read) failed — do NOT stamp or report success
   setLastApplied(pid, now);
-  return true;
+  return "ok";
 }
 
 /** Pull the cloud snapshot into local storage IF it's newer than what we last applied here.
@@ -100,9 +126,14 @@ export async function syncProjectDown(pid: string): Promise<boolean> {
   if (!supabase) return false;
   const project = await getProject(pid);
   const snap = project?.data?.snapshot as ProjectSnapshot | undefined;
-  if (!snap || typeof snap.entries !== "object") return false;
+  if (!snap || typeof snap.entries !== "object" || snap.entries === null) return false;
   if (snap.syncedAt && snap.syncedAt <= getLastApplied(pid)) return false; // local already has it (or newer)
-  applyProjectState(snap.entries);
+  // A duplicated project's row carries the SOURCE's snapshot verbatim — applying those keys
+  // as-is would overwrite the source project's live local state and leave the duplicate
+  // empty. Re-key onto this project's id before applying.
+  const entries = snap.pid && snap.pid !== pid ? rekeyEntries(snap.entries, snap.pid, pid) : snap.entries;
+  const n = applyProjectState(entries);
+  if (!n && Object.keys(entries).length) return false; // nothing landed (quota/private mode) — don't record it as applied
   setLastApplied(pid, snap.syncedAt || 0);
   return true;
 }

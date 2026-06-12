@@ -61,7 +61,9 @@ export async function sendBoardToTrello(
         idList: list.id,
         name: card.title,
         ...(card.notes ? { desc: card.notes } : {}),
-        ...(card.due ? { due: `${card.due}T12:00:00.000Z` } : {}),
+        // Noon LOCAL converted to an instant — Trello renders dues in the viewer's timezone,
+        // so a fixed `T12:00:00Z` displays as the NEXT day at UTC+12 and beyond (e.g. NZ).
+        ...(card.due ? { due: new Date(`${card.due}T12:00:00`).toISOString() } : {}),
         pos: "bottom",
       });
       if (card.checks.length) {

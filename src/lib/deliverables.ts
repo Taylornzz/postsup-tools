@@ -253,9 +253,11 @@ export const DELIVERY_TEMPLATES: DeliveryTemplate[] = [
 const NATIVE_FPS_IDS = new Set(["netflix", "amazon", "apple", "max", "disney", "hulu", "paramount-plus", "peacock", "discovery-plus", "tubi", "roku"]);
 
 /** Clone a recipient (new ids, " copy" name, not the main) — most shows deliver near-identical
- *  specs to many endpoints, so duplicating beats re-picking ~10 dropdowns. */
+ *  specs to many endpoints, so duplicating beats re-picking ~10 dropdowns.
+ *  `documents` is reset: the metas point at stored blobs, and sharing blob ids means deleting
+ *  either recipient destroys the other's files. The caller copies the blobs (async) if wanted. */
 export function duplicateRecipient(r: Recipient): Recipient {
-  return { ...r, id: uid(), name: `${r.name} copy`, isMain: false, due: undefined,
+  return { ...r, id: uid(), name: `${r.name} copy`, isMain: false, due: undefined, documents: [],
     deliverables: (r.deliverables || []).map((d) => ({ ...d, id: newItemId() })) };
 }
 
@@ -456,9 +458,15 @@ export function sendToBoard(projectId: string | undefined, recipients: Recipient
     due: r.due,
   }));
 
-  const fresh: BoardCard[] = draft
-    .filter((c) => !have.has(c.title.toLowerCase().trim()))
-    .map((c) => ({ id: uid("cd"), title: c.title, notes: c.notes, color: c.color, due: c.due, checks: c.checks.map((t) => ({ id: uid("ch"), text: t, done: false })) }));
+  // Dedup against the board AND within this batch (two same-named recipients would
+  // otherwise both pass the pre-built set and land as duplicate cards in one push).
+  const fresh: BoardCard[] = [];
+  for (const c of draft) {
+    const t = c.title.toLowerCase().trim();
+    if (have.has(t)) continue;
+    have.add(t);
+    fresh.push({ id: uid("cd"), title: c.title, notes: c.notes, color: c.color, due: c.due, checks: c.checks.map((x) => ({ id: uid("ch"), text: x, done: false })) });
+  }
 
   cols[0] = { ...cols[0], cards: [...cols[0].cards, ...fresh] };
   try { localStorage.setItem(key, JSON.stringify(cols)); } catch { /* ignore */ }
@@ -598,8 +606,10 @@ function mondayISO(iso: string): string {
   x.setDate(x.getDate() - day);
   return fmtLocalDate(x);
 }
+// floor, not round: the bar belongs to the week CONTAINING the date — a Friday due
+// (4 days past the Monday anchor) must not round up into the following week.
 const weeksBetween = (fromISO: string, toISO: string) =>
-  Math.round((parseLocalDate(toISO).getTime() - parseLocalDate(fromISO).getTime()) / (7 * 86400000));
+  Math.floor((parseLocalDate(toISO).getTime() - parseLocalDate(fromISO).getTime()) / (7 * 86400000));
 
 /** Recipients with a due date, earliest first — the delivery schedule. */
 export function deliverySchedule(recipients: Recipient[]): { id: string; name: string; due: string }[] {

@@ -46,8 +46,8 @@ export function NewsWatches() {
 
   // Run a watch for real: search the web via /api/news-digest. If the live service is
   // unreachable (e.g. local dev), fall back to the clearly-flagged sample so the UI still works.
-  const runWatch = async (w: Watch, opts: { silent?: boolean } = {}) => {
-    if (running.has(w.id)) return;
+  const runWatch = async (w: Watch, opts: { silent?: boolean } = {}): Promise<boolean> => {
+    if (running.has(w.id)) return false;
     setBusy(w.id, true);
     try {
       const result = await fetchNewsDigest(w);
@@ -60,6 +60,7 @@ export function NewsWatches() {
         if (result.noResults) toast("Nothing fresh right now", { description: `No new reporting on “${w.topic}”. Try again later or widen the topic.` });
         else toast.success("Digest ready", { description: `${result.items.length} item${result.items.length === 1 ? "" : "s"} for “${w.topic}”.` });
       }
+      return true;
     } catch (e) {
       // Offline / not-deployed fallback — sample digest, clearly labelled.
       addDigest(buildSampleDigest(w));
@@ -68,6 +69,7 @@ export function NewsWatches() {
         setView("feed");
         toast("Showing a sample digest", { description: (e as Error).message || "Live news runs on the deployed site." });
       }
+      return false;
     } finally {
       setBusy(w.id, false);
     }
@@ -77,10 +79,14 @@ export function NewsWatches() {
     const active = watches.filter((w) => w.enabled);
     if (!active.length) { toast("No active watches to refresh."); return; }
     toast(`Refreshing ${active.length} watch${active.length === 1 ? "" : "es"}…`);
-    for (const w of active) await runWatch(w, { silent: true });
+    let live = 0;
+    for (const w of active) { if (await runWatch(w, { silent: true })) live++; }
     setView("feed");
     refreshDigests();
-    toast.success("All watches refreshed.");
+    // Be honest when the live service was unreachable — those feeds are sample placeholders.
+    if (live === active.length) toast.success("All watches refreshed.");
+    else if (live === 0) toast("Couldn’t reach the news service", { description: "Sample digests shown — live news runs on the deployed site." });
+    else toast(`${live} of ${active.length} watches refreshed live`, { description: "The rest fell back to sample digests." });
   };
 
   const remove = (w: Watch) => { deleteWatch(w.id); refreshWatches(); toast("Watch deleted."); };
@@ -212,7 +218,7 @@ function Feed({ digests, onClear, onNew }: { digests: Digest[]; onClear: () => v
       <div className="text-center py-16">
         <Rss className="size-7 text-suite-text-dim mx-auto mb-3" strokeWidth={1.4} />
         <p className="font-mono text-[12px] text-suite-text-muted">No digests yet.</p>
-        <p className="font-mono text-[10px] text-suite-text-dim mt-1">Open a watch and hit <span className="text-suite-text-muted">Preview</span> to see a sample here, or <button onClick={onNew} className="text-guide-target underline">create a watch</button>.</p>
+        <p className="font-mono text-[10px] text-suite-text-dim mt-1">Hit <span className="text-suite-text-muted">Refresh</span> on a watch to fetch its digest, or <button onClick={onNew} className="text-guide-target underline">create a watch</button>.</p>
       </div>
     );
   }

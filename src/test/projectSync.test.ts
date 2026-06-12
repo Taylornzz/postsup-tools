@@ -13,6 +13,29 @@ describe("project sync (#10)", () => {
     expect(Object.keys(snap).sort()).toEqual(["kaos.board.v1-projA", "kaos.deliverables.v1-projA"]);
   });
 
+  it("snapshots never carry the sync bookkeeping stamp", () => {
+    localStorage.setItem("kaos.deliverables.v1-projA", "[1]");
+    localStorage.setItem("kaos.sync.lastApplied-projA", "12345");
+    expect(Object.keys(collectProjectState("projA"))).toEqual(["kaos.deliverables.v1-projA"]);
+  });
+
+  it("parseBackup accepts the legacy in-app JSON export shape", () => {
+    const legacy = {
+      product: "Kaos Theory — project backup",
+      project: "My Show", projectId: "projA", exportedAt: "2026-06-01T00:00:00.000Z",
+      data: { "kaos.board.v1-projA": [{ id: "c1" }], "postsup-gantt-start-projA": "2026-07-06" },
+    };
+    const b = parseBackup(legacy);
+    expect(b.kind).toBe("kaos-project-backup");
+    expect(b.snapshot.pid).toBe("projA");
+    expect(b.snapshot.entries["kaos.board.v1-projA"]).toBe(JSON.stringify([{ id: "c1" }]));
+    expect(b.snapshot.entries["postsup-gantt-start-projA"]).toBe("2026-07-06"); // raw scalars stay raw
+  });
+
+  it("parseBackup rejects entries: null instead of exploding later in rekeyEntries", () => {
+    expect(() => parseBackup({ kind: "kaos-project-backup", version: 1, name: "x", snapshot: { pid: "p", syncedAt: 1, entries: null } })).toThrow();
+  });
+
   it("applyProjectState writes entries back", () => {
     const n = applyProjectState({ "kaos.board.v1-projA": "[2]", "x-projA": "y" });
     expect(n).toBe(2);

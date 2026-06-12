@@ -99,6 +99,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: [{ role: "user", content }],
     });
 
+    // A response cut off at max_tokens carries an empty or partial tool input — returning it
+    // as a 200 would present a partial recipient list as the complete one.
+    if (msg.stop_reason === "max_tokens") { res.status(502).json({ error: "truncated", message: "The extraction was cut short — try fewer or smaller documents." }); return; }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toolUse = (msg.content as any[]).find((c) => c?.type === "tool_use");
     if (!toolUse) { res.status(502).json({ error: "no_extraction", message: "The model didn't return structured recipients. Try a clearer spec." }); return; }

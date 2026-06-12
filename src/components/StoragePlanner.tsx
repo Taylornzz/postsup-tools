@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { HardDrive, Plus, Trash2, Clock, Layers, Copy, Gauge, Calculator, Film, Check, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   SOURCE_FORMATS, CODECS, CARDS, OFFLOAD_BANDWIDTHS, PROXY_CODEC_IDS,
@@ -223,7 +224,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
       "",
       ...rows.filter((r) => r.cam.enabled).map((r) =>
         `• ${r.cam.label || r.src.camera} — ${r.src.camera} ${r.src.mode} · ${r.codec.name} @ ${r.cam.fps}fps · ${r.cam.hoursPerDay}h/day × ${r.cam.shootDays} days
-  ${f(r.camDaily)}/day · ${f(r.shootCam)} shoot total · ${r.cardsPerDay} ${r.mediaWord}s/day (${r.card.label}, ~${Math.round(r.cardMin)} min each)${r.proxyGB ? ` · proxies ${f(r.proxyGB)}` : ""}`),
+  ${f(r.camDaily)}/day · ${f(r.shootCam)} shoot total · ${r.cardsPerDay} ${r.mediaWord}s/day (${r.card.name}, ~${Math.round(r.cardMin)} min each)${r.proxyGB ? ` · proxies ${f(r.proxyGB)}` : ""}`),
       "",
       `RIG TOTALS`,
       `Daily (all rolling): ${f(totals.totalDaily)} · ${totals.cardsPerDay} loads/day`,

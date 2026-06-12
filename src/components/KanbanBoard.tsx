@@ -145,8 +145,17 @@ export function KanbanBoard({ projectName, projectId }: { projectName?: string; 
       return without.map((c) => {
         if (c.id !== toCol) return c;
         const cards = c.cards.slice();
-        // drop position — ignore a beforeCardId that's itself being moved
-        const at = beforeCardId && !idset.has(beforeCardId) ? cards.findIndex((k) => k.id === beforeCardId) : -1;
+        // Drop position. If the anchor card is itself being moved (drop-on-self, or a
+        // multi-drag dropped onto a selected card), walk forward in the pre-move order to
+        // the next card that ISN'T moving — falling back to -1 would dump the cards at
+        // the column's end instead of where the indicator showed.
+        let anchor = beforeCardId;
+        if (anchor && idset.has(anchor)) {
+          const orig = cs.find((x) => x.id === toCol)?.cards ?? [];
+          const i = orig.findIndex((k) => k.id === anchor);
+          anchor = (i >= 0 ? orig.slice(i + 1).find((k) => !idset.has(k.id))?.id : null) ?? null;
+        }
+        const at = anchor ? cards.findIndex((k) => k.id === anchor) : -1;
         cards.splice(at < 0 ? cards.length : at, 0, ...moved);
         return { ...c, cards };
       });

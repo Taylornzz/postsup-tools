@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildPlan, recipientsToMasteringConfig, newRecipient, recipientChecklist,
   DELIVERY_TEMPLATES, recipientFromTemplate, specStaleness, recipientSpecClass,
-  deliverySchedule, sendDeliveriesToSchedule,
+  deliverySchedule, sendDeliveriesToSchedule, duplicateRecipient, sendToBoard,
   type Recipient, type DRId,
 } from "@/lib/deliverables";
 import { makeOrder } from "@/lib/mastering";
@@ -310,6 +310,23 @@ describe("IMF OV + supplementals (#7)", () => {
     // OV is the source language — no EN supplemental
     expect(labels.some((l) => l.includes("supplemental — en"))).toBe(false);
   });
+
+  it("IMF framing keeps the OV language's accessibility obligations", () => {
+    const ovLangs: DeliveryLanguage[] = [
+      { ...newLanguage("EN"), kind: "OV", sdh: true, forced: true, ad: true },
+      { ...newLanguage("FR"), kind: "VF", dub: true },
+    ];
+    const labels = languageItems(ovLangs, { imf: true }).map((i) => i.label.toLowerCase());
+    expect(labels.some((l) => l.includes("sdh — en"))).toBe(true);
+    expect(labels.some((l) => l.includes("forced narratives — en"))).toBe(true);
+    expect(labels.some((l) => l.includes("audio description (ad) — en"))).toBe(true);
+    expect(labels.some((l) => l.includes("supplemental — en"))).toBe(false); // still no EN supplemental CPL
+  });
+
+  it("IMF framing models the OV package even with no foreign versions", () => {
+    const labels = languageItems([{ ...newLanguage("EN"), kind: "OV" }], { imf: true }).map((i) => i.label.toLowerCase());
+    expect(labels.some((l) => l.includes("imf ov"))).toBe(true);
+  });
 });
 
 describe("per-delivery dates → Planner (#6)", () => {
@@ -345,5 +362,32 @@ describe("per-delivery dates → Planner (#6)", () => {
     const bars2 = JSON.parse(localStorage.getItem(`postsup-gantt-v1-${pid}`)!);
     expect(bars2.filter((b: { name: string }) => b.name === "Deliver: ABC").length).toBe(1);
     expect(bars2.find((b: { name: string }) => b.name === "Deliver: ABC").start).toBe(3);
+  });
+
+  it("a Friday due lands in the week CONTAINING it, not the next one (floor, not round)", () => {
+    const pid = "test-sched-friday";
+    localStorage.removeItem(`postsup-gantt-v1-${pid}`);
+    localStorage.removeItem(`postsup-gantt-start-${pid}`);
+    const rs: Recipient[] = [{ ...newRecipient("TVNZ"), due: "2026-07-10" }]; // Friday; anchor = Mon 2026-07-06
+    sendDeliveriesToSchedule(pid, rs);
+    const bars = JSON.parse(localStorage.getItem(`postsup-gantt-v1-${pid}`)!);
+    expect(bars.find((b: { name: string }) => b.name === "Deliver: TVNZ").start).toBe(0);
+  });
+});
+
+describe("logic-sweep regressions (v2.14.0)", () => {
+  it("duplicateRecipient never carries the source's attachment ids (caller copies blobs)", () => {
+    const r: Recipient = { ...newRecipient("A"), documents: [{ id: "doc-1", name: "spec.pdf", type: "pdf", size: 1, addedAt: "2026-01-01" }] };
+    expect(duplicateRecipient(r).documents).toEqual([]);
+  });
+
+  it("sendToBoard dedups same-named recipients within a single push", () => {
+    const pid = "test-board-dedup";
+    localStorage.removeItem(`kaos.board.v1-${pid}`);
+    const rs: Recipient[] = [newRecipient("Netflix"), newRecipient("Netflix")];
+    sendToBoard(pid, rs, buildPlan(rs));
+    const cols = JSON.parse(localStorage.getItem(`kaos.board.v1-${pid}`)!);
+    expect(cols[0].cards.filter((c: { title: string }) => c.title === "Deliver: Netflix").length).toBe(1);
+    localStorage.removeItem(`kaos.board.v1-${pid}`);
   });
 });

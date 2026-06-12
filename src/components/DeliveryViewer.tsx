@@ -350,8 +350,6 @@ export function DeliveryViewer({
                 {protectionPct > 0 && (
                   <ProtectionOverlay
                     pct={protectionPct}
-                    extPxW={activeW}
-                    extPxH={activeH}
                     color={targetAccent}
                     onChange={onProtectionChange}
                   />

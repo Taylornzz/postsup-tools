@@ -8,7 +8,7 @@ import {
   Project, PROJECT_COLORS, listProjects, createProject, updateProject, deleteProject, duplicateProject,
   loadPinned, savePinned, loadSort, saveSort, orderProjects, type ProjectSort,
 } from "@/lib/projects";
-import { buildBackup, parseBackup, rekeyEntries, applyProjectState, syncProjectUp } from "@/lib/projectSync";
+import { buildBackup, parseBackup, rekeyEntries, applyProjectState, collectProjectState, syncProjectUp } from "@/lib/projectSync";
 
 const slug = (s: string) => (s || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "project";
 
@@ -54,7 +54,12 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
     try {
       const backup = parseBackup(JSON.parse(await file.text()));
       const p = await createProject(backup.name || "Restored project", PROJECT_COLORS[Math.floor((projects.length || 0)) % PROJECT_COLORS.length]);
-      const entries = rekeyEntries(backup.snapshot.entries, backup.snapshot.pid, p.id);
+      // Apply ONLY keys re-keyed onto the new project — a backup with a wrong/missing pid
+      // would otherwise write its entries at their ORIGINAL keys, silently overwriting a
+      // still-existing project's live data (and could plant non-project keys).
+      const entries = Object.fromEntries(
+        Object.entries(rekeyEntries(backup.snapshot.entries, backup.snapshot.pid, p.id)).filter(([k]) => k.endsWith(`-${p.id}`)),
+      );
       const n = applyProjectState(entries);
       if (supabaseEnabled && user) { try { await syncProjectUp(p.id, Date.now()); } catch { /* offline */ } }
       toast.success("Project restored", { description: `${n} item${n === 1 ? "" : "s"} loaded into “${p.name}”.` });
@@ -68,9 +73,18 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
   const syncUp = async (p: Project) => {
     setBusy(true);
     try {
-      const ok = await syncProjectUp(p.id, Date.now());
-      toast[ok ? "success" : "message"](ok ? "Synced to your account" : "Sign in to sync", ok ? { description: "Open this project on another device to pull it down." } : undefined);
-      if (ok) await refresh();
+      const result = await syncProjectUp(p.id, Date.now());
+      if (result === "ok") {
+        toast.success("Synced to your account", { description: "Open this project on another device to pull it down." });
+        await refresh();
+      } else if (result === "no-auth") {
+        toast("Sign in to sync");
+      } else if (result === "empty") {
+        toast("Nothing local to push", { description: "This device hasn't loaded the project's data — the cloud copy was left untouched." });
+      } else {
+        // "error" / "no-project" — the write did NOT happen; never claim it synced.
+        toast.error("Couldn’t sync — nothing was uploaded", { description: "Check your connection and try again." });
+      }
     } catch (e) {
       toast.error("Couldn’t sync — " + (e instanceof Error ? e.message : "try again"));
     } finally { setBusy(false); }
@@ -196,7 +210,18 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
                     <div className="absolute top-8 right-1.5 z-50 w-32 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-1 flex flex-col" onClick={(e) => e.stopPropagation()}>
                       <MenuItem icon={Pin} label={isPinned ? "Unpin" : "Pin to top"} onClick={() => { setMenuFor(null); togglePin(p.id); }} />
                       <MenuItem icon={Pencil} label="Rename" onClick={() => { setMenuFor(null); setModal({ mode: "rename", id: p.id, name: p.name, color: p.color }); }} />
-                      <MenuItem icon={Copy} label="Duplicate" onClick={async () => { setMenuFor(null); await duplicateProject(p.id); refresh(); }} />
+                      <MenuItem icon={Copy} label="Duplicate" onClick={async () => {
+                        setMenuFor(null);
+                        const copy = await duplicateProject(p.id);
+                        if (copy) {
+                          // Give the copy its own content: clone the source's local per-project
+                          // keys onto the new id, then push a fresh snapshot so opening the copy
+                          // pulls ITS data — not the source's snapshot riding along in the row.
+                          applyProjectState(rekeyEntries(collectProjectState(p.id), p.id, copy.id));
+                          try { await syncProjectUp(copy.id, Date.now()); } catch { /* offline */ }
+                        }
+                        refresh();
+                      }} />
                       <MenuItem icon={Download} label="Back up" onClick={() => { setMenuFor(null); backUp(p); }} />
                       {supabaseEnabled && user && <MenuItem icon={CloudUpload} label="Sync to cloud" onClick={() => { setMenuFor(null); syncUp(p); }} />}
                       <MenuItem icon={Trash2} label="Delete" danger onClick={async () => { setMenuFor(null); if (window.confirm(`Delete “${p.name}”? This can't be undone.`)) { await deleteProject(p.id); unpin(p.id); refresh(); } }} />

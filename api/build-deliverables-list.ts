@@ -176,6 +176,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: [{ role: "user", content }],
     });
 
+    // A response cut off at max_tokens carries an empty or partial tool input — returning it
+    // as a 200 would present a truncated punch-list as the complete one.
+    if (msg.stop_reason === "max_tokens") { res.status(502).json({ error: "truncated", message: "The list was cut short — try a shorter brief or fewer documents." }); return; }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toolUse = (msg.content as any[]).find((c) => c?.type === "tool_use");
     if (!toolUse) { res.status(502).json({ error: "no_extraction", message: "The model didn't return a list. Try a clearer brief." }); return; }

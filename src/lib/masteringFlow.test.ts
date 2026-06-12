@@ -44,6 +44,21 @@ describe("masteringFlow — derive→edit converter", () => {
     for (const e of edges) expect(ids.has(e.source) && ids.has(e.target)).toBe(true);
   });
 
+  it("an SDR-hero show still gets its IMF SDR wrap", () => {
+    const g = buildCustomGraph({ hero: "broadcast", deliverables: ["sdr"] }, "2.0", 1000);
+    expect(g.nodes.some((n) => n.id === "imfsdr")).toBe(true);
+    expect(g.edges.some((e) => e.from === "sdr" && e.to === "imfsdr")).toBe(true);
+  });
+
+  it("SDR derived from a PQ hero without the hdr deliverable keeps every edge on a real node", () => {
+    const g = buildCustomGraph({ hero: "streaming-hdr", deliverables: ["sdr"] }, "2.0", 1000);
+    const ids = new Set(g.nodes.map((n) => n.id));
+    for (const e of g.edges) {
+      expect(ids.has(e.from)).toBe(true);
+      expect(ids.has(e.to)).toBe(true);
+    }
+  });
+
   it("builds a non-empty palette of named, coloured steps", () => {
     const groups = masteringPaletteGroups();
     expect(groups.length).toBeGreaterThan(0);

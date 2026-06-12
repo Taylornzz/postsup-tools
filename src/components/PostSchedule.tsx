@@ -438,7 +438,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
   }
   function applyTemplate() {
     if (bars.length && !window.confirm("Replace the schedule with the standard post template (starting from the current week)?")) return;
-    const base = Math.max(0, Math.round(todayInRange ? todayWeeks : 0));
+    const base = newStart(); // floor — same "start of the current week, never a week late" rule as new bars
     setBars(buildSeed(base)); setSelectedIds([]); setEditId(null);
   }
   function clearAll() {
@@ -560,7 +560,7 @@ export function PostSchedule({ projectName, projectId }: { projectName?: string;
                     <input
                       value={verName}
                       onChange={(e) => setVerName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") saveVersion(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && bars.length) saveVersion(); }}
                       placeholder="Version name (optional)"
                       className="flex-1 min-w-0 bg-suite-bg border border-suite-border rounded-sm px-2 py-1 text-[11px] font-mono text-suite-text placeholder:text-suite-text-dim focus:outline-none focus:border-guide-target"
                     />

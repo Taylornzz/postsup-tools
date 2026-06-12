@@ -41,8 +41,10 @@ export function RecipientVerify({ recipient, onPatch }: { recipient: Recipient; 
 
   const apply = (key: keyof Recipient, value: unknown) => {
     // Only stamp the spec "verified" once every diff is reconciled — applying one field
-    // shouldn't claim the whole spec was re-checked.
-    const remaining = SPEC_FIELDS.filter((f) => f.key !== key && result != null && result.spec[f.key] !== undefined && result.spec[f.key] !== "" && String(result.spec[f.key]) !== String(recipient[f.key] ?? "")).length;
+    // shouldn't claim the whole spec was re-checked. Count with the SAME filter the visible
+    // list uses (recipientSpecDiffs drops peakNits for SDR recipients): a raw comparison can
+    // count an invisible diff and the stamp then never lands despite zero rows on screen.
+    const remaining = result ? recipientSpecDiffs(recipient, result.spec).filter((d) => d.key !== key).length : 0;
     onPatch({ [key]: value, ...(remaining === 0 ? { verified: { at: new Date().toISOString(), confidence: result?.confidence, source: "Web-verified — confirm in portal" } } : {}) } as Partial<Recipient>);
     setResult((prev) => (prev ? { ...prev, spec: { ...prev.spec, [key]: undefined } } : prev));
   };

@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `Search the web for ${platform}'s current delivery / QC specification and return the verified current spec via the verified_spec tool, with sources and a one-line summary of any differences.`;
 
     const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
+    const params = {
       model: MODEL,
       max_tokens: 4096,
       system: SYSTEM,
@@ -75,12 +75,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { name: "verified_spec", description: "Return the verified current spec + sources + confidence.", input_schema: schema(specOptions) as any },
       ],
-      messages: [{ role: "user", content: userText }],
-    });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      messages: [{ role: "user", content: userText }] as any[],
+    };
+    let msg = await client.messages.create(params);
+    // Server-side web search can pause a long turn (stop_reason "pause_turn") — continue it
+    // (bounded) by sending the paused content back, instead of failing with "no result".
+    for (let i = 0; i < 2 && msg.stop_reason === "pause_turn"; i++) {
+      params.messages = [...params.messages, { role: "assistant", content: msg.content }];
+      msg = await client.messages.create(params);
+    }
+    if (msg.stop_reason === "max_tokens") { res.status(502).json({ error: "truncated", message: "The verify response was cut short — try again." }); return; }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toolUse = (msg.content as any[]).find((c) => c?.type === "tool_use" && c?.name === "verified_spec");
-    if (!toolUse) { res.status(502).json({ error: "no_result", message: "Couldn't pull a verifiable spec — confirm in the platform's partner portal." }); return; }
+    // A truncated/empty tool call can arrive without `spec` — returning it as a 200 would
+    // crash the client, which renders `spec`'s fields.
+    if (!toolUse || !toolUse.input || typeof toolUse.input.spec !== "object" || toolUse.input.spec === null) {
+      res.status(502).json({ error: "no_result", message: "Couldn't pull a verifiable spec — confirm in the platform's partner portal." });
+      return;
+    }
     res.status(200).json(toolUse.input);
   } catch (e) {
     const err = e as { status?: number; message?: string };

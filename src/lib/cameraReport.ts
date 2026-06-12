@@ -246,7 +246,9 @@ export function buildCameraReportDoc(d: CameraReportInput): jsPDF {
   kv("Footage / day", formatSize(d.perDayGB), "warn");
   kv(`${word[0].toUpperCase()}${word.slice(1)}`, `${d.cardName} · ${(d.cardGB / 1000).toFixed(d.cardGB % 1000 === 0 ? 0 : 2)} TB`);
   kv(`${word} runtime`, fmtMinutes(d.cardRuntimeMin));
-  kv(`${word}s / cam / day`, `${cardsPerCamDay}  (${(((perCamGB / d.cardGB) % 1) * 100).toFixed(0)}% into the last ${word})`);
+  // An exact-multiple fill is "100% into the last card", not 0% (the modulo wraps).
+  const lastFill = (perCamGB / d.cardGB) % 1;
+  kv(`${word}s / cam / day`, `${cardsPerCamDay}  (${(lastFill === 0 && perCamGB > 0 ? 100 : lastFill * 100).toFixed(0)}% into the last ${word})`);
   kv(`${word}s / day`, `${cardsPerDay}  (${cardsPerCamDay} × ${d.cameraCount} cam${d.cameraCount !== 1 ? "s" : ""})`, "warn");
   kv("On-set inventory", `${inventory}  ${word}s — 3× rotation (in cam + offload + spare)`, "warn");
 

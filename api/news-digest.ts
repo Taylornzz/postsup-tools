@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `\nSearch the web for the most relevant recent reporting, then return the digest. Real URLs only.`;
 
     const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
+    const params = {
       model: MODEL,
       max_tokens: 4096,
       system: SYSTEM,
@@ -84,8 +84,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { name: "news_digest", description: "Return the digest: a short tldr plus real, recent items.", input_schema: DIGEST_SCHEMA as any },
       ],
-      messages: [{ role: "user", content: userText }],
-    });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      messages: [{ role: "user", content: userText }] as any[],
+    };
+    let msg = await client.messages.create(params);
+    // Server-side web search can pause a long turn (stop_reason "pause_turn") — continue it
+    // (bounded) by sending the paused content back, instead of failing with "no result".
+    for (let i = 0; i < 2 && msg.stop_reason === "pause_turn"; i++) {
+      params.messages = [...params.messages, { role: "assistant", content: msg.content }];
+      msg = await client.messages.create(params);
+    }
+    if (msg.stop_reason === "max_tokens") { res.status(502).json({ error: "truncated", message: "The digest was cut short — try again." }); return; }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toolUse = (msg.content as any[]).find((c) => c?.type === "tool_use" && c?.name === "news_digest");

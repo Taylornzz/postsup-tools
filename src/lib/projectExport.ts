@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import { loadRecipients, type Recipient } from "./deliverables";
 import { rollupDeliverables } from "./deliverablesRollup";
-import { isSensitiveLocalKey } from "./projectSync";
+import { buildBackup } from "./projectSync";
 import { CATEGORIES, STATUSES } from "./deliverablesList";
 
 /** Whole-project export — a designed PDF dossier (deliverables, production list,
@@ -30,26 +30,14 @@ function downloadText(filename: string, mime: string, content: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-/** JSON backup: every localStorage key that belongs to this project (suffix -{id}),
- *  plus the project-agnostic keys the app uses. */
+/** JSON backup — the SAME canonical format as the Projects page "Back up" button, so the
+ *  Restore button accepts files from either entry point. (The old shape here, with
+ *  JSON-parsed values, produced files Restore rejected; parseBackup still accepts those
+ *  legacy files for anyone who saved one.) */
 export function exportProjectJSON(projectId: string | undefined, projectName: string) {
-  const data: Record<string, unknown> = {};
-  const suffix = projectId ? `-${projectId}` : "";
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key) continue;
-    const isAppKey = key.startsWith("kaos.") || key.startsWith("postsup-");
-    if (!isAppKey || isSensitiveLocalKey(key)) continue; // never export Trello/OAuth credentials
-    if (suffix ? key.endsWith(suffix) : true) {
-      try { data[key] = JSON.parse(localStorage.getItem(key) || "null"); }
-      catch { data[key] = localStorage.getItem(key); }
-    }
-  }
-  downloadText(`${slug(projectName) || "project"}-backup.json`, "application/json", JSON.stringify({
-    product: "Kaos Theory — project backup",
-    project: projectName, projectId, exportedAt: new Date().toISOString(),
-    data,
-  }, null, 2));
+  if (!projectId) return; // no open project — nothing scoped to export
+  const backup = buildBackup(projectId, projectName, Date.now());
+  downloadText(`${slug(projectName) || "project"}-backup.json`, "application/json", JSON.stringify(backup, null, 2));
 }
 
 // ---- palette (print-friendly) ----

@@ -32,6 +32,10 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   onSendToMastering?: (config: CustomConfig, nits: MasterNits) => void;
 }) {
   const [recipients, setRecipients] = useState<Recipient[]>(() => loadRecipients(projectId));
+  // Sampled BEFORE the save effect below runs — that effect persists the seed examples on the
+  // very first mount, so checking recipientsPersisted() any later always says true and the
+  // "skip untouched seed projects" drift gate becomes dead code.
+  const [persistedAtMount] = useState(() => recipientsPersisted(projectId));
   const [focusBriefId, setFocusBriefId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
@@ -62,29 +66,33 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   // worth checking, silent + non-blocking. Stamped only when it actually reached the service
   // (so local dev / offline just retries next open). Never triggered by a click — no cost surprise.
   const autoFired = useRef(false);
+  // Unmount-only cancellation. The effect re-runs on every recipients edit, so a per-run
+  // `cancelled` flag flipped in its cleanup would discard an in-flight (paid) scan the moment
+  // the user typed anything — results dropped, spinner stuck on, retry stamp already burned.
+  const unmounted = useRef(false);
+  useEffect(() => () => { unmounted.current = true; }, []);
   useEffect(() => {
     if (autoFired.current) return;
     const now = Date.now();
     // Skip untouched seed/example projects, and respect the monthly + retry throttle.
-    if (!recipientsPersisted(projectId) || !autoDriftDue(projectId, now)) return;
+    if (!persistedAtMount || !autoDriftDue(projectId, now)) return;
     const candidates = driftCandidates(recipients);
     if (!candidates.length) return;
     autoFired.current = true;
     markAutoDriftAttempt(projectId, now); // stamp the attempt so a failed run won't re-fire on every tab revisit
-    let cancelled = false;
     setDriftRunning(true);
     const opts = specOptions();
     const verify = (r: Recipient) => verifySpec(r.name, { region: r.region, dr: r.dr, peakNits: r.peakNits, resolution: r.resolution, fps: r.fps, container: r.container, audio: r.audio, loudness: r.loudness, truePeak: r.truePeak, subtitles: r.subtitles }, opts);
     runDriftScan(candidates, verify, {})
       .then(({ state, checked }) => {
-        if (cancelled || checked === 0) return;          // 0 reached → offline/local; don't burn the month
+        if (checked === 0) return;                       // 0 reached → offline/local; don't burn the month
         markAutoDriftAt(projectId, now);
-        setDrift(state); saveDrift(projectId, state);
+        saveDrift(projectId, state);                     // persist even if unmounted — the scan completed
+        if (!unmounted.current) setDrift(state);
       })
       .catch(() => { /* offline — retry next open */ })
-      .finally(() => { if (!cancelled) setDriftRunning(false); });
-    return () => { cancelled = true; };
-  }, [projectId, recipients]);
+      .finally(() => { if (!unmounted.current) setDriftRunning(false); });
+  }, [projectId, recipients, persistedAtMount]);
   const [flowKey, setFlowKey] = useState(0);
   const resetLayout = () => {
     try { localStorage.removeItem(`kaos.deliverables.flowpos${projectId ? `-${projectId}` : ""}`); } catch { /* ignore */ }
@@ -96,7 +104,21 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
   const addWithAI = () => { const r = blankRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); };
   const setMain = (id: string) => setRecipients((rs) => rs.map((r) => ({ ...r, isMain: r.id === id ? !r.isMain : false })));
-  const dup = (r: Recipient) => setRecipients((rs) => { const i = rs.findIndex((x) => x.id === r.id); return [...rs.slice(0, i + 1), duplicateRecipient(r), ...rs.slice(i + 1)]; });
+  const dup = async (r: Recipient) => {
+    const copy = duplicateRecipient(r);
+    // Copy attachment blobs under fresh ids — shared ids would let "delete recipient"
+    // destroy files the other one still references.
+    for (const d of r.documents || []) {
+      try {
+        const blob = await getFile(d.id);
+        if (!blob) continue;
+        const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        await putFile(id, blob);
+        copy.documents!.push({ ...d, id });
+      } catch { /* skip files that can't be copied */ }
+    }
+    setRecipients((rs) => { const i = rs.findIndex((x) => x.id === r.id); return [...rs.slice(0, i + 1), copy, ...rs.slice(i + 1)]; });
+  };
   const addTemplate = (id: string) => {
     const t = DELIVERY_TEMPLATES.find((x) => x.id === id);
     if (!t) return;

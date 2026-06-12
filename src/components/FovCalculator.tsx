@@ -3,7 +3,7 @@ import { SourceFormat, computeFovDof } from "@/lib/formats";
 import { Metric } from "@/components/Metric";
 import { LensScene3D } from "@/components/LensScene3D";
 import { LENS_KITS, nearestFocal } from "@/lib/lensKits";
-import { Aperture, Ruler, Crop, Maximize2, Layers } from "lucide-react";
+import { Aperture, Ruler, Crop, Maximize2, Layers, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Reference diagonals for focal-length equivalence.
@@ -203,7 +203,7 @@ function LensKitPicker({ focal, onFocal, onFstop }: {
 function SliderField({
   icon: Icon, label, unit, value, min, max, step, onChange,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   label: string; unit: string; value: number;
   min: number; max: number; step: number; onChange: (n: number) => void;
 }) {
@@ -223,7 +223,7 @@ function SliderField({
   );
 }
 
-function SectionTitle({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string }) {
+function SectionTitle({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <h3 className={cn("flex items-center gap-2 text-[10px] font-semibold tracking-[0.22em] uppercase text-suite-text-muted")}>
       <Icon className="size-3.5" strokeWidth={1.5} /> {label}

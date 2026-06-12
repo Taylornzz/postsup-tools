@@ -11,6 +11,11 @@ export type ColorSpace =
   | "Cinema Gamut"
   | "Blackmagic Design Wide Gamut"
   | "Apple Log / P3"
+  | "DJI D-Gamut"
+  | "DJI D-Cinelike"
+  | "GoPro / GP-Log"
+  | "GoPro / Rec.2020"
+  | "GoPro / Rec.709"
   | "Rec.709";
 
 export type Oetf =
@@ -22,6 +27,11 @@ export type Oetf =
   | "Canon Log 3"
   | "Film Gen 5"
   | "Apple Log"
+  | "D-Log"
+  | "D-Log M"
+  | "D-Cinelike"
+  | "GP-Log"
+  | "HLG (10-bit)"
   | "Rec.709";
 
 export type SourceFormat = {
@@ -2320,7 +2330,9 @@ const NETFLIX_APPROVED_PATTERNS: RegExp[] = [
   /fx3/i, // FX3 is a fully approved primary camera (firmware 2.0, XAVC S-I 4K)
 ];
 const NETFLIX_LIMITED_PATTERNS: RegExp[] = [
-  /c70/i, // C70: non-fiction only (status under review)
+  // Word boundary matters: limited patterns are tested FIRST, and a bare /c70/ also matches
+  // the fully-approved C700 / C700 FF, mislabelling them "Limited Use".
+  /c70\b/i, // C70: non-fiction only (status under review)
 ];
 
 export function netflixStatusForCamera(cameraName: string): NetflixStatus | null {

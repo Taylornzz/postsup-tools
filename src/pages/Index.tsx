@@ -125,8 +125,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.13.3";
+export const VERSION = "v2.14.0";
 const CHANGELOG = [
+  "v2.14.0 — Logic-sweep fixes, the lot. Storage export: fixed a bug where the per-camera lines read ‘undefined’ and no confirmation appeared (the file still downloaded). Planner: a Friday/weekend delivery date now lands its bar in the week containing it, not the week after; the schedule template starts in the current week from any weekday; Enter can no longer save an empty schedule version. Trello: due dates no longer show a day late in NZ. Deliverables: duplicating a recipient now copies its attached files (deleting one could destroy the other's attachments); pushing two same-named recipients to the board no longer duplicates cards; Verify's ‘verified’ stamp now lands once every visible diff is applied (an invisible SDR nits diff used to block it forever); the C700/C700 FF no longer shows a wrong ‘Netflix Limited’ badge; IMF mode now keeps the OV language's SDH/forced/AD obligations and models the OV package even with no foreign versions; an all-SDR show's mastering tree now includes its IMF wrap. Board: dropping a card on itself no longer flings it to the bottom of the column. Background drift check: now genuinely skips brand-new projects' example recipients, and editing a recipient mid-scan no longer discards the (paid) result or leaves the spinner stuck. Sync: a string of subtle cross-device clobber paths are closed (a transient network error can no longer wipe cloud data; an un-hydrated device can't push an empty snapshot over a good one; Duplicate now actually duplicates the project's content instead of corrupting the original; ‘Sync to cloud’ never claims success when nothing was uploaded). Restore now accepts files from the in-app ‘Export project — JSON backup’ too (the two formats used to be incompatible). News ‘Refresh all’ is honest when the live service was unreachable. Under the hood: the project typechecks clean again and the build now fails on type errors, so this class of bug can't ship silently.",
   "v2.13.3 — Storage page Export now reliably downloads the plan as a .txt file. It used to copy to the clipboard, which silently did nothing if the browser blocked it (and was easy to miss even when it worked). Same content — per-camera breakdown + rig totals — now as a file you can open or attach.",
   "v2.13.2 — Projects page: pin + sort. Hover a project and click the pin (top-left) to keep it at the top-left of the grid — pin as many as you like. A sort control (top-right) orders the rest by Last edited, Name A–Z, or Newest. Pinned projects always stay first, whatever the sort. Both are remembered on this device.",
   "v2.13.1 — Board columns now reorder by dragging. Grab the grip handle (⠿) at the left of any column header and drag it left or right — an amber line shows where it'll land. Cards still drag exactly as before; the two don't interfere.",
@@ -680,9 +681,14 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   // Persist core state to the URL, and (debounced) into the active project's record.
   const projectRef = useRef(project); projectRef.current = project;
   const projectSaveTimer = useRef<ReturnType<typeof setTimeout>>();
-  // On unmount (project close/switch), cancel any pending debounced data.url write — otherwise it
-  // can land AFTER the close-time snapshot push and clobber the snapshot in the project's data column.
-  useEffect(() => () => { if (projectSaveTimer.current) clearTimeout(projectSaveTimer.current); }, []);
+  const pendingUrl = useRef<string | null>(null);
+  // On unmount (project close/switch), FLUSH any pending debounced data.url write — dropping it
+  // loses the last ≤800ms of capture changes. The patch is {url}-only, so updateProject's
+  // read-modify-merge can't clobber the close-time snapshot push (they touch different fields).
+  useEffect(() => () => {
+    if (projectSaveTimer.current) clearTimeout(projectSaveTimer.current);
+    if (pendingUrl.current != null) updateProject(projectRef.current.id, { data: { url: pendingUrl.current } });
+  }, []);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams();
@@ -721,9 +727,13 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
     const query = params.toString();
     window.history.replaceState({}, "", `${window.location.pathname}?${query}`);
     // Save this project's full capture state (the URL query) into its record, debounced.
+    // The patch carries ONLY {url}: spreading the mount-time projectRef data here would
+    // re-send a stale snapshot and revert pushes other devices made since this tab opened.
     if (projectSaveTimer.current) clearTimeout(projectSaveTimer.current);
+    pendingUrl.current = query;
     projectSaveTimer.current = setTimeout(() => {
-      updateProject(projectRef.current.id, { data: { ...(projectRef.current.data || {}), url: query } });
+      pendingUrl.current = null;
+      updateProject(projectRef.current.id, { data: { url: query } });
     }, 800);
   }, [
     appTab, sourceId, targetId, codecId, fps, fitMode, viewMode,
@@ -2105,7 +2115,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5">
                 <div className="size-1.5 rounded-full bg-status-ok" />
-                Pipeline: {viewMode === "delivery" ? "delivery view · drag/wheel/pinch" : "linear · center extract"}
+                Pipeline: linear · center extract
               </span>
               <span className="flex items-center gap-1.5">
                 <Gauge className="size-3" strokeWidth={1.5} />

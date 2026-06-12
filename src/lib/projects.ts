@@ -86,24 +86,28 @@ export async function createProject(name: string, color: string): Promise<Projec
   return p;
 }
 
-export async function updateProject(id: string, patch: Partial<Pick<Project, "name" | "color" | "data">>): Promise<void> {
+export async function updateProject(id: string, patch: Partial<Pick<Project, "name" | "color" | "data">>): Promise<boolean> {
   if (supabase) {
     // Postgres replaces the whole `data` jsonb on update — so MERGE it with the current row
     // first. Two writers touch `data` (the debounced capture-state `url` writer and the
     // sync `snapshot` writer); without this read-modify-merge, the second write wipes the
     // first's field (e.g. a snapshot push clobbering a just-saved url, or vice versa).
+    // A FAILED read must abort (not act as "no data") — merging onto {} and writing would
+    // replace the whole column, the exact clobber this merge exists to prevent.
     let merged: typeof patch = patch;
     if (patch.data) {
-      const cur = await getProject(id);
-      merged = { ...patch, data: { ...(cur?.data || {}), ...patch.data } };
+      const { data: cur, error: readErr } = await supabase.from("projects").select("data").eq("id", id).maybeSingle();
+      if (readErr) { console.error("updateProject read", readErr.message); return false; }
+      merged = { ...patch, data: { ...((cur?.data as Record<string, unknown> | null) || {}), ...patch.data } };
     }
     const { error } = await supabase.from("projects").update(merged).eq("id", id);
-    if (error) console.error("updateProject", error.message);
-    return;
+    if (error) { console.error("updateProject", error.message); return false; }
+    return true;
   }
   localPersist(localList().map((p) => (p.id === id
     ? { ...p, ...patch, data: patch.data ? { ...(p.data || {}), ...patch.data } : p.data, updatedAt: Date.now() }
     : p)));
+  return true;
 }
 
 export async function deleteProject(id: string): Promise<void> {

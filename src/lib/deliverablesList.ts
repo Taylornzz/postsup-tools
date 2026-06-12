@@ -101,14 +101,25 @@ export function languageItems(langs: DeliveryLanguage[], opts: { imf?: boolean }
 
   if (opts.imf) {
     // The OV is the base package every supplemental references — model it once, explicitly.
-    if (anyVF) rows.push({ label: "IMF OV — Original Version (CPL/PKL/ASSETMAP, primary video + audio + subs)", category: "picture", owner: "post" });
+    if (langs.length) rows.push({ label: "IMF OV — Original Version (CPL/PKL/ASSETMAP, primary video + audio + subs)", category: "picture", owner: "post" });
     if (anyDub) {
       rows.push({ label: "M&E — fully-filled (carried in OV, for supplemental dubs)", category: "audio", owner: "sound" });
       rows.push({ label: "Textless / clean fill (OV — for localized graphics)", category: "picture", owner: "vfx" });
     }
     for (const l of langs) {
       const tag = (l.code || "").trim().toUpperCase() || "??";
-      if (l.kind !== "VF") continue; // OV is the source language; supplementals are the VFs
+      if (l.kind !== "VF") {
+        // OV is the source language — no supplemental CPL, but its accessibility
+        // obligations (forced narratives, SDH, AD) are owed the same as non-IMF framing;
+        // they ride with the OV package as IMSC sidecars / OV audio.
+        if (l.forced) rows.push({ label: `Forced narratives — ${tag} (IMSC, OV)`, category: "subtitles", owner: "post" });
+        if (l.sdh) rows.push({ label: `SDH — ${tag} (IMSC, OV)`, category: "subtitles", owner: "post" });
+        if (l.ad) {
+          rows.push({ label: `Audio description (AD) — ${tag} (OV audio)`, category: "audio", owner: "sound" });
+          rows.push({ label: `AD script — ${tag}`, category: "metadata", owner: "editorial" });
+        }
+        continue;
+      }
       rows.push({ label: `IMF Supplemental — ${tag} (CPL referencing OV)`, category: "picture", owner: "post" });
       if (l.dub) {
         rows.push({ label: `Supplemental audio — ${tag} dub (MXF, references OV M&E)`, category: "audio", owner: "sound" });

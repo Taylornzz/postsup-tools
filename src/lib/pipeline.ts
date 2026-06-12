@@ -45,7 +45,7 @@ export const P_EDGE_META: Record<PEdgeOp, { token: string; style: "solid" | "das
   approve: { token: "approve ✓", style: "solid", approve: true },
   notes: { token: "notes ↺", style: "dashed", back: true },
   transform: { token: "transform", style: "solid" },
-  trim: { token: "slap", style: "solid" },
+  trim: { token: "trim", style: "solid" },
   wrap: { token: "wrap", style: "dashed" },
   regrade: { token: "grade", style: "solid" },
   "output-transform": { token: "OT", style: "solid" },

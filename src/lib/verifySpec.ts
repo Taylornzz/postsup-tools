@@ -49,5 +49,8 @@ export async function verifySpec(
     if (resp.status === 404) throw new Error("Verify endpoint not found — it runs on the deployed site, not local vite dev.");
     throw new Error(data?.message || `Verify failed (${resp.status}).`);
   }
-  return (data || { spec: {} }) as SpecVerifyResult;
+  // Belt-and-braces: a result without a `spec` object would crash callers that render its
+  // fields (the server validates too, but old deployments / proxies may not).
+  const spec = data?.spec && typeof data.spec === "object" ? data.spec : {};
+  return { ...(data || {}), spec } as SpecVerifyResult;
 }

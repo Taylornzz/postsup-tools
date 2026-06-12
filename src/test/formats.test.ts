@@ -182,6 +182,10 @@ describe("netflixStatusForCamera", () => {
   it("flags limited-use cameras", () => {
     expect(netflixStatusForCamera("Canon EOS C70")).toBe("limited");
   });
+  it("does not let the C70 'limited' pattern swallow the approved C700", () => {
+    expect(netflixStatusForCamera("Canon EOS C700 FF")).toBe("approved");
+    expect(netflixStatusForCamera("Canon EOS C700")).toBe("approved");
+  });
   it("flags non-approved cameras", () => {
     expect(netflixStatusForCamera("Sony α7S III")).toBe("not-approved");
     expect(netflixStatusForCamera("iPhone 15 Pro")).toBe("not-approved");
