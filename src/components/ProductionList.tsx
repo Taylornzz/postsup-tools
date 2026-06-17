@@ -28,7 +28,7 @@ export function ProductionList({ groups, suggestions = [], onLink, onUnlink }: {
     <details className="rounded-md border border-suite-border bg-suite-panel/50 group">
       <summary className="cursor-pointer list-none flex items-center gap-2 px-3.5 py-2.5 font-mono text-[11px] tracking-[0.14em] uppercase text-suite-text font-semibold hover:text-guide-target select-none">
         <Boxes className="size-3.5 text-guide-target" strokeWidth={1.7} />
-        Production list
+        Combined deliverables list
         <span className="font-normal tracking-normal normal-case text-[10px] text-suite-text-dim">· {inScope.length} to make{shared ? ` · ${shared} shared` : ""}{suggestions.length ? ` · ${suggestions.length} to link` : ""}</span>
         <ChevronRight className="ml-auto size-3.5 transition-transform group-open:rotate-90 text-suite-text-dim" strokeWidth={2} />
       </summary>

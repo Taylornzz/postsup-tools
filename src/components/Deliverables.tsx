@@ -38,6 +38,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const [persistedAtMount] = useState(() => recipientsPersisted(projectId));
   const [focusBriefId, setFocusBriefId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const [openIds, setOpenIds] = useState<Set<string>>(() => new Set()); // recipients open for editing (collapsed by default)
+  const toggleOpen = (id: string) => setOpenIds((e) => { const n = new Set(e); n.has(id) ? n.delete(id) : n.add(id); return n; });
   useEffect(() => { saveRecipients(projectId, recipients); }, [recipients, projectId]);
   const splitRef = useRef<HTMLDivElement>(null);
   const [chartW, setChartW] = useState<number>(() => { const v = Number(localStorage.getItem("kaos.deliverables.chartW")); return v >= 320 ? v : 480; });
@@ -102,7 +104,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
   const patch = (id: string, p: Partial<Recipient>) => setRecipients((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
   const changeRegion = (id: string, region: Region) => patch(id, { region, loudness: LOUDNESS_BY_REGION[region] || "", truePeak: TRUEPEAK_BY_REGION[region] || "" });
   const add = () => setRecipients((rs) => [...rs, newRecipient(`Recipient ${rs.length + 1}`)]);
-  const addWithAI = () => { const r = blankRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); };
+  const addWithAI = () => { const r = blankRecipient(`Recipient ${recipients.length + 1}`); setRecipients((rs) => [...rs, r]); setFocusBriefId(r.id); setOpenIds((e) => new Set(e).add(r.id)); };
   const setMain = (id: string) => setRecipients((rs) => rs.map((r) => ({ ...r, isMain: r.id === id ? !r.isMain : false })));
   const dup = async (r: Recipient) => {
     const copy = duplicateRecipient(r);
@@ -118,11 +120,14 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
       } catch { /* skip files that can't be copied */ }
     }
     setRecipients((rs) => { const i = rs.findIndex((x) => x.id === r.id); return [...rs.slice(0, i + 1), copy, ...rs.slice(i + 1)]; });
+    setOpenIds((e) => new Set(e).add(copy.id));
   };
   const addTemplate = (id: string) => {
     const t = DELIVERY_TEMPLATES.find((x) => x.id === id);
     if (!t) return;
-    setRecipients((rs) => [...rs, recipientFromTemplate(t)]);
+    const nr = recipientFromTemplate(t);
+    setRecipients((rs) => [...rs, nr]);
+    setOpenIds((e) => new Set(e).add(nr.id));
     toast.success(`Added ${t.name}`, { description: "Starter spec — confirm against the platform's current delivery document." });
   };
   const remove = (id: string) => {
@@ -263,50 +268,63 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
             </div>
           )}
 
-          <ProductionList groups={rollup} suggestions={linkSugg} onLink={linkArtifact} onUnlink={unlinkArt} />
-
-          {plan.watchOuts.length > 0 && (
-            <div className="rounded-sm border border-status-warn/30 bg-status-warn/5 px-3 py-2">
-              <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-status-warn mb-1">⚠ Watch-outs</div>
-              <ul className="flex flex-col gap-0.5">
-                {plan.watchOuts.map((w) => <li key={w} className="font-mono text-[10px] text-suite-text-muted leading-relaxed flex gap-1.5"><span className="text-status-warn">!</span>{w}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {/* Recipients — each carries its spec + its own AI-built deliverables list */}
+          {/* Recipients — collapsed by default; click a row to open its spec + deliverables */}
           <div className="flex flex-col gap-2.5">
-            {recipients.map((r) => {
+            {recipients.map((r, idx) => {
               const checks = recipientChecklist(r);
+              const isOpen = openIds.has(r.id);
+              const rDrift = drift?.drifted.find((d) => d.id === r.id);
+              const drLabel = DR_OPTIONS.find((d) => d.id === r.dr)?.label;
+              const summaryBits = [r.region, drLabel, r.resolution, r.container, r.fps ? `${r.fps} fps` : ""].filter(Boolean);
               return (
-                <div key={r.id} className={cn("rounded-md border bg-suite-panel/60 px-3.5 py-3", r.isMain ? "border-guide-target/50" : "border-suite-border")}>
-                  <div className="flex items-center gap-2 mb-2.5">
+                <div key={r.id} className={cn("rounded-md border bg-suite-panel/60 transition-colors", r.isMain ? "border-guide-target/50" : isOpen ? "border-guide-target/40" : "border-suite-border")}>
+                  {/* Collapsed header — number, name, a plain spec summary, click to open */}
+                  <div className="flex items-center gap-2.5 px-3.5 py-2.5">
                     <button onClick={() => setMain(r.id)}
                       title={r.isMain ? "Main deliverable — sets the source cadence the others convert from. Click to unset." : "Mark as the main deliverable — sets the source frame-rate the others derive from (grade order itself is set by dynamic range in Mastering)"}
                       className={cn("shrink-0 transition-colors", r.isMain ? "text-guide-target" : "text-suite-text-dim hover:text-suite-text")}>
                       <Star className="size-3.5" strokeWidth={1.7} fill={r.isMain ? "currentColor" : "none"} />
                     </button>
+                    <span className="shrink-0 grid place-items-center size-5 rounded bg-suite-bg border border-suite-border font-mono text-[10px] font-bold text-suite-text-muted tabular">{idx + 1}</span>
                     <input
                       value={r.name}
                       onChange={(e) => patch(r.id, { name: e.target.value })}
                       placeholder="Recipient / platform…"
-                      className="flex-1 min-w-0 bg-transparent border-0 border-b border-transparent focus:border-suite-border px-0.5 text-[13px] font-mono text-suite-text font-semibold focus:outline-none"
+                      title="Recipient name"
+                      className="w-40 shrink-0 bg-transparent border-0 border-b border-transparent hover:border-suite-border/60 focus:border-suite-border px-0.5 text-[13px] font-mono text-suite-text font-semibold focus:outline-none"
                     />
-                    <select value={r.region} onChange={(e) => changeRegion(r.id, e.target.value as Region)} className={sel} title="Region — sets a default loudness target">
-                      <option value="">—</option>
-                      {REGIONS.map((rg) => <option key={rg} value={rg}>{rg}</option>)}
-                    </select>
-                    <input type="date" value={r.due || ""} onChange={(e) => patch(r.id, { due: e.target.value })} title="Delivery due date" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1.5 py-1 text-[10px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark] max-w-[8.5rem]" />
+                    {/* summary doubles as the expand hit-area */}
+                    <button onClick={() => toggleOpen(r.id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
+                      <span className="truncate font-mono text-[10px] text-suite-text-dim">
+                        {summaryBits.length ? summaryBits.join(" · ") : <span className="text-suite-text-dim/60">no spec yet — click to add</span>}
+                      </span>
+                    </button>
+                    {rDrift && <span title="Spec drift flagged — open to see what changed" className="shrink-0 flex"><AlertTriangle className="size-3.5 text-status-warn" strokeWidth={2} /></span>}
+                    {r.due && <span className="shrink-0 font-mono text-[9.5px] text-suite-text-dim tabular hidden sm:inline" title="Delivery due date">{r.due}</span>}
+                    <span className="shrink-0 font-mono text-[9.5px] text-suite-text-dim tabular hidden md:inline" title="Spec variables still to confirm">{checks.length} to confirm</span>
+                    <button onClick={() => toggleOpen(r.id)} title={isOpen ? "Collapse" : "Edit this recipient"} className="shrink-0 text-suite-text-muted hover:text-suite-text">
+                      <ChevronDown className={cn("size-3.5 transition-transform", isOpen && "rotate-180")} strokeWidth={1.8} />
+                    </button>
                     <button onClick={() => dup(r)} title="Duplicate this recipient (clone its spec + deliverables)" className="shrink-0 text-suite-text-dim hover:text-suite-text"><Copy className="size-3.5" strokeWidth={1.6} /></button>
                     <button onClick={() => remove(r.id)} title="Remove recipient" className="shrink-0 text-suite-text-dim hover:text-destructive"><Trash2 className="size-3.5" strokeWidth={1.6} /></button>
                   </div>
 
+                  {/* Open: region + due, verify, drift, full spec, naming/qc, this recipient's deliverables */}
+                  {isOpen && (
+                  <div className="border-t border-suite-border/60 px-3.5 py-3">
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim">Region</span>
+                    <select value={r.region} onChange={(e) => changeRegion(r.id, e.target.value as Region)} className={sel} title="Region — sets a default loudness target">
+                      <option value="">—</option>
+                      {REGIONS.map((rg) => <option key={rg} value={rg}>{rg}</option>)}
+                    </select>
+                    <span className="font-mono text-[8.5px] uppercase tracking-[0.16em] text-suite-text-dim ml-2">Due</span>
+                    <input type="date" value={r.due || ""} onChange={(e) => patch(r.id, { due: e.target.value })} title="Delivery due date" className="shrink-0 bg-suite-bg border border-suite-border rounded-sm px-1.5 py-1 text-[10px] font-mono text-suite-text-muted focus:outline-none focus:border-guide-target [color-scheme:dark] max-w-[8.5rem]" />
+                  </div>
+
                   <RecipientVerify recipient={r} onPatch={(p) => patch(r.id, p)} />
 
-                  {(() => {
-                    const rDrift = drift?.drifted.find((d) => d.id === r.id);
-                    if (!rDrift) return null;
-                    return (
+                  {rDrift && (
                       <div className="mt-2 rounded-sm border border-status-warn/40 bg-status-warn/5 px-2.5 py-2">
                         <div className="flex items-center gap-1.5">
                           <AlertTriangle className="size-3 shrink-0 text-status-warn" strokeWidth={2} />
@@ -325,8 +343,7 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
                           What current public reporting says — not a required change. A show already in production delivers to its agreed spec; only change if you've re-confirmed with the platform. Use <span className="text-suite-text-muted">Verify spec</span> above to see sources and apply any field by hand.
                         </p>
                       </div>
-                    );
-                  })()}
+                  )}
 
                   <div className="flex flex-wrap items-end gap-2.5">
                     <Field label="Colour / range">
@@ -422,6 +439,8 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
 
 
                   <div className="mt-2 font-mono text-[9.5px] text-suite-text-dim">{checks.length} variables to confirm{(r.documents || []).length ? ` · ${(r.documents || []).length} doc${(r.documents || []).length === 1 ? "" : "s"} attached` : ""}{r.notes ? ` · ${r.notes}` : ""}</div>
+                  </div>
+                  )}
                 </div>
               );
             })}
@@ -441,6 +460,21 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
               <span className="text-suite-text-muted">Drop a spec, email or call notes onto any recipient's AI box</span> — it itemises the deliverables and fills the spec dropdowns, which you then verify against the platform's own delivery document. Everything stays on this device. Cloud-drive connect (Drive / Box / OneDrive) is still to come.
             </p>
           </div>
+
+          {/* ───────── Summary, at the bottom: watch-outs + the combined make-once list ───────── */}
+          {(plan.watchOuts.length > 0 || rollup.some((g) => g.inScope)) && (
+            <div className="mt-1 border-t border-suite-border pt-4 flex flex-col gap-2.5">
+              {plan.watchOuts.length > 0 && (
+                <div className="rounded-sm border border-status-warn/30 bg-status-warn/5 px-3 py-2">
+                  <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-status-warn mb-1">⚠ Watch-outs</div>
+                  <ul className="flex flex-col gap-0.5">
+                    {plan.watchOuts.map((w) => <li key={w} className="font-mono text-[10px] text-suite-text-muted leading-relaxed flex gap-1.5"><span className="text-status-warn">!</span>{w}</li>)}
+                  </ul>
+                </div>
+              )}
+              <ProductionList groups={rollup} suggestions={linkSugg} onLink={linkArtifact} onUnlink={unlinkArt} />
+            </div>
+          )}
         </div>
         </div>
         <div onMouseDown={startResize} title="Drag to resize" className="hidden lg:block w-1.5 shrink-0 cursor-col-resize bg-suite-border hover:bg-guide-target/60 transition-colors" />
