@@ -313,7 +313,7 @@ function EdlTool() {
               {OUTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
             </select>
           </Field></div>
-          <div className="flex-1 min-w-[160px]"><Field label="Title"><input value={title} onChange={(e) => setTitleOverride(e.target.value)} className={inputCls} /></Field></div>
+          <div className="flex-1 min-w-[160px]"><Field label="Title"><input value={titleOverride} onChange={(e) => setTitleOverride(e.target.value)} placeholder={(parsed?.ok && parsed.title) || "sequence"} className={inputCls} /></Field></div>
           {out === "edl" && (
             <label className="flex items-center gap-1.5 font-mono text-[10px] text-suite-text-muted pb-2 whitespace-nowrap">
               <input type="checkbox" checked={reelLong} onChange={(e) => setReelLong(e.target.checked)} className="accent-guide-target" /> reel &gt; 8 chars

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RefreshCw, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { specOptions, specStaleness, recipientSpecClass, type Recipient } from "@/lib/deliverables";
+import { specOptions, specStaleness, recipientSpecClass, coerceRecipientSpec, type Recipient } from "@/lib/deliverables";
 import { verifySpec, SPEC_FIELDS, recipientSpecDiffs, type SpecVerifyResult } from "@/lib/verifySpec";
 
 /** Spec freshness badge + on-demand "Verify spec" (web search). The result is a field-level
@@ -40,12 +40,18 @@ export function RecipientVerify({ recipient, onPatch }: { recipient: Recipient; 
   };
 
   const apply = (key: keyof Recipient, value: unknown) => {
+    // Validate the web-verified value against the allowed options before writing it — the
+    // model (or a caller-supplied empty enum) can return an out-of-set value that downstream
+    // template/export logic assumes is fixed. Reject anything that doesn't coerce cleanly.
+    const coerced = coerceRecipientSpec({ [key]: value });
+    if (!(key in coerced)) { toast.error(`That ${String(key)} value isn’t a recognised option`, { description: "Not applied — set it from the dropdown instead." }); return; }
+    const safe = coerced[key as keyof typeof coerced];
     // Only stamp the spec "verified" once every diff is reconciled — applying one field
     // shouldn't claim the whole spec was re-checked. Count with the SAME filter the visible
     // list uses (recipientSpecDiffs drops peakNits for SDR recipients): a raw comparison can
     // count an invisible diff and the stamp then never lands despite zero rows on screen.
     const remaining = result ? recipientSpecDiffs(recipient, result.spec).filter((d) => d.key !== key).length : 0;
-    onPatch({ [key]: value, ...(remaining === 0 ? { verified: { at: new Date().toISOString(), confidence: result?.confidence, source: "Web-verified — confirm in portal" } } : {}) } as Partial<Recipient>);
+    onPatch({ [key]: safe, ...(remaining === 0 ? { verified: { at: new Date().toISOString(), confidence: result?.confidence, source: "Web-verified — confirm in portal" } } : {}) } as Partial<Recipient>);
     setResult((prev) => (prev ? { ...prev, spec: { ...prev.spec, [key]: undefined } } : prev));
   };
 

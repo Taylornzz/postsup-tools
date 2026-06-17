@@ -3,6 +3,7 @@
 // Same Project shape either way, so the UI doesn't care which store is live.
 
 import { supabase } from "./supabase";
+import { delFile } from "./fileStore";
 
 export interface Project {
   id: string;
@@ -86,7 +87,19 @@ export async function createProject(name: string, color: string): Promise<Projec
   return p;
 }
 
-export async function updateProject(id: string, patch: Partial<Pick<Project, "name" | "color" | "data">>): Promise<boolean> {
+// Serialize all writes to a given project id so two read-modify-merge cycles can't interleave.
+// On project close the snapshot push (data.snapshot) and the capture-state flush (data.url)
+// fire ~simultaneously; both read-then-write the WHOLE data column, so without serialization a
+// later write can clobber the other's just-merged field. Chaining per-id makes them sequential.
+const writeChains = new Map<string, Promise<unknown>>();
+export function updateProject(id: string, patch: Partial<Pick<Project, "name" | "color" | "data">>): Promise<boolean> {
+  const prev = writeChains.get(id) ?? Promise.resolve();
+  const run = prev.then(() => updateProjectInner(id, patch), () => updateProjectInner(id, patch));
+  writeChains.set(id, run.catch(() => {}));
+  return run;
+}
+
+async function updateProjectInner(id: string, patch: Partial<Pick<Project, "name" | "color" | "data">>): Promise<boolean> {
   if (supabase) {
     // Postgres replaces the whole `data` jsonb on update — so MERGE it with the current row
     // first. Two writers touch `data` (the debounced capture-state `url` writer and the
@@ -117,7 +130,23 @@ export async function deleteProject(id: string): Promise<void> {
   } else {
     localPersist(localList().filter((p) => p.id !== id));
   }
+  purgeLocalProject(id); // reclaim this project's per-project localStorage keys + attachment blobs
   if (getActiveProjectId() === id) setActiveProjectId(null);
+}
+
+/** Remove a deleted project's on-device residue: its attachment blobs (global store, keyed by
+ *  doc id — unreachable once the project is gone) and every "-{id}"-suffixed localStorage key. */
+function purgeLocalProject(id: string) {
+  try {
+    const recips = JSON.parse(localStorage.getItem(`kaos.deliverables.v1-${id}`) || "[]");
+    if (Array.isArray(recips)) for (const r of recips) for (const d of (r?.documents || [])) { if (d?.id) delFile(d.id).catch(() => {}); }
+  } catch { /* ignore */ }
+  try {
+    const suffix = `-${id}`;
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.endsWith(suffix)) keys.push(k); }
+    keys.forEach((k) => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+  } catch { /* ignore */ }
 }
 
 export async function duplicateProject(id: string): Promise<Project | null> {

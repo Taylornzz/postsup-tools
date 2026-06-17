@@ -57,7 +57,12 @@ function buildCamFromSetup(s: SetupSpec, days: number): RigCam {
     hoursPerDay: 4, shootDays: days, enabled: true, setupId: s.id,
   };
 }
-const nextLabel = (n: number) => (n < 26 ? `${String.fromCharCode(65 + n)}-cam` : `Cam ${n + 1}`);
+// Lowest unused A-cam/B-cam/… so remove-then-add never reuses a label still in the rig.
+const nextLabel = (cams: { label: string }[]) => {
+  const used = new Set(cams.map((c) => c.label));
+  for (let i = 0; i < 26; i++) { const l = `${String.fromCharCode(65 + i)}-cam`; if (!used.has(l)) return l; }
+  return `Cam ${cams.length + 1}`;
+};
 
 function loadCams(key: string, days: number, seed?: { sourceId?: string; codecId?: string; fps?: number }): RigCam[] {
   try {
@@ -148,11 +153,11 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
       return { ...c, sourceId, codecId, cardId };
     }));
   };
-  const addCam = () => setCams((cs) => { const c = buildCam(nextLabel(cs.length), cs[0]?.shootDays ?? dfltDays); setExpanded((e) => new Set(e).add(c.id)); return [...cs, c]; });
+  const addCam = () => setCams((cs) => { const c = buildCam(nextLabel(cs), cs[0]?.shootDays ?? dfltDays); setExpanded((e) => new Set(e).add(c.id)); return [...cs, c]; });
   const duplicateCam = (id: string) => setCams((cs) => {
     const i = cs.findIndex((c) => c.id === id);
     if (i < 0) return cs;
-    const copy: RigCam = { ...cs[i], id: uid(), label: nextLabel(cs.length), setupId: undefined };
+    const copy: RigCam = { ...cs[i], id: uid(), label: nextLabel(cs), setupId: undefined };
     setExpanded((e) => new Set(e).add(copy.id));
     const next = cs.slice(); next.splice(i + 1, 0, copy); return next;
   });
@@ -161,7 +166,9 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
   const toggleExpand = (id: string) => setExpanded((e) => { const n = new Set(e); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleCmp = (id: string) => setCmpOpen((e) => { const n = new Set(e); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleSetup = (s: SetupSpec) => setCams((cs) => {
-    if (cs.some((c) => c.setupId === s.id)) { const next = cs.filter((c) => c.setupId !== s.id); return next.length ? next : cs; }
+    // Un-ticking removes the camera even if it's the last one — an empty rig is a supported
+    // state (removeCam/reset both allow it), so don't silently no-op the only camera.
+    if (cs.some((c) => c.setupId === s.id)) return cs.filter((c) => c.setupId !== s.id);
     const cam = buildCamFromSetup(s, cs[0]?.shootDays ?? dfltDays); setExpanded((e) => new Set(e).add(cam.id)); return [...cs, cam];
   });
 

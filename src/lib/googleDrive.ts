@@ -47,7 +47,7 @@ function getToken(): Promise<string> {
 
 /** Open the Google Picker, let the user choose files, download them, and return them as Files
  *  (Google-native docs are exported to PDF). The token lives only for this call. */
-export async function pickDriveFiles(): Promise<File[]> {
+export async function pickDriveFiles(): Promise<{ files: File[]; failed: string[] }> {
   if (!driveConfigured()) throw new Error("Google Drive isn't set up — add VITE_GOOGLE_CLIENT_ID and VITE_GOOGLE_API_KEY (see docs/google-drive-setup.md).");
   await ensureScripts();
   const token = await getToken();
@@ -68,18 +68,23 @@ export async function pickDriveFiles(): Promise<File[]> {
     picker.setVisible(true);
   });
 
-  const files = await Promise.all(picked.map(async (d) => {
+  const results = await Promise.all(picked.map(async (d) => {
     const isNative = (d.mimeType || "").startsWith("application/vnd.google-apps");
     const url = isNative
       ? `https://www.googleapis.com/drive/v3/files/${d.id}/export?mimeType=application/pdf`
-      : `https://www.googleapis.com/drive/v3/files/${d.id}?alt=media`;
+      // supportsAllDrives so files on shared drives don't 404
+      : `https://www.googleapis.com/drive/v3/files/${d.id}?alt=media&supportsAllDrives=true`;
     try {
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (!resp.ok) return null;
+      if (!resp.ok) return { ok: false as const, name: d.name };
       const blob = await resp.blob();
       const name = isNative && !/\.pdf$/i.test(d.name) ? `${d.name}.pdf` : d.name;
-      return new File([blob], name, { type: blob.type || d.mimeType || "application/octet-stream" });
-    } catch { return null; }
+      return { ok: true as const, file: new File([blob], name, { type: blob.type || d.mimeType || "application/octet-stream" }) };
+    } catch { return { ok: false as const, name: d.name }; }
   }));
-  return files.filter(Boolean) as File[];
+  // Report failures rather than silently dropping them — the caller toasts a partial/total warning.
+  return {
+    files: results.filter((r) => r.ok).map((r) => (r as { file: File }).file),
+    failed: results.filter((r) => !r.ok).map((r) => (r as { name: string }).name),
+  };
 }

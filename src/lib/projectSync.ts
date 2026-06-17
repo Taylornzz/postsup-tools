@@ -66,7 +66,10 @@ export function buildBackup(pid: string, name: string, now: number): ProjectBack
 export function parseBackup(raw: unknown): ProjectBackup {
   const b = raw as Partial<ProjectBackup>;
   // `entries: null` passes a bare typeof check and then explodes in rekeyEntries — reject it here.
-  if (b && b.kind === "kaos-project-backup" && b.snapshot && typeof b.snapshot === "object" && b.snapshot.entries && typeof b.snapshot.entries === "object") {
+  if (b && b.kind === "kaos-project-backup" && b.snapshot && typeof b.snapshot === "object" && b.snapshot.entries && typeof b.snapshot.entries === "object"
+      && typeof b.snapshot.pid === "string" && b.snapshot.pid) {
+    // pid must be present and non-empty: rekeyEntries keys off "-{pid}", so an empty pid makes
+    // every entry get dropped by the restore filter and the user gets a silent "0 items" success.
     return b as ProjectBackup;
   }
   const legacy = raw as { product?: unknown; project?: unknown; projectId?: unknown; data?: unknown };
@@ -132,8 +135,12 @@ export async function syncProjectDown(pid: string): Promise<boolean> {
   // as-is would overwrite the source project's live local state and leave the duplicate
   // empty. Re-key onto this project's id before applying.
   const entries = snap.pid && snap.pid !== pid ? rekeyEntries(snap.entries, snap.pid, pid) : snap.entries;
+  const expected = Object.keys(entries).length;
   const n = applyProjectState(entries);
-  if (!n && Object.keys(entries).length) return false; // nothing landed (quota/private mode) — don't record it as applied
+  // Only stamp lastApplied when EVERY key landed. A partial apply (some keys hit quota
+  // mid-batch) must stay unstamped so the next open retries the rest — otherwise the
+  // syncedAt<=lastApplied guard would permanently skip the missing keys and leave tools blank.
+  if (n < expected) return n > 0; // some landed → remount; none → report no hydration
   setLastApplied(pid, snap.syncedAt || 0);
   return true;
 }

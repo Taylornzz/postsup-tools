@@ -73,11 +73,16 @@ export function rollupDeliverables(recipients: Recipient[]): ArtifactGroup[] {
   return [...map.values()].sort((a, b) => (order.indexOf(a.category) - order.indexOf(b.category)) || a.label.localeCompare(b.label));
 }
 
+// Distinct RECIPIENTS that consume an artifact — consumers holds one entry per ITEM, so a
+// single recipient with two same-spec items would otherwise read as "shared ×2".
+const distinctRecipients = (g: ArtifactGroup) => new Set(g.consumers.map((c) => c.recipientId)).size;
+
 /** itemId → how many recipients share this artifact (for the per-item "shared ×N" tag). */
 export function shareCounts(groups: ArtifactGroup[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const g of groups) {
-    if (g.consumers.length > 1) for (const c of g.consumers) m.set(c.itemId, g.consumers.length);
+    const recips = distinctRecipients(g);
+    if (recips > 1) for (const c of g.consumers) m.set(c.itemId, recips);
   }
   return m;
 }
@@ -88,11 +93,17 @@ export function shareCounts(groups: ArtifactGroup[]): Map<string, number> {
  *  `tone` drives the UI/PDF colour; a QC fail anywhere dominates, then unfinished, etc. */
 export type GroupTone = "fail" | "pending" | "partial" | "done" | "neutral";
 export function groupStatus(g: ArtifactGroup): { label: string; tone: GroupTone; done: number; total: number } {
-  const total = g.consumers.length;
-  const done = g.consumers.filter((c) => c.status === "delivered" || c.status === "accepted").length;
-  const failed = g.consumers.some((c) => c.status === "qc-fail" || c.status === "redeliver");
+  // Collapse to one status per RECIPIENT (fail dominates, then unfinished, else done) so a
+  // recipient with two same-spec items counts once, not twice.
+  const rank = (s: string) => (s === "qc-fail" || s === "redeliver" ? 3 : s === "delivered" || s === "accepted" ? 1 : 2);
+  const perRecip = new Map<string, number>();
+  for (const c of g.consumers) { const v = rank(c.status); if (v > (perRecip.get(c.recipientId) ?? 0)) perRecip.set(c.recipientId, v); }
+  const statuses = [...perRecip.values()];
+  const total = statuses.length;
+  const done = statuses.filter((v) => v === 1).length;
+  const failed = statuses.some((v) => v === 3);
   if (failed) {
-    const n = g.consumers.filter((c) => c.status === "qc-fail" || c.status === "redeliver").length;
+    const n = statuses.filter((v) => v === 3).length;
     return { label: total > 1 ? `${n} of ${total} need re-delivery` : "Needs re-delivery", tone: "fail", done, total };
   }
   if (done === 0) return { label: total > 1 ? `To do (×${total})` : "To do", tone: "pending", done, total };

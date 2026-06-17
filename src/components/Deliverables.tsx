@@ -26,6 +26,18 @@ import { specOptions, recipientsPersisted } from "@/lib/deliverables";
 
 const DeliverablesFlow = lazy(() => import("./DeliverablesFlow"));
 
+// ---- attachment safety ----
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25 MB — generous for specs, blocks quota-busting
+// Types that render inertly in a tab (no script execution) — everything else is downloaded.
+const PREVIEW_SAFE_TYPES = /^(application\/pdf|image\/(png|jpe?g|webp|gif))$/i;
+/** Allow the documented doc/image types; explicitly block executable/markup (html, svg, js). */
+function isAllowedAttachment(f: File): boolean {
+  if (/(html?|svg|xht|xhtml|js|mjs)$/i.test((f.name.split(".").pop() || ""))) return false;
+  if (/text\/html|image\/svg|xhtml|javascript/i.test(f.type)) return false;
+  if (/\.(pdf|docx?|xlsx?|csv|txt|md|rtf|png|jpe?g|webp|gif|heic|tiff?)$/i.test(f.name)) return true;
+  return /^(application\/pdf|text\/(plain|csv|markdown)|image\/(png|jpe?g|webp|gif|heic|tiff?)|application\/(msword|vnd\.openxmlformats-officedocument\.|vnd\.ms-excel))/i.test(f.type);
+}
+
 export function Deliverables({ projectName, projectId, onSendToMastering }: {
   projectName?: string;
   projectId?: string;
@@ -175,7 +187,13 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
 
   const addFiles = async (recipientId: string, fileList: FileList | File[]) => {
     const metas: DocMeta[] = [];
+    let rejected = 0;
     for (const f of Array.from(fileList)) {
+      // Validate at intake — the drag-drop path bypasses the picker's `accept` hint, so an
+      // .html/.svg disguised as a spec could otherwise be stored and later execute as
+      // same-origin script when opened. Reject anything outside the documented allowlist,
+      // and cap size so one giant file can't blow the local storage quota.
+      if (!isAllowedAttachment(f) || f.size > MAX_ATTACHMENT_BYTES) { rejected++; continue; }
       const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
       try { await putFile(id, f); } catch { toast.error(`Couldn't store ${f.name}.`); continue; }
       metas.push({ id, name: f.name, type: f.type || f.name.split(".").pop() || "file", size: f.size, addedAt: new Date().toISOString() });
@@ -184,10 +202,26 @@ export function Deliverables({ projectName, projectId, onSendToMastering }: {
       setRecipients((rs) => rs.map((r) => (r.id === recipientId ? { ...r, documents: [...(r.documents || []), ...metas] } : r)));
       toast.success(`Attached ${metas.length} file${metas.length === 1 ? "" : "s"}`);
     }
+    if (rejected) toast.error(`Skipped ${rejected} file${rejected === 1 ? "" : "s"}`, { description: `Only PDF, Word, Excel, CSV, text and images up to ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)} MB are accepted.` });
   };
   const openFile = async (doc: DocMeta) => {
-    try { const blob = await getFile(doc.id); if (!blob) { toast.error("File not found."); return; } const url = URL.createObjectURL(blob); window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 30000); }
-    catch { toast.error("Couldn't open the file."); }
+    try {
+      const blob = await getFile(doc.id);
+      if (!blob) { toast.error("File not found."); return; }
+      // Never navigate to an untrusted attachment blob: a blob: URL opens in the app's OWN
+      // origin, so html/svg would run script with access to localStorage (incl. the Trello
+      // token). Only open types that render inertly; force everything else to download.
+      if (PREVIEW_SAFE_TYPES.test(blob.type)) {
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } else {
+        const url = URL.createObjectURL(new Blob([blob], { type: "application/octet-stream" }));
+        const a = document.createElement("a");
+        a.href = url; a.download = doc.name || "attachment"; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+    } catch { toast.error("Couldn't open the file."); }
   };
   const removeFile = async (recipientId: string, doc: DocMeta) => {
     try { await delFile(doc.id); } catch { /* ignore */ }

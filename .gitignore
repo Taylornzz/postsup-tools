@@ -2,6 +2,9 @@
 logs
 *.log
 npm-debug.log*
+
+# esbuild transient config snapshot (machine-local absolute paths)
+vite.config.ts.timestamp-*.mjs
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*

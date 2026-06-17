@@ -47,3 +47,15 @@ export async function delFile(id: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+/** Wipe every stored blob — used on sign-out so confidential attachments don't linger
+ *  on a shared device. */
+export async function clearFiles(): Promise<void> {
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}

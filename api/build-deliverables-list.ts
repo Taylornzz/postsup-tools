@@ -131,7 +131,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const content: any[] = [];
     if (brief.trim()) content.push({ type: "text", text: `BRIEF — what I've been told to deliver:\n${brief.slice(0, 200_000)}` });
+    // Hard byte cap per document before any parser sees the bytes — bounds the work a single
+    // upload can cause (defense-in-depth alongside the patched xlsx). base64 is ~1.33× the bytes.
+    const MAX_DOC_BYTES = 8 * 1024 * 1024;
     for (const d of documents) {
+      if (typeof d.dataBase64 === "string" && d.dataBase64.length * 0.75 > MAX_DOC_BYTES) {
+        content.push({ type: "text", text: `--- ${d.name || "document"} (skipped — over ${Math.round(MAX_DOC_BYTES / 1024 / 1024)} MB) ---` });
+        continue;
+      }
       if (d.mediaType === "application/pdf") {
         content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: d.dataBase64 } });
       } else if (/^image\/(jpeg|png|gif|webp)$/.test(d.mediaType)) {

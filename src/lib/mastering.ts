@@ -218,7 +218,7 @@ function buildHdrFirst(): { nodes: MNode[]; edges: MEdge[] } {
 
 function buildTheatricalFirst(): { nodes: MNode[]; edges: MEdge[] } {
   const nodes = [
-    N.grade(), N.nam(), N.arch(), N.dcdm4k("hero", true), N.dcp4k(), N.dcp2k(),
+    N.grade(), N.nam(), N.arch(), N.dcdm4k("hero", true), N.dcdm2k(), N.dcp4k(), N.dcp2k(),
     N.hdrHero(true), N.dvxml(), N.hdr10(), N.sdr(), N.imf2e(), N.imfsdr(), N.revhdr(), N.revsdr(),
   ];
   const edges: MEdge[] = [
@@ -226,7 +226,9 @@ function buildTheatricalFirst(): { nodes: MNode[]; edges: MEdge[] } {
     { from: "grade", to: "arch", op: "render-archive", label: "Bake graded ACEScct → AP0 EXR (App 5)", direction: "lateral", acesManaged: true },
     { from: "grade", to: "dcdm4k", op: "output-transform", label: "", direction: "lateral", acesManaged: true, ot: OT_DCI },
     { from: "dcdm4k", to: "dcp4k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 4K (ST 429)", direction: "lateral", acesManaged: false },
-    { from: "dcdm4k", to: "dcp2k", op: "downscale", label: "4K → 2K DCI, then J2K/MXF wrap", direction: "lateral", acesManaged: false },
+    // Model the intermediate DCDM 2K master like the other strategies do (was a direct 4K→DCP 2K).
+    { from: "dcdm4k", to: "dcdm2k", op: "downscale", label: "4K → 2K DCI downscale", direction: "lateral", acesManaged: false },
+    { from: "dcdm2k", to: "dcp2k", op: "wrap", label: "JPEG2000 + MXF wrap → DCP 2K (ST 429)", direction: "lateral", acesManaged: false },
     { from: "arch", to: "hdrHero", op: "regrade", label: "UP-VOLUME regrade off archive → P3-D65 PQ 1000 nit (fresh grade, not math)", direction: "up-volume", acesManaged: false },
     ...hdrDeriveEdges("hdrHero"),
   ];

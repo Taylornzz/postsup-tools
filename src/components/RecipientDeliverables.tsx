@@ -57,8 +57,12 @@ export function RecipientDeliverables({ brief, items, onBriefChange, onItemsChan
   const pickFromDrive = async () => {
     if (!driveConfigured()) { toast("Google Drive isn’t connected yet", { description: "Add a Google OAuth client ID + API key (see docs/google-drive-setup.md), then redeploy." }); return; }
     try {
-      const got = await pickDriveFiles();
-      if (got.length && onAttach) { onAttach(got); toast.success(`Imported ${got.length} file${got.length === 1 ? "" : "s"} from Drive`); }
+      const { files: got, failed } = await pickDriveFiles();
+      if (got.length && onAttach) onAttach(got);
+      // Be honest about partial/total failure instead of toasting only the survivors.
+      if (got.length && failed.length) toast.warning(`Imported ${got.length}, ${failed.length} failed`, { description: `Couldn’t download: ${failed.join(", ")}` });
+      else if (got.length) toast.success(`Imported ${got.length} file${got.length === 1 ? "" : "s"} from Drive`);
+      else if (failed.length) toast.error("Couldn’t import from Drive", { description: `${failed.length} file${failed.length === 1 ? "" : "s"} failed to download.` });
     } catch (e) { toast.error("Couldn’t import from Drive", { description: e instanceof Error ? e.message : "" }); }
   };
 

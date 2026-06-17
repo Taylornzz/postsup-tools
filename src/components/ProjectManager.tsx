@@ -9,8 +9,35 @@ import {
   loadPinned, savePinned, loadSort, saveSort, orderProjects, type ProjectSort,
 } from "@/lib/projects";
 import { buildBackup, parseBackup, rekeyEntries, applyProjectState, collectProjectState, syncProjectUp } from "@/lib/projectSync";
+import { getFile, putFile } from "@/lib/fileStore";
 
 const slug = (s: string) => (s || "project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "project";
+
+type DocLike = { id: string; [k: string]: unknown };
+type RecipientLike = { documents?: DocLike[]; [k: string]: unknown };
+
+/** Re-store a duplicated project's attachment blobs under fresh ids so it no longer shares
+ *  bytes with the source (deleting a file in one must not destroy the other's). */
+async function copyProjectBlobs(pid: string) {
+  const key = `kaos.deliverables.v1-${pid}`;
+  let recipients: RecipientLike[];
+  try { recipients = JSON.parse(localStorage.getItem(key) || "[]"); } catch { return; }
+  if (!Array.isArray(recipients)) return;
+  let changed = false;
+  for (const r of recipients) {
+    if (!Array.isArray(r?.documents)) continue;
+    for (const d of r.documents) {
+      try {
+        const blob = await getFile(d.id);
+        if (!blob) continue;
+        const newId = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        await putFile(newId, blob);
+        d.id = newId; changed = true;
+      } catch { /* skip un-copyable blobs */ }
+    }
+  }
+  if (changed) { try { localStorage.setItem(key, JSON.stringify(recipients)); } catch { /* ignore */ } }
+}
 
 type ModalState = { mode: "new" | "rename"; id?: string; name: string; color: string } | null;
 
@@ -218,6 +245,11 @@ export function ProjectManager({ onOpen, version }: { onOpen: (id: string) => vo
                           // keys onto the new id, then push a fresh snapshot so opening the copy
                           // pulls ITS data — not the source's snapshot riding along in the row.
                           applyProjectState(rekeyEntries(collectProjectState(p.id), p.id, copy.id));
+                          // Attachment blobs live in a GLOBAL store keyed by doc id — the rekey
+                          // above copied the metadata but left both projects pointing at the same
+                          // bytes, so deleting a file in one would destroy the other's. Re-store
+                          // each blob under a fresh id and rewrite the copy's recipients.
+                          await copyProjectBlobs(copy.id);
                           try { await syncProjectUp(copy.id, Date.now()); } catch { /* offline */ }
                         }
                         refresh();

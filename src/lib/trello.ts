@@ -23,15 +23,25 @@ export function saveTrelloAuth(a: TrelloAuth) {
 export const trelloAuthorizeUrl = (key: string) =>
   `https://trello.com/1/authorize?expiration=never&scope=read,write&response_type=token&name=${encodeURIComponent("Kaos Theory")}&key=${encodeURIComponent(key)}`;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function trello<T>(auth: TrelloAuth, method: "GET" | "POST", path: string, params: Record<string, string>): Promise<T> {
   const qs = new URLSearchParams({ ...params, key: auth.key, token: auth.token });
-  const resp = await fetch(`https://api.trello.com/1${path}?${qs}`, { method });
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
+  // A board push fires hundreds of sequential requests (one per card/checklist/item) and Trello
+  // caps ~100 req/10s — retry 429s (and transient 5xx) with backoff so a big board doesn't abort
+  // half-built. 401 is a credential error and never retried.
+  for (let attempt = 0; ; attempt++) {
+    const resp = await fetch(`https://api.trello.com/1${path}?${qs}`, { method });
+    if (resp.ok) return resp.json() as Promise<T>;
     if (resp.status === 401) throw new Error("Trello rejected the key/token — re-check both (the token must be authorized for this key).");
+    if ((resp.status === 429 || resp.status >= 500) && attempt < 4) {
+      const retryAfter = Number(resp.headers.get("retry-after")) || 0;
+      await sleep(retryAfter ? retryAfter * 1000 : Math.min(8000, 500 * 2 ** attempt));
+      continue;
+    }
+    const body = await resp.text().catch(() => "");
     throw new Error(`Trello ${resp.status}: ${body.slice(0, 120) || "request failed"}`);
   }
-  return resp.json() as Promise<T>;
 }
 
 /** Create a new Trello board mirroring the task board: lists in order, cards with

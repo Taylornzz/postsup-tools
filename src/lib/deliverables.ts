@@ -493,7 +493,10 @@ export function loadRecipients(projectId?: string): Recipient[] {
     if (raw === null) return seed();
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return seed();
-    return arr.filter((r) => r && typeof r.name === "string").map((r) => ({ ...newRecipient(), ...r, id: typeof r.id === "string" ? r.id : uid(), deliverables: Array.isArray(r.deliverables) ? r.deliverables.map(coerceItem) : [] }));
+    // Guard each deliverable element before coercing — coerceItem reads x.id, so one
+    // null/primitive entry (from a partial sync merge or hand-edited restore) would throw
+    // and the catch below would wipe the WHOLE project back to seed examples.
+    return arr.filter((r) => r && typeof r.name === "string").map((r) => ({ ...newRecipient(), ...r, id: typeof r.id === "string" ? r.id : uid(), deliverables: Array.isArray(r.deliverables) ? r.deliverables.filter((x: unknown) => x && typeof x === "object").map(coerceItem) : [] }));
   } catch { return seed(); }
 }
 export function saveRecipients(projectId: string | undefined, recipients: Recipient[]) {
@@ -592,7 +595,7 @@ export function buildWorkflowGraph(recipients: Recipient[], plan: Plan): { nodes
 // Each recipient with a due date is one dated delivery. This upserts a delivery
 // milestone bar per recipient into the Planner's store (postsup-gantt-v1), keyed
 // by name so re-running keeps dates in sync without wiping a user's duration edits.
-type GanttBar = { id: string; name: string; color: string; start: number; dur: number };
+type GanttBar = { id: string; name: string; color: string; start: number; dur: number; srcId?: string };
 
 // A yyyy-mm-dd date is parsed as LOCAL midnight and formatted back from local
 // components — never via toISOString(), which would shift the day (and the Monday
@@ -643,11 +646,15 @@ export function sendDeliveriesToSchedule(projectId: string | undefined, recipien
   for (const d of sched) {
     const name = `Deliver: ${d.name}`;
     const week = Math.max(0, weeksBetween(startDate, d.due));
-    const existing = bars.find((b) => (b.name || "").toLowerCase().trim() === name.toLowerCase().trim());
+    // Match on the stable recipient id first (names are user-editable and non-unique — two
+    // blank-named recipients both read "Deliver: Untitled" and would collide), falling back to
+    // name only for bars created before bars carried a srcId.
+    const existing = bars.find((b) => b.srcId === d.id) || bars.find((b) => !b.srcId && (b.name || "").toLowerCase().trim() === name.toLowerCase().trim());
     if (existing) {
+      existing.srcId = d.id; existing.name = name;
       if (existing.start !== week) { existing.start = week; updated++; }
     } else {
-      bars.push({ id: uid("bar"), name, color: "#2dd4bf", start: week, dur: 1 });
+      bars.push({ id: uid("bar"), name, color: "#2dd4bf", start: week, dur: 1, srcId: d.id });
       added++;
     }
   }

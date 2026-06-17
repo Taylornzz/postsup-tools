@@ -73,7 +73,9 @@ export function framesToSeconds(frames: number, actual: number): number {
 /** Pretty wall-clock duration (e.g. 1h 02m 03.4s). */
 export function fmtDuration(seconds: number): string {
   const neg = seconds < 0;
-  let s = Math.abs(seconds);
+  // Round to display precision FIRST so the seconds field can't round up to "60.00" against
+  // an already-floored minute (e.g. 59.999s → "60.00s" / "59m 60.00s").
+  let s = Math.round(Math.abs(seconds) * 100) / 100;
   const h = Math.floor(s / 3600); s -= h * 3600;
   const m = Math.floor(s / 60); s -= m * 60;
   const parts = [];

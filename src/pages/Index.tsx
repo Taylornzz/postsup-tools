@@ -47,12 +47,6 @@ import { PipelineConfig } from "@/lib/pipeline";
 import { Metric } from "@/components/Metric";
 import { FrameViewer } from "@/components/FrameViewer";
 import {
-  DeliveryViewer,
-  SourceTransform,
-  fitWidthScale,
-  fitHeightScale,
-} from "@/components/DeliveryViewer";
-import {
   Upload,
   X,
   Eye,
@@ -125,8 +119,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.14.6";
+export const VERSION = "v2.15.0";
 const CHANGELOG = [
+  "v2.15.0 — Full security + logic audit, fixes shipped. Security: attachments now download instead of opening in-page unless they're a safe preview type (a disguised .html/.svg could otherwise run in the app and read your saved Trello key) — and uploads are checked for type and size at the door; the Excel reader on the AI endpoint is upgraded to a patched build with a size cap; signing out now wipes this device's cached project data so nothing's left on a shared machine. Data safety: duplicating a project now copies its attachment files (deleting one no longer breaks the other), deleting a project reclaims its files and storage, project-close writes can no longer overwrite each other, and one corrupt saved item can no longer reset a whole project to the examples. Honest failures: restore, cloud-pull, Drive import and the Trello push now tell you when something failed instead of looking like it worked; Trello also retries when rate-limited. Plus smaller fixes — Planner delivery bars no longer merge two same-named recipients, the share/codec counts and a few labels are tidier, and a pile of dead code and stray files were removed. API functions are now typechecked in the build too.",
   "v2.14.6 — Home: the resume button now reads ‘Continue where you left off’ over the tool name (e.g. Deliverables), so it’s clear what it does and where it goes.",
   "v2.14.5 — Home page simplified. The grid of ten tool cards is gone — it just repeated the menu already across the top. The landing is now a clean, centred welcome: the name, the one-line ‘this is the map’ intro, and your Continue button to jump back into the last tool you used. Pick any tool from the top menu as before.",
   "v2.14.4 — Deliverables page calmed down the same way as Storage. Each recipient is now a clean numbered row (1, 2, 3…) showing its name and a plain one-line spec summary (region · colour · resolution · container · fps) plus its due date and how many variables are left to confirm — click a row to open the full spec, Verify, attachments and that recipient's deliverables list. New recipients (AI, template or duplicate) open ready to edit, and a drift flag shows on the row so you know to look. The ‘Production list’ is renamed ‘Combined deliverables list’ and, with the Watch-outs, moved to the bottom as a summary — so opening the page shows you the recipients first, not a wall of detail.",
@@ -430,11 +425,6 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
   const viewMode: ViewMode = "source";
   const [fps, setFps] = useState<number>(() => readNum(URL_KEYS.fps, 24));
   const [reframeOffset, setReframeOffset] = useState({ x: 0, y: 0 });
-  const [sourceTransform, setSourceTransform] = useState<SourceTransform>({
-    scale: 1,
-    x: 0,
-    y: 0,
-  });
   // Reference plate — the uploaded image is kept separately from the active
   // selection (so Guide ⇄ Your Plate ⇄ Off doesn't lose it) AND persisted to
   // localStorage so it survives a page refresh.
@@ -752,11 +742,6 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
 
   const resetReframe = () => setReframeOffset({ x: 0, y: 0 });
   const resetExtractionScale = () => setExtractionScale(1);
-  const resetTransform = () => setSourceTransform({ scale: 1, x: 0, y: 0 });
-
-  useEffect(() => {
-    setSourceTransform((t) => ({ ...t, x: 0, y: 0 }));
-  }, [sourceId, targetId, desqueeze]);
 
   // Remember which plate mode is active across refreshes.
   useEffect(() => {
@@ -2080,7 +2065,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
 
         {/* Canvas */}
         <section className="flex-1 min-w-0 flex flex-col">
-          {viewMode === "source" ? (
+          {(
             <FrameViewer
               source={source}
               target={target}
@@ -2100,20 +2085,6 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
               deliveryCropAR={deliveryCrop.ar}
               deliveryCropLabel={deliveryCrop.ar != null ? deliveryCrop.label.split(" ")[0] : undefined}
               referenceImage={refImage}
-            />
-          ) : (
-            <DeliveryViewer
-              source={source}
-              target={target}
-              desqueeze={desqueeze}
-              showGuides={showGuides}
-              showThirds={showThirds}
-              showSafeArea={showSafeArea}
-              transform={sourceTransform}
-              onTransformChange={setSourceTransform}
-              referenceImage={refImage}
-              protectionPct={protectionPct}
-              onProtectionChange={(p) => setProtectionPct(Math.max(0, Math.min(40, p)))}
             />
           )}
           {/* Bottom status bar */}
@@ -2698,99 +2669,6 @@ function ViewModeSwitch({
         );
       })}
     </div>
-  );
-}
-
-function DeliveryTransformPanel({
-  transform,
-  onChange,
-  onReset,
-  onFitWidth,
-  onFitHeight,
-  onFill,
-}: {
-  transform: SourceTransform;
-  onChange: (t: SourceTransform) => void;
-  onReset: () => void;
-  onFitWidth: () => void;
-  onFitHeight: () => void;
-  onFill: () => void;
-}) {
-  const scalePct = Math.round(transform.scale * 100);
-  return (
-    <section className="p-5 border-b border-suite-border flex flex-col gap-4 bg-suite-canvas/50">
-      <SectionHeader label="04 · Delivery Transform" />
-
-      <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between">
-          <span className="text-[10px] tracking-[0.18em] uppercase text-suite-text-muted">
-            Source Scale
-          </span>
-          <span className="font-mono text-sm tabular text-suite-text">{scalePct}%</span>
-        </div>
-        <input
-          type="range"
-          min={10}
-          max={400}
-          step={1}
-          value={scalePct}
-          onChange={(e) =>
-            onChange({ ...transform, scale: Number(e.target.value) / 100 })
-          }
-          className="w-full accent-suite-text cursor-pointer"
-        />
-        <div className="flex justify-between text-[9px] font-mono text-suite-text-dim">
-          <span>10%</span>
-          <span>100% · COVER</span>
-          <span>400%</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-1 p-0.5 bg-suite-bg border border-suite-border rounded-sm">
-        <button
-          type="button"
-          onClick={onFitWidth}
-          title="Fit source width to delivery — letterbox top/bottom"
-          className="px-2 py-1.5 text-[10px] tracking-[0.18em] uppercase font-mono rounded-[2px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated transition-colors"
-        >
-          Fit W
-        </button>
-        <button
-          type="button"
-          onClick={onFitHeight}
-          title="Fit source height to delivery — pillarbox sides"
-          className="px-2 py-1.5 text-[10px] tracking-[0.18em] uppercase font-mono rounded-[2px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated transition-colors"
-        >
-          Fit H
-        </button>
-        <button
-          type="button"
-          onClick={onFill}
-          title="Cover delivery with source — crops the longer axis"
-          className="px-2 py-1.5 text-[10px] tracking-[0.18em] uppercase font-mono rounded-[2px] text-suite-text-muted hover:text-suite-text hover:bg-suite-panel-elevated transition-colors"
-        >
-          Fill
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Metric label="Pos X" value={`${Math.round(transform.x)} px`} />
-        <Metric label="Pos Y" value={`${Math.round(transform.y)} px`} />
-      </div>
-
-      <button
-        onClick={onReset}
-        className="flex items-center justify-center gap-2 px-2 py-1.5 rounded-sm hover:bg-suite-panel-elevated transition-colors text-xs text-suite-text-muted border border-suite-border"
-      >
-        <RotateCcw className="size-3.5" strokeWidth={1.5} />
-        Reset transform
-      </button>
-
-      <p className="text-[10px] leading-relaxed text-suite-text-dim font-mono">
-        Drag the canvas to reposition · scroll wheel to scale · pinch on touch.
-        At 100% the source covers the delivery (matching the auto-extraction).
-      </p>
-    </section>
   );
 }
 
