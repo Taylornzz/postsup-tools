@@ -1,77 +1,32 @@
-import {
-  Frame, HardDrive, Film, Workflow, CalendarClock, BookText, Calculator, Building2, ArrowRight, SquareKanban, PackageCheck,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
 import { FEATURES } from "@/lib/features";
 
 export type HomeTab = "frame" | "storage" | "mastering" | "workflow" | "planner" | "board" | "deliverables" | "glossary" | "tools" | "vendors";
-
-const CARDS: { tab: HomeTab; title: string; desc: string; icon: typeof Frame; color: string }[] = [
-  { tab: "frame", title: "Capture", desc: "Camera, codec, sensor & framing — plus lens coverage, depth of field & equivalence (Optics).", icon: Frame, color: "#22d3ee" },
-  { tab: "storage", title: "Storage", desc: "Media & data plan — one camera or a whole rig: cards, offload, backups, proxies.", icon: HardDrive, color: "#4ade80" },
-  { tab: "deliverables", title: "Deliverables", desc: "Multi-recipient delivery plan — grade once, derive the rest, checklist every variable.", icon: PackageCheck, color: "#fb7185" },
-  { tab: "mastering", title: "Mastering Workflow", desc: "ACES masters & deliverables — HDR, theatrical, SDR and the derive order.", icon: Film, color: "#fb7185" },
-  { tab: "workflow", title: "Workflow", desc: "The whole pipeline as a node graph — plus your own editable build.", icon: Workflow, color: "#2dd4bf" },
-  { tab: "planner", title: "Post Schedule", desc: "Plan the post timeline — Gantt + calendar, weeks down to days.", icon: CalendarClock, color: "#38bdf8" },
-  { tab: "board", title: "Task Board", desc: "Kanban board for the project — columns, cards and checklists.", icon: SquareKanban, color: "#2dd4bf" },
-  { tab: "glossary", title: "Glossary", desc: "Post terms, standards & acronyms — searchable and cross-linked.", icon: BookText, color: "#818cf8" },
-  { tab: "tools", title: "Post Tools", desc: "Timecode, frame-rate & aspect calculators, plus an EDL converter.", icon: Calculator, color: "#fbbf24" },
-  { tab: "vendors", title: "Vendor Directory", desc: "Verified post vendors — facilities, labs, VFX, audio, software.", icon: Building2, color: "#f59e0b" },
-];
 
 const LABELS: Record<HomeTab, string> = {
   frame: "Capture", storage: "Storage", mastering: "Mastering Workflow",
   workflow: "Workflow", planner: "Post Schedule", board: "Task Board", deliverables: "Deliverables", glossary: "Glossary", tools: "Post Tools", vendors: "Vendor Directory",
 };
 
-// Cards currently visible (some tools can be hidden behind a feature flag).
-const VISIBLE_CARDS = CARDS.filter((c) => c.tab !== "vendors" || FEATURES.vendors);
-
 export function Home({ onNavigate, lastTab }: { onNavigate: (t: HomeTab) => void; lastTab?: HomeTab | null }) {
-  // Don't offer "Continue" for a tab that's been hidden.
-  const resumeTab = lastTab && VISIBLE_CARDS.some((c) => c.tab === lastTab) ? lastTab : null;
+  // Resume the last tab, unless it's been hidden behind a feature flag.
+  const resumeTab = lastTab && LABELS[lastTab] && (lastTab !== "vendors" || FEATURES.vendors) ? lastTab : null;
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-suite-canvas">
-      <div className="max-w-5xl mx-auto px-6 py-12 sm:py-16">
-        {/* Hero */}
-        <div className="mb-10">
-          <h1 className="font-mono text-2xl sm:text-3xl tracking-[0.12em] uppercase text-guide-target font-bold">KAOS THEORY</h1>
-          <p className="font-mono text-[12px] text-suite-text-dim mt-4 max-w-2xl leading-relaxed">
-            Post got complicated. This is the map — plan and reference the whole pipeline, capture to delivery. Pick a tool to start.
-          </p>
-          {resumeTab && (
-            <button
-              onClick={() => onNavigate(resumeTab)}
-              className="mt-5 inline-flex items-center gap-2 px-3.5 py-2 text-[11px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
-            >
-              Continue → {LABELS[resumeTab]} <ArrowRight className="size-3.5" strokeWidth={1.8} />
-            </button>
-          )}
-        </div>
-
-        {/* Tool grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {VISIBLE_CARDS.map((c) => (
-            <button
-              key={c.tab}
-              onClick={() => onNavigate(c.tab)}
-              className="group text-left rounded-lg border border-suite-border bg-suite-panel hover:border-suite-border-strong hover:bg-suite-panel-elevated p-4 transition-colors"
-            >
-              <div className="flex items-center gap-2.5 mb-2">
-                <span
-                  className="grid place-items-center size-8 rounded-md border shrink-0"
-                  style={{ borderColor: c.color + "55", color: c.color, backgroundColor: c.color + "14" }}
-                >
-                  <c.icon className="size-4" strokeWidth={1.7} />
-                </span>
-                <span className="font-mono text-[13px] text-suite-text font-semibold group-hover:text-guide-target">{c.title}</span>
-              </div>
-              <p className="font-mono text-[11px] text-suite-text-muted leading-relaxed">{c.desc}</p>
-            </button>
-          ))}
-        </div>
-
-        <p className="mt-10 font-mono text-[10px] text-suite-text-dim leading-relaxed max-w-2xl">
+      <div className="min-h-full flex flex-col items-center justify-center text-center px-6 py-16">
+        <h1 className="font-mono text-3xl sm:text-4xl tracking-[0.18em] uppercase text-guide-target font-bold">KAOS THEORY</h1>
+        <p className="font-mono text-[12px] sm:text-[13px] text-suite-text-dim mt-5 max-w-md leading-relaxed">
+          Post got complicated. This is the map — plan and reference the whole pipeline, capture to delivery. Pick a tool from the menu above to start.
+        </p>
+        {resumeTab && (
+          <button
+            onClick={() => onNavigate(resumeTab)}
+            className="mt-7 inline-flex items-center gap-2 px-4 py-2.5 text-[11px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
+          >
+            Continue → {LABELS[resumeTab]} <ArrowRight className="size-3.5" strokeWidth={1.8} />
+          </button>
+        )}
+        <p className="mt-12 font-mono text-[10px] text-suite-text-dim/80 max-w-sm leading-relaxed">
           Reference only — every figure is a starting point. Verify against source before you rely on it.
         </p>
       </div>
