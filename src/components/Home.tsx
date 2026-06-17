@@ -21,9 +21,11 @@ export function Home({ onNavigate, lastTab }: { onNavigate: (t: HomeTab) => void
         {resumeTab && (
           <button
             onClick={() => onNavigate(resumeTab)}
-            className="mt-7 inline-flex items-center gap-2 px-4 py-2.5 text-[11px] tracking-[0.12em] uppercase font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
+            title={`Back to ${LABELS[resumeTab]}`}
+            className="mt-7 inline-flex flex-col items-center gap-1 px-5 py-2.5 font-mono border rounded-sm text-guide-target border-guide-target/50 bg-guide-target/10 hover:bg-guide-target/20 transition-colors"
           >
-            Continue → {LABELS[resumeTab]} <ArrowRight className="size-3.5" strokeWidth={1.8} />
+            <span className="text-[9px] tracking-[0.14em] uppercase text-guide-target/70">Continue where you left off</span>
+            <span className="inline-flex items-center gap-2 text-[12px] tracking-[0.1em] uppercase font-semibold">{LABELS[resumeTab]} <ArrowRight className="size-3.5" strokeWidth={1.8} /></span>
           </button>
         )}
         <p className="mt-12 font-mono text-[10px] text-suite-text-dim/80 max-w-sm leading-relaxed">
