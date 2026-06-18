@@ -120,8 +120,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.16.1";
+export const VERSION = "v2.17.0";
 const CHANGELOG = [
+  "v2.17.0 — Camera catalog audit: 12 cameras added after a web-verified completeness pass against every manufacturer and rental house. New: ARRI ALEXA 35 Xtreme, Blackmagic URSA Cine 17K 65, Blackmagic PYXIS 6K, Canon EOS C80, Canon EOS C50, Sony FX2, Sony FX30, RED V-Raptor XL [X], RED V-Raptor XE, plus two brands the catalog didn't cover at all — Kinefinity (MAVO Edge 8K) and Z CAM (E2-F8) — and the Freefly Ember S5K high-speed. Every sensor size and resolution is taken from the manufacturer page so the FOV and storage maths are accurate.",
   "v2.16.1 — Theme tweaks. The picker button is now labelled ‘Theme’ (top-right) so it’s easy to find, and the set is trimmed to six: Dark, Light, Nordic, Espresso, Terminal and Latte.",
   "v2.16.0 — Themes. The sun/moon toggle is now a labelled ‘Theme’ picker (top-right). Pick one and the whole app recolours — surfaces and accents — and your choice is remembered and applied before the page paints (no flash). Same layout, just your colour.",
   "v2.15.1 — Capture: added two cameras. The ARRI ALEXA 265 (ARRI Rental's 2024 65 mm — A3X Rev.B sensor with REVEAL/LogC4, distinct from the older ALEXA 65) with its 6.5K Open Gate, 5.1K and 4.5K LF modes; and the DJI Ronin 4D (Zenmuse X9) with the X9-8K 8K/4K modes and the X9-6K 6K/4K modes. Real sensor sizes, so the FOV and storage calculators are accurate.",
