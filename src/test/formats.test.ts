@@ -5,6 +5,9 @@ import {
   cardRuntimeMinutes,
   offloadHours,
   computeExtraction,
+  nativeCodecsForCamera,
+  cardsForVendor,
+  cameraVendor,
   netflixStatusForCamera,
   lensAnamorphicMismatch,
   usedSensorDiagonalMm,
@@ -167,6 +170,45 @@ describe("computeExtraction", () => {
   it("applies anamorphic squeeze to the displayed source aspect", () => {
     const s = src({ width: 2000, height: 2000, squeeze: 2 }); // displayed 4000×2000 → 2.0
     expect(sourceDisplayed(s).aspect).toBeCloseTo(2.0, 6);
+  });
+});
+
+// --- Storage flow-through: every camera gets cards + codecs -----------------
+describe("storage flow-through (cards + codecs for every catalog camera)", () => {
+  it("every camera in the catalog resolves to at least one card and one codec", () => {
+    const broken: string[] = [];
+    for (const cam of new Set(SOURCE_FORMATS.map((s) => s.camera))) {
+      const cards = cardsForVendor(cameraVendor(cam));
+      const codecs = nativeCodecsForCamera(cam);
+      if (!cards.length) broken.push(`${cam} — no cards (vendor "${cameraVendor(cam)}")`);
+      if (!codecs.length) broken.push(`${cam} — no codecs`);
+    }
+    expect(broken).toEqual([]);
+  });
+
+  it("cameraVendor handles the multi-word Z CAM brand", () => {
+    expect(cameraVendor("Z CAM E2-F8")).toBe("Z CAM");
+    expect(cameraVendor("Sony FX2")).toBe("Sony");
+    expect(cameraVendor("Kinefinity MAVO Edge 8K")).toBe("Kinefinity");
+  });
+
+  it("the new brands get brand-appropriate media + codecs (not just the generic fallback)", () => {
+    // Z CAM → CFexpress + SSD
+    expect(cardsForVendor("Z CAM").some((c) => c.id.startsWith("cfx"))).toBe(true);
+    expect(cardsForVendor("Z CAM").some((c) => c.id.startsWith("ssd"))).toBe(true);
+    // Kinefinity + Freefly → SSD media
+    expect(cardsForVendor("Kinefinity").some((c) => c.id.startsWith("ssd"))).toBe(true);
+    expect(cardsForVendor("Freefly").some((c) => c.id.startsWith("ssd"))).toBe(true);
+    // Sony FX2 → real Sony XAVC codecs, not the arri-prores fallback
+    expect(nativeCodecsForCamera("Sony FX2").some((c) => c.id.startsWith("sony-xavc"))).toBe(true);
+    // Kinefinity → ProRes RAW
+    expect(nativeCodecsForCamera("Kinefinity MAVO Edge 8K").some((c) => /prores-raw/.test(c.id))).toBe(true);
+  });
+
+  it("an unknown vendor still gets fallback CFexpress cards (never an empty picker)", () => {
+    const cards = cardsForVendor("SomeNewBrand2027");
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.every((c) => c.id.startsWith("cfx"))).toBe(true);
   });
 });
 

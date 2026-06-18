@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   SOURCE_FORMATS, CODECS, CARDS, OFFLOAD_BANDWIDTHS, PROXY_CODEC_IDS,
   codecMbps, estimateFileSizeGB, cardRuntimeMinutes, offloadHours,
-  nativeCodecsForCamera, cardsForVendor, formatSize,
+  nativeCodecsForCamera, cardsForVendor, cameraVendor as vendorOf, formatSize,
   type SourceFormat,
 } from "@/lib/formats";
 
@@ -28,7 +28,6 @@ const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
 let _seq = 0;
 const uid = () => `c${Date.now().toString(36)}${(_seq++).toString(36)}`;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const vendorOf = (camera: string) => camera.split(" ")[0];
 
 // Reuse the Multicam keys so any rig already planned carries straight over.
 const KEY_CAMS = "kaos.multicam.cams";

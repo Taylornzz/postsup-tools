@@ -2535,7 +2535,7 @@ export function nativeCodecsForCamera(cameraName: string): Codec[] {
     if (c.includes("burano")) {
       return ["sony-x-ocn-st", "sony-x-ocn-lt", "sony-xavc-i-4k", "sony-xavc-i-hd"];
     }
-    if (c.includes("fx9") || c.includes("fx6") || c.includes("fx3") || c.includes("α7s") || c.includes("a7s")) {
+    if (c.includes("fx9") || c.includes("fx6") || c.includes("fx3") || c.includes("fx2") || c.includes("fx30") || c.includes("α7s") || c.includes("a7s")) {
       return ["sony-xavc-i-4k", "sony-xavc-l-4k50", "sony-xavc-hs-4k", "sony-xavc-i-hd", "sony-xavc-l-hd50"];
     }
     if (c.includes("pxw-fs7")) {
@@ -2567,6 +2567,15 @@ export function nativeCodecsForCamera(cameraName: string): Codec[] {
     }
     if (c.includes("dji") || c.includes("gopro")) {
       return ["h265-50", "h264-100"]; // consumer DJI drones / Osmo Pocket / GoPro — HEVC + H.264 (no internal ProRes)
+    }
+    if (c.includes("kinefinity") || c.includes("mavo")) {
+      return ["prores-raw-hq", "prores-raw", "arri-prores-4444", "arri-prores-422hq"]; // MAVO Edge: internal ProRes RAW / ProRes
+    }
+    if (c.includes("z cam") || c.includes("zcam")) {
+      return ["prores-raw-hq", "prores-raw", "arri-prores-422hq", "h265-50"]; // Z CAM: ZRAW (≈ProRes RAW) / ProRes / H.265
+    }
+    if (c.includes("ember") || c.includes("freefly")) {
+      return ["arri-prores-422hq", "arri-prores-422lt"]; // Freefly Ember S5K: ProRes 422 LT (high-speed)
     }
     return ["arri-prores-422hq", "h264-100", "h265-50"];
   })();
@@ -2707,9 +2716,9 @@ export type CardSpec = {
   vendors?: string[];
 };
 export const CARDS: CardSpec[] = [
-  { id: "cfx-512",   name: "CFexpress Type B 512 GB", gb: 512,  kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm"] },
-  { id: "cfx-1tb",   name: "CFexpress Type B 1 TB",   gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm"] },
-  { id: "cfx-2tb",   name: "CFexpress Type B 2 TB",   gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm"] },
+  { id: "cfx-512",   name: "CFexpress Type B 512 GB", gb: 512,  kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm", "Z CAM"] },
+  { id: "cfx-1tb",   name: "CFexpress Type B 1 TB",   gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm", "Z CAM"] },
+  { id: "cfx-2tb",   name: "CFexpress Type B 2 TB",   gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic", "Fujifilm", "Z CAM"] },
   { id: "cfx4-1tb",  name: "CFexpress 4.0 Type B 1 TB", gb: 1000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
   { id: "cfx4-2tb",  name: "CFexpress 4.0 Type B 2 TB", gb: 2000, kind: "card", vendors: ["ARRI", "Sony", "Canon", "Blackmagic", "Nikon", "Panasonic"] },
   { id: "codex-1tb", name: "Codex Compact Drive 1 TB", gb: 1000, kind: "mag",  vendors: ["ARRI"] },
@@ -2732,15 +2741,25 @@ export const CARDS: CardSpec[] = [
   // Phantom Flex4K — CineMag IV
   { id: "cinemag-1tb", name: "Phantom CineMag IV 1 TB", gb: 1000, kind: "mag", vendors: ["Phantom"] },
   { id: "cinemag-2tb", name: "Phantom CineMag IV 2 TB", gb: 2000, kind: "mag", vendors: ["Phantom"] },
+  // SSD-based media — Kinefinity KineMAG nano, Freefly Ember internal SSD, Z CAM NVMe
+  { id: "ssd-1tb", name: "NVMe SSD / KineMAG 1 TB", gb: 1000, kind: "drive", vendors: ["Kinefinity", "Freefly", "Z CAM"] },
+  { id: "ssd-2tb", name: "NVMe SSD / KineMAG 2 TB", gb: 2000, kind: "drive", vendors: ["Kinefinity", "Freefly", "Z CAM"] },
+  { id: "ssd-4tb", name: "NVMe SSD 4 TB",           gb: 4000, kind: "drive", vendors: ["Kinefinity", "Freefly"] },
   // iPhone — internal storage / USB-C SSD (no removable card slot)
   { id: "iphone-512", name: "Internal / USB-C SSD 512 GB", gb: 512,  kind: "drive", vendors: ["iPhone"] },
   { id: "iphone-1tb", name: "Internal / USB-C SSD 1 TB",   gb: 1000, kind: "drive", vendors: ["iPhone"] },
   { id: "iphone-2tb", name: "Internal / USB-C SSD 2 TB",   gb: 2000, kind: "drive", vendors: ["iPhone"] },
 ];
 
+/** The brand a camera name belongs to. First word for almost all; "Z CAM" is the two-word case. */
+export const cameraVendor = (camera: string): string => (/^z cam/i.test(camera) ? "Z CAM" : camera.split(" ")[0]);
+
 /** Filter CARDS to those used in a given camera brand (e.g. "ARRI", "RED"). */
 export function cardsForVendor(vendor: string): CardSpec[] {
-  return CARDS.filter((c) => !c.vendors || c.vendors.includes(vendor));
+  const matched = CARDS.filter((c) => !c.vendors || c.vendors.includes(vendor));
+  // Never return an empty list for an unmapped/new vendor — fall back to generic CFexpress so the
+  // Storage card picker always has options (a new brand would otherwise get a blank dropdown).
+  return matched.length ? matched : CARDS.filter((c) => /^cfx/.test(c.id));
 }
 
 /** Sustained offload bandwidths (MB/s) for the DIT ingest budget. */
