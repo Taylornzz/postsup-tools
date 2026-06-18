@@ -72,60 +72,8 @@
     --sidebar-ring: 199 92% 64%;
   }
 
-  /* Mid-grey light mode — opt in via `.light` on <html>. Soft grey surfaces, not stark
-     white: canvas (greyest desk) < bg < panel, with elevated lifting toward light. */
-  html.light {
-    color-scheme: light;
-
-    --background: 240 6% 82%;
-    --foreground: 240 13% 18%;
-    --card: 240 9% 90%;
-    --card-foreground: 240 13% 18%;
-    --popover: 240 9% 91%;
-    --popover-foreground: 240 13% 18%;
-    --primary: 240 12% 24%;
-    --primary-foreground: 240 10% 95%;
-    --secondary: 240 8% 86%;
-    --secondary-foreground: 240 13% 18%;
-    --muted: 240 7% 85%;
-    --muted-foreground: 240 8% 38%;
-    --accent: 240 8% 86%;
-    --accent-foreground: 240 13% 18%;
-    --destructive: 0 64% 45%;
-    --destructive-foreground: 240 10% 96%;
-    --border: 240 7% 73%;
-    --input: 240 8% 82%;
-    --ring: 28 85% 44%;
-
-    /* Suite surfaces — mid greys; panels lift off the canvas, elevated lifts lighter */
-    --suite-bg: 240 8% 86%;
-    --suite-canvas: 240 7% 81%;
-    --suite-panel: 240 9% 90%;
-    --suite-panel-elevated: 240 12% 94%;
-    --suite-border: 240 7% 73%;
-    --suite-border-strong: 240 8% 62%;
-    --suite-text: 240 13% 18%;
-    --suite-text-muted: 240 8% 38%;
-    --suite-text-dim: 240 6% 50%;
-
-    /* Accents — deepened for contrast on mid-grey */
-    --guide-source: 199 76% 38%;
-    --guide-target: 28 86% 42%;
-    --guide-mask: 240 7% 68%;
-    --guide-social: 280 48% 50%;
-
-    --status-ok: 142 56% 33%;
-    --status-warn: 33 82% 38%;
-
-    --sidebar-background: 240 9% 90%;
-    --sidebar-foreground: 240 13% 18%;
-    --sidebar-primary: 240 12% 24%;
-    --sidebar-primary-foreground: 240 10% 95%;
-    --sidebar-accent: 240 8% 86%;
-    --sidebar-accent-foreground: 240 13% 18%;
-    --sidebar-border: 240 7% 73%;
-    --sidebar-ring: 199 76% 38%;
-  }
+  /* Light + every other theme palette lives in themes.css (selected via html[data-theme]).
+     :root above is the default Dark theme. */
 }
 
 @layer base {

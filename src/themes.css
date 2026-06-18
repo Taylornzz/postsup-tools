@@ -1,0 +1,246 @@
+/* Theme palettes. Dark is the :root default (index.css). Each block below overrides the full
+   token set for one theme, selected via `html[data-theme="<id>"]`. Light-family themes also
+   carry the `.light` class (set in applyTheme) so React Flow tracks light/dark. All HSL.
+   Unlayered on purpose: `html[data-theme]` then out-specifies the layered `:root` dark default. */
+
+  /* ---------- Light (the original mid-grey light mode) ---------- */
+  html[data-theme="light"] {
+    color-scheme: light;
+    --background: 240 6% 82%; --foreground: 240 13% 18%;
+    --card: 240 9% 90%; --card-foreground: 240 13% 18%;
+    --popover: 240 9% 91%; --popover-foreground: 240 13% 18%;
+    --primary: 240 12% 24%; --primary-foreground: 240 10% 95%;
+    --secondary: 240 8% 86%; --secondary-foreground: 240 13% 18%;
+    --muted: 240 7% 85%; --muted-foreground: 240 8% 38%;
+    --accent: 240 8% 86%; --accent-foreground: 240 13% 18%;
+    --destructive: 0 64% 45%; --destructive-foreground: 240 10% 96%;
+    --border: 240 7% 73%; --input: 240 8% 82%; --ring: 28 85% 44%;
+    --suite-bg: 240 8% 86%; --suite-canvas: 240 7% 81%; --suite-panel: 240 9% 90%;
+    --suite-panel-elevated: 240 12% 94%; --suite-border: 240 7% 73%; --suite-border-strong: 240 8% 62%;
+    --suite-text: 240 13% 18%; --suite-text-muted: 240 8% 38%; --suite-text-dim: 240 6% 50%;
+    --guide-source: 199 76% 38%; --guide-target: 28 86% 42%; --guide-mask: 240 7% 68%; --guide-social: 280 48% 50%;
+    --status-ok: 142 56% 33%; --status-warn: 33 82% 38%;
+    --sidebar-background: 240 9% 90%; --sidebar-foreground: 240 13% 18%; --sidebar-primary: 240 12% 24%;
+    --sidebar-primary-foreground: 240 10% 95%; --sidebar-accent: 240 8% 86%; --sidebar-accent-foreground: 240 13% 18%;
+    --sidebar-border: 240 7% 73%; --sidebar-ring: 199 76% 38%;
+  }
+
+  /* ---------- Nordic (slate blue-grey, frost accents) ---------- */
+  html[data-theme="nordic"] {
+    color-scheme: dark;
+    --background: 220 16% 14%; --foreground: 219 28% 88%;
+    --card: 220 16% 17%; --card-foreground: 219 28% 88%;
+    --popover: 220 16% 17%; --popover-foreground: 219 28% 88%;
+    --primary: 219 28% 88%; --primary-foreground: 220 16% 14%;
+    --secondary: 219 16% 20%; --secondary-foreground: 219 28% 88%;
+    --muted: 219 16% 20%; --muted-foreground: 220 14% 62%;
+    --accent: 219 16% 20%; --accent-foreground: 219 28% 88%;
+    --destructive: 354 42% 56%; --destructive-foreground: 219 28% 92%;
+    --border: 220 13% 26%; --input: 219 16% 20%; --ring: 193 43% 60%;
+    --suite-bg: 220 16% 14%; --suite-canvas: 221 18% 10%; --suite-panel: 220 16% 17%;
+    --suite-panel-elevated: 219 16% 20%; --suite-border: 220 13% 26%; --suite-border-strong: 220 12% 34%;
+    --suite-text: 219 28% 88%; --suite-text-muted: 220 14% 62%; --suite-text-dim: 220 12% 46%;
+    --guide-source: 210 34% 58%; --guide-target: 193 43% 60%; --guide-mask: 220 18% 7%; --guide-social: 311 20% 63%;
+    --status-ok: 92 28% 58%; --status-warn: 40 60% 62%;
+    --sidebar-background: 220 16% 17%; --sidebar-foreground: 219 28% 88%; --sidebar-primary: 193 43% 60%;
+    --sidebar-primary-foreground: 220 16% 14%; --sidebar-accent: 219 16% 20%; --sidebar-accent-foreground: 219 28% 88%;
+    --sidebar-border: 220 13% 26%; --sidebar-ring: 193 43% 60%;
+  }
+
+  /* ---------- Espresso (warm dark brown, caramel accent) ---------- */
+  html[data-theme="espresso"] {
+    color-scheme: dark;
+    --background: 24 20% 9%; --foreground: 30 25% 88%;
+    --card: 24 18% 12%; --card-foreground: 30 25% 88%;
+    --popover: 24 18% 12%; --popover-foreground: 30 25% 88%;
+    --primary: 30 25% 88%; --primary-foreground: 24 20% 9%;
+    --secondary: 24 16% 15%; --secondary-foreground: 30 25% 88%;
+    --muted: 24 16% 15%; --muted-foreground: 28 12% 60%;
+    --accent: 24 16% 15%; --accent-foreground: 30 25% 88%;
+    --destructive: 4 64% 52%; --destructive-foreground: 30 25% 92%;
+    --border: 24 14% 20%; --input: 24 16% 15%; --ring: 32 80% 55%;
+    --suite-bg: 24 20% 9%; --suite-canvas: 24 22% 6%; --suite-panel: 24 18% 12%;
+    --suite-panel-elevated: 24 16% 15%; --suite-border: 24 14% 20%; --suite-border-strong: 24 13% 28%;
+    --suite-text: 30 25% 88%; --suite-text-muted: 28 12% 60%; --suite-text-dim: 26 10% 44%;
+    --guide-source: 174 40% 52%; --guide-target: 32 80% 55%; --guide-mask: 24 24% 4%; --guide-social: 300 36% 62%;
+    --status-ok: 110 38% 50%; --status-warn: 38 88% 56%;
+    --sidebar-background: 24 18% 12%; --sidebar-foreground: 30 25% 88%; --sidebar-primary: 32 80% 55%;
+    --sidebar-primary-foreground: 24 20% 9%; --sidebar-accent: 24 16% 15%; --sidebar-accent-foreground: 30 25% 88%;
+    --sidebar-border: 24 14% 20%; --sidebar-ring: 32 80% 55%;
+  }
+
+  /* ---------- Terminal (near-black, phosphor green) ---------- */
+  html[data-theme="terminal"] {
+    color-scheme: dark;
+    --background: 132 10% 5%; --foreground: 120 30% 82%;
+    --card: 132 10% 8%; --card-foreground: 120 30% 82%;
+    --popover: 132 10% 8%; --popover-foreground: 120 30% 82%;
+    --primary: 120 30% 82%; --primary-foreground: 132 10% 5%;
+    --secondary: 132 9% 11%; --secondary-foreground: 120 30% 82%;
+    --muted: 132 9% 11%; --muted-foreground: 125 18% 54%;
+    --accent: 132 9% 11%; --accent-foreground: 120 30% 82%;
+    --destructive: 0 72% 56%; --destructive-foreground: 120 30% 88%;
+    --border: 130 10% 16%; --input: 132 9% 11%; --ring: 135 80% 55%;
+    --suite-bg: 132 10% 5%; --suite-canvas: 130 12% 3%; --suite-panel: 132 10% 8%;
+    --suite-panel-elevated: 132 9% 11%; --suite-border: 130 10% 16%; --suite-border-strong: 130 12% 24%;
+    --suite-text: 120 30% 82%; --suite-text-muted: 125 18% 54%; --suite-text-dim: 128 16% 38%;
+    --guide-source: 45 90% 55%; --guide-target: 135 80% 55%; --guide-mask: 130 14% 2%; --guide-social: 170 70% 50%;
+    --status-ok: 135 80% 50%; --status-warn: 45 90% 55%;
+    --sidebar-background: 132 10% 8%; --sidebar-foreground: 120 30% 82%; --sidebar-primary: 135 80% 55%;
+    --sidebar-primary-foreground: 132 10% 5%; --sidebar-accent: 132 9% 11%; --sidebar-accent-foreground: 120 30% 82%;
+    --sidebar-border: 130 10% 16%; --sidebar-ring: 135 80% 55%;
+  }
+
+  /* ---------- Dusk (deep indigo, violet accent) ---------- */
+  html[data-theme="dusk"] {
+    color-scheme: dark;
+    --background: 252 26% 11%; --foreground: 250 30% 90%;
+    --card: 252 24% 14%; --card-foreground: 250 30% 90%;
+    --popover: 252 24% 14%; --popover-foreground: 250 30% 90%;
+    --primary: 250 30% 90%; --primary-foreground: 252 26% 11%;
+    --secondary: 252 22% 17%; --secondary-foreground: 250 30% 90%;
+    --muted: 252 22% 17%; --muted-foreground: 250 16% 64%;
+    --accent: 252 22% 17%; --accent-foreground: 250 30% 90%;
+    --destructive: 350 70% 60%; --destructive-foreground: 250 30% 92%;
+    --border: 252 20% 24%; --input: 252 22% 17%; --ring: 268 80% 68%;
+    --suite-bg: 252 26% 11%; --suite-canvas: 252 28% 8%; --suite-panel: 252 24% 14%;
+    --suite-panel-elevated: 252 22% 17%; --suite-border: 252 20% 24%; --suite-border-strong: 252 18% 32%;
+    --suite-text: 250 30% 90%; --suite-text-muted: 250 16% 64%; --suite-text-dim: 250 14% 46%;
+    --guide-source: 200 85% 62%; --guide-target: 268 80% 68%; --guide-mask: 252 30% 5%; --guide-social: 320 70% 66%;
+    --status-ok: 150 60% 54%; --status-warn: 38 92% 62%;
+    --sidebar-background: 252 24% 14%; --sidebar-foreground: 250 30% 90%; --sidebar-primary: 268 80% 68%;
+    --sidebar-primary-foreground: 252 26% 11%; --sidebar-accent: 252 22% 17%; --sidebar-accent-foreground: 250 30% 90%;
+    --sidebar-border: 252 20% 24%; --sidebar-ring: 268 80% 68%;
+  }
+
+  /* ---------- Neon (near-black, hot magenta + electric cyan) ---------- */
+  html[data-theme="neon"] {
+    color-scheme: dark;
+    --background: 276 22% 6%; --foreground: 300 20% 92%;
+    --card: 276 20% 9%; --card-foreground: 300 20% 92%;
+    --popover: 276 20% 9%; --popover-foreground: 300 20% 92%;
+    --primary: 300 20% 92%; --primary-foreground: 276 22% 6%;
+    --secondary: 278 18% 12%; --secondary-foreground: 300 20% 92%;
+    --muted: 278 18% 12%; --muted-foreground: 290 14% 64%;
+    --accent: 278 18% 12%; --accent-foreground: 300 20% 92%;
+    --destructive: 0 90% 62%; --destructive-foreground: 300 20% 94%;
+    --border: 282 22% 20%; --input: 278 18% 12%; --ring: 320 100% 60%;
+    --suite-bg: 276 22% 6%; --suite-canvas: 274 26% 4%; --suite-panel: 276 20% 9%;
+    --suite-panel-elevated: 278 18% 12%; --suite-border: 282 22% 20%; --suite-border-strong: 285 24% 30%;
+    --suite-text: 300 20% 92%; --suite-text-muted: 290 14% 64%; --suite-text-dim: 285 14% 46%;
+    --guide-source: 185 100% 55%; --guide-target: 320 100% 62%; --guide-mask: 276 28% 3%; --guide-social: 270 100% 72%;
+    --status-ok: 145 85% 52%; --status-warn: 50 100% 58%;
+    --sidebar-background: 276 20% 9%; --sidebar-foreground: 300 20% 92%; --sidebar-primary: 320 100% 62%;
+    --sidebar-primary-foreground: 276 22% 6%; --sidebar-accent: 278 18% 12%; --sidebar-accent-foreground: 300 20% 92%;
+    --sidebar-border: 282 22% 20%; --sidebar-ring: 320 100% 62%;
+  }
+
+  /* ---------- Candy (dark plum, pink + aqua) ---------- */
+  html[data-theme="candy"] {
+    color-scheme: dark;
+    --background: 292 28% 12%; --foreground: 300 30% 92%;
+    --card: 294 26% 16%; --card-foreground: 300 30% 92%;
+    --popover: 294 26% 16%; --popover-foreground: 300 30% 92%;
+    --primary: 300 30% 92%; --primary-foreground: 292 28% 12%;
+    --secondary: 294 24% 20%; --secondary-foreground: 300 30% 92%;
+    --muted: 294 24% 20%; --muted-foreground: 300 16% 66%;
+    --accent: 294 24% 20%; --accent-foreground: 300 30% 92%;
+    --destructive: 350 80% 62%; --destructive-foreground: 300 30% 94%;
+    --border: 296 24% 28%; --input: 294 24% 20%; --ring: 330 90% 65%;
+    --suite-bg: 292 28% 12%; --suite-canvas: 292 30% 9%; --suite-panel: 294 26% 16%;
+    --suite-panel-elevated: 294 24% 20%; --suite-border: 296 24% 28%; --suite-border-strong: 298 22% 38%;
+    --suite-text: 300 30% 92%; --suite-text-muted: 300 16% 66%; --suite-text-dim: 300 14% 50%;
+    --guide-source: 190 80% 60%; --guide-target: 330 90% 65%; --guide-mask: 292 32% 6%; --guide-social: 270 80% 72%;
+    --status-ok: 150 62% 56%; --status-warn: 42 95% 62%;
+    --sidebar-background: 294 26% 16%; --sidebar-foreground: 300 30% 92%; --sidebar-primary: 330 90% 65%;
+    --sidebar-primary-foreground: 292 28% 12%; --sidebar-accent: 294 24% 20%; --sidebar-accent-foreground: 300 30% 92%;
+    --sidebar-border: 296 24% 28%; --sidebar-ring: 330 90% 65%;
+  }
+
+  /* ---------- Latte (warm cream light, caramel accent) ---------- */
+  html[data-theme="latte"] {
+    color-scheme: light;
+    --background: 36 38% 88%; --foreground: 28 30% 22%;
+    --card: 38 45% 92%; --card-foreground: 28 30% 22%;
+    --popover: 40 50% 94%; --popover-foreground: 28 30% 22%;
+    --primary: 26 40% 28%; --primary-foreground: 40 50% 96%;
+    --secondary: 36 32% 84%; --secondary-foreground: 28 30% 22%;
+    --muted: 36 30% 83%; --muted-foreground: 30 16% 42%;
+    --accent: 36 32% 84%; --accent-foreground: 28 30% 22%;
+    --destructive: 0 60% 45%; --destructive-foreground: 40 50% 96%;
+    --border: 34 24% 76%; --input: 36 30% 84%; --ring: 26 75% 42%;
+    --suite-bg: 36 38% 88%; --suite-canvas: 35 30% 83%; --suite-panel: 38 45% 92%;
+    --suite-panel-elevated: 40 50% 95%; --suite-border: 34 24% 76%; --suite-border-strong: 32 20% 64%;
+    --suite-text: 28 30% 22%; --suite-text-muted: 30 16% 42%; --suite-text-dim: 30 12% 54%;
+    --guide-source: 188 60% 32%; --guide-target: 26 75% 40%; --guide-mask: 34 22% 70%; --guide-social: 300 40% 45%;
+    --status-ok: 130 45% 30%; --status-warn: 33 80% 38%;
+    --sidebar-background: 38 45% 92%; --sidebar-foreground: 28 30% 22%; --sidebar-primary: 26 40% 28%;
+    --sidebar-primary-foreground: 40 50% 96%; --sidebar-accent: 36 32% 84%; --sidebar-accent-foreground: 28 30% 22%;
+    --sidebar-border: 34 24% 76%; --sidebar-ring: 26 75% 40%;
+  }
+
+  /* ---------- Mint (light mint-green, teal accent) ---------- */
+  html[data-theme="mint"] {
+    color-scheme: light;
+    --background: 155 28% 90%; --foreground: 168 30% 20%;
+    --card: 152 32% 94%; --card-foreground: 168 30% 20%;
+    --popover: 150 36% 95%; --popover-foreground: 168 30% 20%;
+    --primary: 168 40% 24%; --primary-foreground: 150 40% 96%;
+    --secondary: 155 24% 86%; --secondary-foreground: 168 30% 20%;
+    --muted: 155 22% 85%; --muted-foreground: 165 16% 38%;
+    --accent: 155 24% 86%; --accent-foreground: 168 30% 20%;
+    --destructive: 0 60% 45%; --destructive-foreground: 150 40% 96%;
+    --border: 155 18% 76%; --input: 155 22% 86%; --ring: 168 65% 32%;
+    --suite-bg: 155 28% 90%; --suite-canvas: 155 22% 84%; --suite-panel: 152 32% 94%;
+    --suite-panel-elevated: 150 36% 96%; --suite-border: 155 18% 76%; --suite-border-strong: 156 16% 62%;
+    --suite-text: 168 30% 20%; --suite-text-muted: 165 16% 38%; --suite-text-dim: 160 12% 50%;
+    --guide-source: 200 60% 36%; --guide-target: 168 65% 30%; --guide-mask: 155 18% 72%; --guide-social: 280 40% 48%;
+    --status-ok: 142 55% 30%; --status-warn: 33 78% 38%;
+    --sidebar-background: 152 32% 94%; --sidebar-foreground: 168 30% 20%; --sidebar-primary: 168 40% 24%;
+    --sidebar-primary-foreground: 150 40% 96%; --sidebar-accent: 155 24% 86%; --sidebar-accent-foreground: 168 30% 20%;
+    --sidebar-border: 155 18% 76%; --sidebar-ring: 168 65% 30%;
+  }
+
+  /* ---------- Sakura (soft pink light, rose accent) ---------- */
+  html[data-theme="sakura"] {
+    color-scheme: light;
+    --background: 345 45% 93%; --foreground: 335 30% 26%;
+    --card: 348 50% 96%; --card-foreground: 335 30% 26%;
+    --popover: 350 55% 97%; --popover-foreground: 335 30% 26%;
+    --primary: 338 40% 32%; --primary-foreground: 350 50% 97%;
+    --secondary: 345 36% 89%; --secondary-foreground: 335 30% 26%;
+    --muted: 345 32% 88%; --muted-foreground: 338 16% 44%;
+    --accent: 345 36% 89%; --accent-foreground: 335 30% 26%;
+    --destructive: 0 62% 46%; --destructive-foreground: 350 50% 97%;
+    --border: 345 28% 82%; --input: 345 32% 89%; --ring: 338 65% 50%;
+    --suite-bg: 345 45% 93%; --suite-canvas: 345 35% 88%; --suite-panel: 348 50% 96%;
+    --suite-panel-elevated: 350 55% 97%; --suite-border: 345 28% 82%; --suite-border-strong: 344 24% 70%;
+    --suite-text: 335 30% 26%; --suite-text-muted: 338 16% 44%; --suite-text-dim: 340 12% 56%;
+    --guide-source: 265 45% 52%; --guide-target: 338 65% 50%; --guide-mask: 345 26% 78%; --guide-social: 290 50% 55%;
+    --status-ok: 145 50% 32%; --status-warn: 30 78% 42%;
+    --sidebar-background: 348 50% 96%; --sidebar-foreground: 335 30% 26%; --sidebar-primary: 338 40% 32%;
+    --sidebar-primary-foreground: 350 50% 97%; --sidebar-accent: 345 36% 89%; --sidebar-accent-foreground: 335 30% 26%;
+    --sidebar-border: 345 28% 82%; --sidebar-ring: 338 65% 50%;
+  }
+
+  /* ---------- Peach (warm light, coral accent) ---------- */
+  html[data-theme="peach"] {
+    color-scheme: light;
+    --background: 22 60% 91%; --foreground: 15 40% 24%;
+    --card: 26 65% 94%; --card-foreground: 15 40% 24%;
+    --popover: 28 70% 96%; --popover-foreground: 15 40% 24%;
+    --primary: 14 50% 32%; --primary-foreground: 28 70% 97%;
+    --secondary: 22 48% 87%; --secondary-foreground: 15 40% 24%;
+    --muted: 22 44% 86%; --muted-foreground: 18 20% 42%;
+    --accent: 22 48% 87%; --accent-foreground: 15 40% 24%;
+    --destructive: 0 64% 46%; --destructive-foreground: 28 70% 97%;
+    --border: 22 38% 80%; --input: 22 44% 87%; --ring: 14 80% 50%;
+    --suite-bg: 22 60% 91%; --suite-canvas: 24 50% 86%; --suite-panel: 26 65% 94%;
+    --suite-panel-elevated: 28 70% 96%; --suite-border: 22 38% 80%; --suite-border-strong: 20 32% 66%;
+    --suite-text: 15 40% 24%; --suite-text-muted: 18 20% 42%; --suite-text-dim: 18 14% 54%;
+    --guide-source: 195 60% 36%; --guide-target: 14 80% 50%; --guide-mask: 22 36% 74%; --guide-social: 300 45% 50%;
+    --status-ok: 135 50% 31%; --status-warn: 33 82% 42%;
+    --sidebar-background: 26 65% 94%; --sidebar-foreground: 15 40% 24%; --sidebar-primary: 14 50% 32%;
+    --sidebar-primary-foreground: 28 70% 97%; --sidebar-accent: 22 48% 87%; --sidebar-accent-foreground: 15 40% 24%;
+    --sidebar-border: 22 38% 80%; --sidebar-ring: 14 80% 50%;
+  }

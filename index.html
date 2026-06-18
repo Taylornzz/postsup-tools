@@ -22,8 +22,13 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
   <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
   <script>
-    // Apply saved theme before paint to avoid a flash. Default is dark.
-    (function () { try { if (localStorage.getItem('kaos-theme') === 'light') document.documentElement.classList.add('light'); } catch (e) {} })();
+    // Apply the saved theme before paint to avoid a flash. Default is dark.
+    // The light-theme id list must match LIGHT_THEME_IDS in src/lib/themes.ts.
+    (function () { try {
+      var t = localStorage.getItem('kaos-theme');
+      if (t && t !== 'dark') document.documentElement.setAttribute('data-theme', t);
+      if (['light','latte','mint','sakura','peach'].indexOf(t) >= 0) document.documentElement.classList.add('light');
+    } catch (e) {} })();
   </script>
 </head>
 

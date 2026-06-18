@@ -100,6 +100,7 @@ import { Home, type HomeTab } from "@/components/Home";
 import { updateProject, type Project } from "@/lib/projects";
 const WorkflowBuilder = lazy(() => import("@/components/WorkflowBuilder")); // code-split: React Flow loads only on the Builder tab
 import { masterGraphToFlow, masteringPaletteGroups } from "@/lib/masteringFlow";
+import { THEMES, applyTheme, loadThemeId, type ThemeId } from "@/lib/themes";
 import referencePerson from "@/assets/reference-bg.jpg";
 
 // Uploaded reference plate is persisted to localStorage (as a downscaled data
@@ -119,8 +120,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.15.1";
+export const VERSION = "v2.16.0";
 const CHANGELOG = [
+  "v2.16.0 — Themes. The sun/moon toggle is now a palette picker (top-right) with 12 themes: Dark, Light, plus Nordic, Espresso, Terminal, Dusk, Neon, Candy and the light Latte, Mint, Sakura, Peach. Pick one and the whole app recolours — surfaces and accents — and your choice is remembered and applied before the page paints (no flash). Same layout, just your colour.",
   "v2.15.1 — Capture: added two cameras. The ARRI ALEXA 265 (ARRI Rental's 2024 65 mm — A3X Rev.B sensor with REVEAL/LogC4, distinct from the older ALEXA 65) with its 6.5K Open Gate, 5.1K and 4.5K LF modes; and the DJI Ronin 4D (Zenmuse X9) with the X9-8K 8K/4K modes and the X9-6K 6K/4K modes. Real sensor sizes, so the FOV and storage calculators are accurate.",
   "v2.15.0 — Full security + logic audit, fixes shipped. Security: attachments now download instead of opening in-page unless they're a safe preview type (a disguised .html/.svg could otherwise run in the app and read your saved Trello key) — and uploads are checked for type and size at the door; the Excel reader on the AI endpoint is upgraded to a patched build with a size cap; signing out now wipes this device's cached project data so nothing's left on a shared machine. Data safety: duplicating a project now copies its attachment files (deleting one no longer breaks the other), deleting a project reclaims its files and storage, project-close writes can no longer overwrite each other, and one corrupt saved item can no longer reset a whole project to the examples. Honest failures: restore, cloud-pull, Drive import and the Trello push now tell you when something failed instead of looking like it worked; Trello also retries when rate-limited. Plus smaller fixes — Planner delivery bars no longer merge two same-named recipients, the share/codec counts and a few labels are tidier, and a pile of dead code and stray files were removed. API functions are now typechecked in the build too.",
   "v2.14.6 — Home: the resume button now reads ‘Continue where you left off’ over the tool name (e.g. Deliverables), so it’s clear what it does and where it goes.",
@@ -1206,7 +1208,7 @@ const Index = ({ project, onSwitchProject }: { project: Project; onSwitchProject
           <ToolsTabButton active={appTab === "tools"} onClick={() => setAppTab("tools")} />
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <ThemeToggle />
+          <ThemePicker />
           <AppMenu version={VERSION} onOpenVendors={() => setAppTab("vendors")} onOpenNews={() => setAppTab("news")} onProjects={onSwitchProject} projectId={project.id} projectName={projectName} />
         </div>
       </header>
@@ -2122,19 +2124,40 @@ function VersionBadge() {
   // return <span className="text-[10px] text-suite-text-dim ml-2 font-mono">{VERSION}</span>;
 }
 
-function ThemeToggle() {
-  const [light, setLight] = useState(() => typeof document !== "undefined" && document.documentElement.classList.contains("light"));
-  const toggle = () => {
-    const next = !light;
-    setLight(next);
-    document.documentElement.classList.toggle("light", next);
-    try { localStorage.setItem("kaos-theme", next ? "light" : "dark"); } catch { /* ignore */ }
-  };
+function ThemePicker() {
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState<ThemeId>(() => loadThemeId());
+  const pick = (id: ThemeId) => { applyTheme(id); setCurrent(id); setOpen(false); };
   return (
-    <button onClick={toggle} title={light ? "Switch to dark mode" : "Switch to light mode"} aria-label="Toggle light or dark mode"
-      className="flex items-center justify-center size-7 shrink-0 rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
-      {light ? <Moon className="size-3.5" strokeWidth={1.6} /> : <Sun className="size-3.5" strokeWidth={1.6} />}
-    </button>
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} title="Theme" aria-label="Choose a theme"
+        className="flex items-center justify-center size-7 shrink-0 rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
+        <Palette className="size-3.5" strokeWidth={1.6} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-50 w-60 rounded-md border border-suite-border-strong bg-suite-panel shadow-xl p-2">
+            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-suite-text-dim px-1 pb-1.5">Theme</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {THEMES.map((t) => {
+                const sel = t.id === current;
+                return (
+                  <button key={t.id} onClick={() => pick(t.id)} title={t.name}
+                    className={cn("group rounded-md border p-1 flex flex-col items-center gap-1 transition-colors",
+                      sel ? "border-guide-target ring-1 ring-guide-target/40" : "border-suite-border hover:border-suite-border-strong")}>
+                    <span className="w-full h-7 rounded-sm border border-black/25 grid place-items-center" style={{ background: `hsl(${t.bg})` }}>
+                      <span className="size-2.5 rounded-full" style={{ background: `hsl(${t.accent})` }} />
+                    </span>
+                    <span className={cn("font-mono text-[8.5px]", sel ? "text-guide-target" : "text-suite-text-muted group-hover:text-suite-text")}>{t.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
