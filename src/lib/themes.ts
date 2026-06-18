@@ -2,9 +2,7 @@
 // `html[data-theme="<id>"]` palette in themes.css. The legacy `.light` class is kept as a
 // derived "is this a light theme" flag (React Flow / WorkflowBuilder reads it).
 
-export type ThemeId =
-  | "dark" | "light" | "nordic" | "espresso" | "terminal" | "dusk"
-  | "neon" | "candy" | "latte" | "mint" | "sakura" | "peach";
+export type ThemeId = "dark" | "light" | "nordic" | "espresso" | "terminal" | "latte";
 
 export type ThemeDef = {
   id: ThemeId;
@@ -23,13 +21,7 @@ export const THEMES: ThemeDef[] = [
   { id: "nordic",   name: "Nordic",   light: false, bg: "220 16% 14%", accent: "193 43% 60%" },
   { id: "espresso", name: "Espresso", light: false, bg: "24 20% 9%",   accent: "32 80% 55%" },
   { id: "terminal", name: "Terminal", light: false, bg: "132 10% 5%",  accent: "135 80% 55%" },
-  { id: "dusk",     name: "Dusk",     light: false, bg: "252 26% 11%", accent: "268 80% 68%" },
-  { id: "neon",     name: "Neon",     light: false, bg: "276 22% 6%",  accent: "320 100% 60%" },
-  { id: "candy",    name: "Candy",    light: false, bg: "292 28% 12%", accent: "330 90% 65%" },
   { id: "latte",    name: "Latte",    light: true,  bg: "36 38% 88%",  accent: "26 75% 42%" },
-  { id: "mint",     name: "Mint",     light: true,  bg: "155 28% 90%", accent: "168 65% 32%" },
-  { id: "sakura",   name: "Sakura",   light: true,  bg: "345 45% 93%", accent: "338 65% 50%" },
-  { id: "peach",    name: "Peach",    light: true,  bg: "22 60% 91%",  accent: "14 80% 52%" },
 ];
 
 const STORAGE_KEY = "kaos-theme";

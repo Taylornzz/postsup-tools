@@ -120,9 +120,10 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.16.0";
+export const VERSION = "v2.16.1";
 const CHANGELOG = [
-  "v2.16.0 — Themes. The sun/moon toggle is now a palette picker (top-right) with 12 themes: Dark, Light, plus Nordic, Espresso, Terminal, Dusk, Neon, Candy and the light Latte, Mint, Sakura, Peach. Pick one and the whole app recolours — surfaces and accents — and your choice is remembered and applied before the page paints (no flash). Same layout, just your colour.",
+  "v2.16.1 — Theme tweaks. The picker button is now labelled ‘Theme’ (top-right) so it’s easy to find, and the set is trimmed to six: Dark, Light, Nordic, Espresso, Terminal and Latte.",
+  "v2.16.0 — Themes. The sun/moon toggle is now a labelled ‘Theme’ picker (top-right). Pick one and the whole app recolours — surfaces and accents — and your choice is remembered and applied before the page paints (no flash). Same layout, just your colour.",
   "v2.15.1 — Capture: added two cameras. The ARRI ALEXA 265 (ARRI Rental's 2024 65 mm — A3X Rev.B sensor with REVEAL/LogC4, distinct from the older ALEXA 65) with its 6.5K Open Gate, 5.1K and 4.5K LF modes; and the DJI Ronin 4D (Zenmuse X9) with the X9-8K 8K/4K modes and the X9-6K 6K/4K modes. Real sensor sizes, so the FOV and storage calculators are accurate.",
   "v2.15.0 — Full security + logic audit, fixes shipped. Security: attachments now download instead of opening in-page unless they're a safe preview type (a disguised .html/.svg could otherwise run in the app and read your saved Trello key) — and uploads are checked for type and size at the door; the Excel reader on the AI endpoint is upgraded to a patched build with a size cap; signing out now wipes this device's cached project data so nothing's left on a shared machine. Data safety: duplicating a project now copies its attachment files (deleting one no longer breaks the other), deleting a project reclaims its files and storage, project-close writes can no longer overwrite each other, and one corrupt saved item can no longer reset a whole project to the examples. Honest failures: restore, cloud-pull, Drive import and the Trello push now tell you when something failed instead of looking like it worked; Trello also retries when rate-limited. Plus smaller fixes — Planner delivery bars no longer merge two same-named recipients, the share/codec counts and a few labels are tidier, and a pile of dead code and stray files were removed. API functions are now typechecked in the build too.",
   "v2.14.6 — Home: the resume button now reads ‘Continue where you left off’ over the tool name (e.g. Deliverables), so it’s clear what it does and where it goes.",
@@ -2131,8 +2132,8 @@ function ThemePicker() {
   return (
     <div className="relative">
       <button onClick={() => setOpen((o) => !o)} title="Theme" aria-label="Choose a theme"
-        className="flex items-center justify-center size-7 shrink-0 rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors">
-        <Palette className="size-3.5" strokeWidth={1.6} />
+        className="flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-sm border border-suite-border text-suite-text-muted hover:text-suite-text hover:border-suite-border-strong bg-suite-bg transition-colors text-[10px] tracking-[0.14em] uppercase font-mono">
+        <Palette className="size-3" strokeWidth={1.6} /> Theme
       </button>
       {open && (
         <>

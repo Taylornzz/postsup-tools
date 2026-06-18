@@ -27,7 +27,7 @@
     (function () { try {
       var t = localStorage.getItem('kaos-theme');
       if (t && t !== 'dark') document.documentElement.setAttribute('data-theme', t);
-      if (['light','latte','mint','sakura','peach'].indexOf(t) >= 0) document.documentElement.classList.add('light');
+      if (['light','latte'].indexOf(t) >= 0) document.documentElement.classList.add('light');
     } catch (e) {} })();
   </script>
 </head>
