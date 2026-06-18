@@ -186,6 +186,21 @@ describe("netflixStatusForCamera", () => {
     expect(netflixStatusForCamera("Canon EOS C700 FF")).toBe("approved");
     expect(netflixStatusForCamera("Canon EOS C700")).toBe("approved");
   });
+  it("approves the cameras on Netflix's 2026 list (verified vs Partner Help Center)", () => {
+    expect(netflixStatusForCamera("ARRI ALEXA 265")).toBe("approved");      // own pattern — /alexa 65/ does NOT match
+    expect(netflixStatusForCamera("ARRI ALEXA 35 Xtreme")).toBe("approved"); // covered by /alexa 35/
+    expect(netflixStatusForCamera("Canon EOS C80")).toBe("approved");
+    expect(netflixStatusForCamera("Canon EOS C50")).toBe("approved");
+    expect(netflixStatusForCamera("Canon EOS C500 Mk II")).toBe("approved"); // C50 pattern must not over- or under-match C500
+    expect(netflixStatusForCamera("Blackmagic URSA Cine 17K 65")).toBe("approved");
+    expect(netflixStatusForCamera("RED V-RAPTOR XE VV")).toBe("approved");
+  });
+  it("keeps the un-approved Sony bodies un-approved (FX30 must not match /fx3/)", () => {
+    expect(netflixStatusForCamera("Sony FX3")).toBe("approved");
+    expect(netflixStatusForCamera("Sony FX30")).toBe("not-approved");
+    expect(netflixStatusForCamera("Sony FX2")).toBe("not-approved");
+    expect(netflixStatusForCamera("Blackmagic PYXIS 6K")).toBe("not-approved");
+  });
   it("flags non-approved cameras", () => {
     expect(netflixStatusForCamera("Sony α7S III")).toBe("not-approved");
     expect(netflixStatusForCamera("iPhone 15 Pro")).toBe("not-approved");

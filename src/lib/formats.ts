@@ -2777,13 +2777,15 @@ export function offloadHours(
 // --- Netflix approval status ----------------------------------------------
 // Netflix Originals require ≥90% of runtime captured on an Approved Camera.
 // Source: Netflix Production Technology — Camera Approval List (late 2025).
+// Verified against Netflix's Partner Help Center approved-cameras page (mid-2026).
 const NETFLIX_APPROVED_PATTERNS: RegExp[] = [
-  /alexa 35/i, /alexa lf/i, /alexa mini/i, /alexa 65/i, /amira/i,
+  /alexa 35/i, /alexa lf/i, /alexa mini/i, /alexa 65/i, /alexa 265/i, /amira/i, // /alexa 35/ also covers ALEXA 35 Xtreme; 265 needs its own (not matched by /alexa 65/)
   /v-raptor/i, /monstro/i, /komodo/i,
   /venice/i, /burano/i, /fx9/i, /fx6/i, /fs7/i, // FS7/FS7 II approved (4K XAVC-I)
   /c500 mk ii/i, /c500ii/i, /c400/i, /c300 mk iii/i, /c300iii/i, /r5 ?c/i, /c700/i,
-  /ursa cine 12k/i, /panavision/i, /phantom/i,
-  /fx3/i, // FX3 is a fully approved primary camera (firmware 2.0, XAVC S-I 4K)
+  /\bc80\b/i, /\bc50\b/i, // Canon C80 + C50 added to the list (early 2026); \b so C50 doesn't match C500
+  /ursa cine 12k/i, /ursa cine 17k/i, /panavision/i, /phantom/i,
+  /fx3\b/i, // FX3 approved (firmware 2.0, XAVC S-I 4K); \b so it doesn't also match the un-approved FX30
 ];
 const NETFLIX_LIMITED_PATTERNS: RegExp[] = [
   // Word boundary matters: limited patterns are tested FIRST, and a bare /c70/ also matches

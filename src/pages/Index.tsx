@@ -121,8 +121,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.17.1";
+export const VERSION = "v2.17.2";
 const CHANGELOG = [
+  "v2.17.2 — Netflix status corrected against Netflix's own approved-cameras page. The ARRI ALEXA 265 now shows Netflix Approved (it was wrongly not-approved — the ‘65’ rule didn’t catch ‘265’), and the Canon C80, C50 and Blackmagic URSA Cine 17K 65 are now flagged approved too. Also fixed a latent bug: the FX3 rule was matching the FX30 — the FX30 (not approved) is now correct.",
   "v2.17.1 — Camera catalog watch. The Capture tab now runs a quiet web check (about once a month, on the cheap model) that compares the catalog against current cinema cameras and flags any that are missing, with a source link for each. It's a heads-up only — verify, then ask to add the ones you want. This is the safety net so a new release like the ALEXA 265 surfaces on its own instead of being missed.",
   "v2.17.0 — Camera catalog audit: 12 cameras added after a web-verified completeness pass against every manufacturer and rental house. New: ARRI ALEXA 35 Xtreme, Blackmagic URSA Cine 17K 65, Blackmagic PYXIS 6K, Canon EOS C80, Canon EOS C50, Sony FX2, Sony FX30, RED V-Raptor XL [X], RED V-Raptor XE, plus two brands the catalog didn't cover at all — Kinefinity (MAVO Edge 8K) and Z CAM (E2-F8) — and the Freefly Ember S5K high-speed. Every sensor size and resolution is taken from the manufacturer page so the FOV and storage maths are accurate.",
   "v2.16.1 — Theme tweaks. The picker button is now labelled ‘Theme’ (top-right) so it’s easy to find, and the set is trimmed to six: Dark, Light, Nordic, Espresso, Terminal and Latte.",
