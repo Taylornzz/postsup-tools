@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { HardDrive, Plus, Trash2, Clock, Layers, Copy, Gauge, Calculator, Film, Check, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HardDrive, Plus, Trash2, Clock, Layers, Copy, Gauge, Calculator, Film, Check, ChevronDown, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -57,23 +57,26 @@ function buildCamFromSetup(s: SetupSpec, days: number): RigCam {
   };
 }
 // Lowest unused A-cam/B-cam/… so remove-then-add never reuses a label still in the rig.
+// Default camera names: Cam A, Cam B, Cam C… (lowest unused letter). Editable; reorderable.
 const nextLabel = (cams: { label: string }[]) => {
   const used = new Set(cams.map((c) => c.label));
-  for (let i = 0; i < 26; i++) { const l = `${String.fromCharCode(65 + i)}-cam`; if (!used.has(l)) return l; }
+  for (let i = 0; i < 26; i++) { const l = `Cam ${String.fromCharCode(65 + i)}`; if (!used.has(l)) return l; }
   return `Cam ${cams.length + 1}`;
 };
+// Migrate the old "A-cam" default naming to "Cam A" (leaves custom names untouched).
+const migrateLabel = (l: string) => /^[A-Z]-cam$/.test(l) ? `Cam ${l[0]}` : l;
 
 function loadCams(key: string, days: number, seed?: { sourceId?: string; codecId?: string; fps?: number }): RigCam[] {
   try {
     const raw = localStorage.getItem(key);
-    if (raw === null) return [buildCam("A-cam", days, seed)];
+    if (raw === null) return [buildCam("Cam A", days, seed)];
     const arr = JSON.parse(raw);
-    if (!Array.isArray(arr) || arr.length === 0) return [buildCam("A-cam", days, seed)];
+    if (!Array.isArray(arr) || arr.length === 0) return [buildCam("Cam A", days, seed)];
     return arr
       .filter((c) => c && typeof c.sourceId === "string" && typeof c.codecId === "string")
       .map((c) => ({
         id: typeof c.id === "string" ? c.id : uid(),
-        label: typeof c.label === "string" ? c.label : "Cam",
+        label: typeof c.label === "string" ? migrateLabel(c.label) : "Cam",
         sourceId: SOURCE_FORMATS.some((s) => s.id === c.sourceId) ? c.sourceId : SOURCE_FORMATS[0].id,
         codecId: CODECS.some((x) => x.id === c.codecId) ? c.codecId : CODECS[0].id,
         fps: Number.isFinite(c.fps) ? c.fps : 24,
@@ -83,7 +86,7 @@ function loadCams(key: string, days: number, seed?: { sourceId?: string; codecId
         enabled: c.enabled !== false,
         setupId: typeof c.setupId === "string" ? c.setupId : undefined,
       }));
-  } catch { return [buildCam("A-cam", days, seed)]; }
+  } catch { return [buildCam("Cam A", days, seed)]; }
 }
 function loadGlobals(key: string): Globals {
   const dflt: Globals = { copies: 2, bwId: "tb3", stations: 2, proxyCodecId: PROXY_CODEC_IDS[0].id, verify: true };
@@ -162,6 +165,38 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
   });
   const removeCam = (id: string) => setCams((cs) => cs.filter((c) => c.id !== id));
   const reset = () => { if (window.confirm("Clear all cameras from the rig?")) { setCams([]); setExpanded(new Set()); } };
+
+  // ---- drag-to-reorder cameras (grip handle) ----
+  const dragCam = useRef<string | null>(null);
+  const [overCam, setOverCam] = useState<{ id: string; after: boolean } | null>(null);
+  const onCamDragStart = (id: string) => (e: React.DragEvent) => { dragCam.current = id; e.dataTransfer.effectAllowed = "move"; };
+  const onCamDragOver = (id: string) => (e: React.DragEvent) => {
+    if (!dragCam.current || dragCam.current === id) return;
+    e.preventDefault();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    setOverCam((p) => (p?.id === id && p.after === after ? p : { id, after }));
+  };
+  const onCamDrop = (id: string) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const from = dragCam.current;
+    dragCam.current = null; setOverCam(null);
+    if (!from || from === id) return;
+    // Compute the insert side from THIS event (not the dragover state, which can lag).
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    setCams((cs) => {
+      const item = cs.find((c) => c.id === from);
+      if (!item) return cs;
+      const without = cs.filter((c) => c.id !== from);
+      let at = without.findIndex((c) => c.id === id);
+      if (at < 0) return cs;
+      if (after) at += 1;
+      without.splice(at, 0, item);
+      return without;
+    });
+  };
+  const onCamDragEnd = () => { dragCam.current = null; setOverCam(null); };
   const toggleExpand = (id: string) => setExpanded((e) => { const n = new Set(e); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleCmp = (id: string) => setCmpOpen((e) => { const n = new Set(e); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleSetup = (s: SetupSpec) => setCams((cs) => {
@@ -331,9 +366,18 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
             const isOpen = expanded.has(r.cam.id);
             const showCmp = cmpOpen.has(r.cam.id);
             return (
-              <div key={r.cam.id} className={cn("rounded-md border bg-suite-panel/60 transition-colors", r.cam.enabled ? "border-suite-border" : "border-suite-border/50 opacity-60", isOpen && "border-guide-target/40")}>
+              <div key={r.cam.id}
+                onDragOver={onCamDragOver(r.cam.id)} onDrop={onCamDrop(r.cam.id)}
+                className={cn("rounded-md border bg-suite-panel/60 transition-colors", r.cam.enabled ? "border-suite-border" : "border-suite-border/50 opacity-60", isOpen && "border-guide-target/40",
+                  dragCam.current === r.cam.id && "opacity-50",
+                  overCam?.id === r.cam.id && (overCam.after ? "shadow-[0_3px_0_0_#f59e0b]" : "shadow-[0_-3px_0_0_#f59e0b]"))}>
                 {/* Collapsed header row — clean & scannable. Click the summary or chevron to open. */}
                 <div className="flex items-center gap-2.5 px-3 py-2.5">
+                  <button draggable onDragStart={onCamDragStart(r.cam.id)} onDragEnd={onCamDragEnd}
+                    title="Drag to reorder" aria-label="Drag to reorder camera"
+                    className="shrink-0 cursor-grab active:cursor-grabbing text-suite-text-dim hover:text-suite-text">
+                    <GripVertical className="size-3.5" strokeWidth={1.6} />
+                  </button>
                   <button onClick={() => setCam(r.cam.id, { enabled: !r.cam.enabled })}
                     title={r.cam.enabled ? "Rolling — click to mute from rig totals" : "Muted — click to include"}
                     className={cn("shrink-0 size-2.5 rounded-full border", r.cam.enabled ? "bg-guide-target border-guide-target" : "border-suite-text-dim")} />

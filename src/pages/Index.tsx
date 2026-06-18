@@ -121,8 +121,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.17.3";
+export const VERSION = "v2.17.4";
 const CHANGELOG = [
+  "v2.17.4 — Storage cameras now name themselves Cam A, Cam B, Cam C as you add them, and you can rename any of them or drag them into any order with the grip handle on the left. Existing 'A-cam' style names carry over to the new naming automatically.",
   "v2.17.3 — Storage now works for every camera. The new Kinefinity, Z CAM and Freefly bodies had an empty card list in the Storage planner (cards are matched by brand, and those weren't mapped — ‘Z CAM’ even mis-read as ‘Z’). Added their media (NVMe SSD / KineMAG, CFexpress) and proper codecs, fixed the Sony FX2 codec mapping, and added a catch-all so any future camera always gets a card list instead of a blank dropdown. A test now checks every camera in the catalog resolves to a card and a codec.",
   "v2.17.2 — Netflix status corrected against Netflix's own approved-cameras page. The ARRI ALEXA 265 now shows Netflix Approved (it was wrongly not-approved — the ‘65’ rule didn’t catch ‘265’), and the Canon C80, C50 and Blackmagic URSA Cine 17K 65 are now flagged approved too. Also fixed a latent bug: the FX3 rule was matching the FX30 — the FX30 (not approved) is now correct.",
   "v2.17.1 — Camera catalog watch. The Capture tab now runs a quiet web check (about once a month, on the cheap model) that compares the catalog against current cinema cameras and flags any that are missing, with a source link for each. It's a heads-up only — verify, then ask to add the ones you want. This is the safety net so a new release like the ALEXA 265 surfaces on its own instead of being missed.",
