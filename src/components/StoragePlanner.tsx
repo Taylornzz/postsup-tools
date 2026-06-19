@@ -44,12 +44,13 @@ function buildCam(label: string, days: number, seed?: { sourceId?: string; codec
     cardId: cards[0]?.id ?? CARDS[0].id, hoursPerDay: 4, shootDays: days, enabled: true,
   };
 }
-function buildCamFromSetup(s: SetupSpec, days: number): RigCam {
+// label is the next free Cam A/B/C — a setup adds a camera like any other, not its own name.
+function buildCamFromSetup(s: SetupSpec, days: number, label: string): RigCam {
   const src = SOURCE_FORMATS.find((x) => x.id === s.sourceId) ?? SOURCE_FORMATS[0];
   const codecs = nativeCodecsForCamera(src.camera);
   const cards = cardsForVendor(vendorOf(src.camera));
   return {
-    id: uid(), label: s.name || "Setup", sourceId: src.id,
+    id: uid(), label, sourceId: src.id,
     codecId: codecs.some((c) => c.id === s.codecId) ? s.codecId! : (codecs[0]?.id ?? CODECS[0].id),
     fps: Number.isFinite(s.fps) ? s.fps! : 24,
     cardId: CARDS.some((c) => c.id === s.cardId) ? s.cardId! : (cards[0]?.id ?? CARDS[0].id),
@@ -203,7 +204,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
     // Un-ticking removes the camera even if it's the last one — an empty rig is a supported
     // state (removeCam/reset both allow it), so don't silently no-op the only camera.
     if (cs.some((c) => c.setupId === s.id)) return cs.filter((c) => c.setupId !== s.id);
-    const cam = buildCamFromSetup(s, cs[0]?.shootDays ?? dfltDays); setExpanded((e) => new Set(e).add(cam.id)); return [...cs, cam];
+    const cam = buildCamFromSetup(s, cs[0]?.shootDays ?? dfltDays, nextLabel(cs)); setExpanded((e) => new Set(e).add(cam.id)); return [...cs, cam];
   });
 
   const bandwidth = OFFLOAD_BANDWIDTHS.find((b) => b.id === g.bwId) ?? OFFLOAD_BANDWIDTHS[0];
@@ -362,7 +363,7 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
               </button>
             </div>
           ) : (<>
-          {rows.map((r, idx) => {
+          {rows.map((r) => {
             const isOpen = expanded.has(r.cam.id);
             const showCmp = cmpOpen.has(r.cam.id);
             return (
@@ -381,7 +382,6 @@ export function StoragePlanner({ projectName, projectId, seedSourceId, seedCodec
                   <button onClick={() => setCam(r.cam.id, { enabled: !r.cam.enabled })}
                     title={r.cam.enabled ? "Rolling — click to mute from rig totals" : "Muted — click to include"}
                     className={cn("shrink-0 size-2.5 rounded-full border", r.cam.enabled ? "bg-guide-target border-guide-target" : "border-suite-text-dim")} />
-                  <span className="shrink-0 grid place-items-center size-5 rounded bg-suite-bg border border-suite-border font-mono text-[10px] font-bold text-suite-text-muted tabular">{idx + 1}</span>
                   <input value={r.cam.label} onChange={(e) => setCam(r.cam.id, { label: e.target.value })}
                     title="Camera label"
                     className="w-24 shrink-0 bg-transparent border-0 border-b border-transparent hover:border-suite-border/60 focus:border-suite-border px-0.5 text-[12px] font-mono text-suite-text font-semibold focus:outline-none" />
