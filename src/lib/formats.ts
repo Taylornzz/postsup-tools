@@ -172,6 +172,34 @@ export const SOURCE_FORMATS: SourceFormat[] = [
     colorSpace: "ARRI Wide Gamut 4",
     oetf: "LogC4",
   },
+  // ALEXA 35 Live (multicam live system, ARRI 2024) — same ALEV 4 Super 35 sensor as the
+  // ALEXA 35, records the same ARRIRAW/ProRes onboard, so storage maths mirror the ALEXA 35.
+  // https://www.arri.com/en/camera-systems/live-cameras/alexa-35-live
+  {
+    id: "alexa35-live-46k-og",
+    camera: "ARRI ALEXA 35 Live",
+    mode: "4.6K 3:2 Open Gate",
+    width: 4608,
+    height: 3164,
+    squeeze: 1,
+    maxFps: 75,
+    sensorWidthMm: 27.99,
+    sensorHeightMm: 19.22,
+    colorSpace: "ARRI Wide Gamut 4",
+    oetf: "LogC4",
+  },
+  {
+    id: "alexa35-live-44k-169",
+    camera: "ARRI ALEXA 35 Live",
+    mode: "4.4K 16:9",
+    width: 4448,
+    height: 2502,
+    squeeze: 1,
+    sensorWidthMm: 27.02,
+    sensorHeightMm: 15.20,
+    colorSpace: "ARRI Wide Gamut 4",
+    oetf: "LogC4",
+  },
   {
     id: "alexa-lf-og",
     camera: "ARRI ALEXA LF",

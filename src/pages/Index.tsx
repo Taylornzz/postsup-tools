@@ -121,8 +121,9 @@ function readStoredPlateMode(): PlateMode {
 
 const BUILTIN_GUIDE = referencePerson;
 const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 100, 120];
-export const VERSION = "v2.17.5";
+export const VERSION = "v2.17.6";
 const CHANGELOG = [
+  "v2.17.6 — Added the ARRI ALEXA 35 Live (the multicam live body, same 4.6K Super 35 sensor as the ALEXA 35, so it records the same ARRIRAW/ProRes and flows through Storage with ARRI cards). The catalog-watch panel in Capture now has clear 'add' and 'dismiss' buttons on each suggestion: 'add' copies a ready request to paste to Claude (which verifies the specs before adding), 'dismiss' hides it for good. Note: the watch's suggested 'Kinefinity MAVO Edge 8K II' isn't a real product — only the MAVO Edge 8K exists, and it's already in the catalog — so it wasn't added.",
   "v2.17.5 — Storage camera naming, finished. Every camera now lands as Cam A, Cam B, Cam C — including ones you drop in from a saved Capture setup (they used to keep the setup's full name). Dropped the little 1/2/3 number tag next to each camera; the Cam A/B/C label is the only name now, still rename-able and drag-to-reorder.",
   "v2.17.4 — Storage cameras now name themselves Cam A, Cam B, Cam C as you add them, and you can rename any of them or drag them into any order with the grip handle on the left. Existing 'A-cam' style names carry over to the new naming automatically.",
   "v2.17.3 — Storage now works for every camera. The new Kinefinity, Z CAM and Freefly bodies had an empty card list in the Storage planner (cards are matched by brand, and those weren't mapped — ‘Z CAM’ even mis-read as ‘Z’). Added their media (NVMe SSD / KineMAG, CFexpress) and proper codecs, fixed the Sony FX2 codec mapping, and added a catch-all so any future camera always gets a card list instead of a blank dropdown. A test now checks every camera in the catalog resolves to a card and a codec.",

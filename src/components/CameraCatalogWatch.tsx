@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Radar, X, ExternalLink, Loader2 } from "lucide-react";
+import { Radar, X, ExternalLink, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   currentCameraNames, fetchCameraWatch, loadCameraWatch, saveCameraWatch,
@@ -46,6 +46,17 @@ export function CameraCatalogWatch() {
   }, []);
 
   const flags = activeFlags(state);
+  // "Accept" isn't a one-click catalog write on purpose: a flag can be wrong (a model can
+  // invent a body that doesn't exist), so adding always goes through a human verify step.
+  // This copies a ready request to paste to Claude, which checks the specs before adding.
+  const copyAdd = (f: typeof flags[number]) => {
+    const name = `${f.brand} ${f.model}`.trim();
+    const req = `Add the ${name} to the camera catalog.`;
+    navigator.clipboard?.writeText(req).then(
+      () => toast.success("Add request copied", { description: `Paste it to Claude. It verifies specs, then adds ${name}.` }),
+      () => toast.error("Couldn't copy", { description: `Ask Claude: "${req}"` }),
+    );
+  };
   const dismissOne = (f: typeof flags[number]) => { const n = dismissFlagged(state, f); setState(n); saveCameraWatch(n); };
   const dismissAll = () => { const n = state ? { ...state, dismissed: [...new Set([...(state.dismissed || []), ...flags.map((f) => `${f.brand} ${f.model}`.toLowerCase().trim())])] } : state; setState(n); saveCameraWatch(n); };
 
@@ -69,12 +80,17 @@ export function CameraCatalogWatch() {
             <a href={/^https?:\/\//.test(f.source) ? f.source : "#"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-guide-source hover:underline" title={f.source}>
               <ExternalLink className="size-2.5" strokeWidth={1.7} /> source
             </a>
-            <button onClick={() => dismissOne(f)} className="ml-auto text-suite-text-dim hover:text-suite-text" title="Dismiss"><X className="size-3" strokeWidth={2} /></button>
+            <button onClick={() => copyAdd(f)} className="ml-auto inline-flex items-center gap-0.5 text-guide-target hover:underline" title="Copy a request to paste to Claude. It verifies the specs, then adds it">
+              <Plus className="size-2.5" strokeWidth={2.2} /> add
+            </button>
+            <button onClick={() => dismissOne(f)} className="inline-flex items-center gap-0.5 text-suite-text-dim hover:text-suite-text" title="Hide this suggestion for good">
+              <X className="size-3" strokeWidth={2} /> dismiss
+            </button>
           </li>
         ))}
       </ul>
       <p className="font-mono text-[9px] text-suite-text-dim leading-relaxed">
-        Suggestions from a monthly web check — verify, then ask to add the ones you want.
+        Monthly web check, suggestions only. <span className="text-guide-target">add</span> copies a request to paste to Claude (it verifies specs before adding); <span className="text-suite-text-muted">dismiss</span> hides one for good.
         <button onClick={() => run(true)} disabled={running} className="ml-2 text-suite-text-muted hover:text-suite-text underline-offset-2 hover:underline disabled:opacity-50">Check now</button>
       </p>
     </div>
